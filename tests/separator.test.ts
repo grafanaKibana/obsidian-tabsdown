@@ -160,3 +160,38 @@ test("follows ancestor attributes across a shadow root host", async () => {
 		resize.restore();
 	}
 });
+
+test("ignores Tabsdown's own animated panel height", async () => {
+	const resize = stubResizeObserver();
+	try {
+		const panels = document.body.appendChild(document.createElement("div"));
+		panels.className = "tabsdown__panels";
+		const panel = panels.appendChild(document.createElement("div"));
+		const list = panel.appendChild(document.createElement("div"));
+		list.style.display = "flex";
+		const buttons = [0, 1].map(() => {
+			const button = list.appendChild(document.createElement("button"));
+			const separator = button.appendChild(document.createElement("span"));
+			separator.className = "tabsdown__separator";
+			separator.hidden = true;
+			return button;
+		});
+		const boxes = [rect(0, 0), rect(44, 0)];
+		buttons.forEach((button, index) => {
+			button.getBoundingClientRect = () => boxes[index] ?? rect(0, 0);
+		});
+
+		const tracker = trackSeparators(list, buttons);
+		const separator = buttons[1]!.querySelector<HTMLElement>(".tabsdown__separator")!;
+		expect(separator.style.left).toBe("-2px");
+
+		boxes[1] = rect(60, 0);
+		panels.style.height = "240px";
+		await Promise.resolve();
+		expect(separator.style.left).toBe("-2px");
+
+		tracker.destroy();
+	} finally {
+		resize.restore();
+	}
+});
