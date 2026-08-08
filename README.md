@@ -11,7 +11,7 @@ Put related Markdown, queries, and embeds into compact, accessible tabs without 
 - Use interactive tabs in Reading View and outside the editing locus in Live Preview; keep raw Markdown in Source Mode.
 - Preserve visited panels during normal switching and refresh stale hidden panels after relevant vault or metadata changes.
 - Label tabs with any bundled Lucide icon.
-- Inherit the active Obsidian theme, with five optional Style Settings controls.
+- Choose theme-native Button, Underline, Separator, or Rail personalities with optional Style Settings controls.
 - Navigate with pointer, touch, or keyboard using accessible tab semantics.
 - Keep malformed source visible in a diagnostic instead of silently discarding it.
 
@@ -62,6 +62,12 @@ tab: icon:file-text Notes
 ````
 
 An unknown name renders nothing, and every tab still needs a label. Escape a literal label as `tab: \icon:name`.
+
+### Label formatting
+
+Labels support exactly `**bold**`, `*italic*`, `~~strikethrough~~`, and backtick inline code. The same bounded formatting works after an `icon:<name>` prefix and in public `mountTabs` labels. Multiple non-overlapping formats can share one label.
+
+Links, wikilinks, images, raw HTML, headings, lists, and other Markdown stay visible as literal text. Unmatched, nested, overlapping, empty, or whitespace-only delimiter runs also stay literal; labels never create links or other interactive descendants.
 
 ### Nested tabs
 
@@ -167,11 +173,11 @@ interface TabsdownApi {
 
 const tabsdown = this.app.plugins.getPlugin("tabsdown") as TabsdownApi | null;
 const tabs = tabsdown?.mountTabs(container, {
-  label: "Trace and watch",
+  label: "**Trace** and watch",
   selection: null,
   tabs: [
-    { id: "trace", label: "Trace", panel: traceElement },
-    { id: "watch", label: "Watch", panel: watchElement },
+    { id: "trace", label: "**Trace**", panel: traceElement },
+    { id: "watch", label: "`Watch`", panel: watchElement },
   ],
   onSelectionChange(selection) {
     // null when the open panel was collapsed
@@ -196,9 +202,9 @@ This is a collapsible switch, not a tab strip: selection starts at `null` unless
 
 Tabsdown works without [Style Settings](https://github.com/mgmeyers/obsidian-style-settings); its CSS defaults and active-theme colors still apply when that optional plugin is absent.
 
-**Defaults and global controls** is split into **General**, **Tab appearance**, **Layout**, **Icons and labels**, and **Nested blocks** groups. It contains Size, Personality, Overflow behavior, Palette, Accent, Alignment, theme button outline, underline thickness, tab gap and radius, horizontal padding, side-list width, icon size and spacing, selected-tab weight, content spacing, and nested Card/Flat styling. Nested controls always use a quiet theme-derived tint so each level stays visually distinct. Padding and side-list width sliders apply immediately; narrow Left/Right blocks still use the full-width responsive layout. Equal width shares unused space but keeps each label intact, so excess tabs scroll or wrap instead of squeezing their text.
+**Defaults and global controls** is split into **General**, **Tab appearance**, **Layout**, **Icons and labels**, and **Nested blocks** groups. It contains Size, Personality, Overflow behavior, Palette, Accent, Alignment, theme button outline, underline thickness and placement, tab gap and radius, horizontal padding, side-list width, icon size and spacing, selected-tab weight, content spacing, and nested Card/Flat styling. Separator uses centered divider elements at 80% of the adjacent tab height or width, only between controls on the same visual row or column. Rail uses a larger padded rounded track with shorter desktop tabs while touch-capable devices retain 44px targets. Primary gives Separator selected text and the Rail selected segment the accent; Secondary keeps the neutral treatment, including inside nested blocks. Selected labels use the Default 600 weight unless Thinner (400) or Bolder (700) is chosen, and Tabsdown reserves an exact hidden copy of the formatted label so selection does not resize a tab. Underline Auto uses bottom for Top/Bottom and mounted controls, right for Left, and left for Right; explicit Top/Right/Bottom/Left placement overrides it. Nested surfaces use a quiet theme-derived tint while palette accents still apply to selected controls. Padding and side-list width sliders apply immediately; Left/Right tabs always share equal width, including their narrow full-width row fallback. With Equal width and Wrap, complete rows keep aligned columns and an incomplete final row expands evenly to fill the list.
 
-**Position overrides** lets Top, Bottom, Left, and Right independently choose Personality, Palette, and Alignment. **Inherit defaults** keeps the global choice. These overrides apply to fenced Markdown blocks only; tabs created with `mountTabs` remain on the global settings.
+**Position overrides** lets Top, Bottom, Left, and Right independently choose Button, Underline, Separator, or Rail plus Palette and Alignment. **Inherit defaults** keeps the global choice. These overrides apply to fenced Markdown blocks only; tabs created with `mountTabs` remain on the global settings.
 
 **Motion** contains animation speed and the animation-disable toggle. Colors, typography, borders, accents, focus styling, and reduced-motion behavior continue to come from the active Obsidian theme.
 

@@ -14,13 +14,14 @@ Reuse the Positions, Icons, and Labels sections below while changing settings; n
 | Check | Expected |
 | --- | --- |
 | Leave every Top/Bottom/Left/Right override on **Inherit defaults**, then change each global Personality, Palette, and Alignment value. | All four positions follow the globals; any `mountTabs` demo remains global-only. |
-| Reverse each global with one position: Underline → Button, Button → Underline, Secondary → Primary, Start/Center → Equal width, and Equal width → Start/Center. | Only that position changes, nested blocks keep their own position, and Left/Right tabs do not stretch vertically. Repeat Left/Right above and below the 28rem container threshold. |
-| Try underline thickness 1/2/8, hover selected and unselected tabs, gap 0/48 in Scroll/Wrap, content spacing 0/12/48, and selected weight Theme default/Medium/Bold. | The default indicator is 2px; unselected hover changes only the underline color and readable text without changing its width; selected hover keeps its configured underline; Scroll and Wrap use the configured gap unchanged; spacing appears exactly once; only selected/expanded labels change weight. |
+| Try Button, Underline, Separator, and Rail globally, then reverse each with every position override. | Only that position changes. Separator is centered between tabs, spans 80% of their cross-axis, and is absent at wrapped row/column starts. Rail has a larger padded rounded track and shorter desktop tabs while preserving 44px coarse-pointer targets. |
+| Try Underline placement Auto/Top/Right/Bottom/Left and thickness 1/2/8. | Auto is bottom for Top/Bottom, right for Left, and left for Right—even when a narrow side list becomes a row. Explicit placement wins without hover/selection layout shifts. |
+| Hover selected and unselected tabs, switch Primary/Secondary, then try gap 0/48 in Scroll/Wrap, content spacing 0/12/48, and selected weight Thinner/Default/Bolder. | Primary accents selected Separator text and the Rail segment; Secondary remains neutral. Only selected/expanded labels change weight at 400/600/700, without changing tab width. |
 | Change horizontal padding directly to 0/36/48 in Default and Compact. | Each slider change applies immediately without a separate toggle and overflow remains usable. |
-| Change side-list width directly to 192/256/320 on Left/Right and resize narrowly. | Each slider change applies immediately on wide lists; even with 48px horizontal padding, a 32px icon, and 16px icon spacing, labels retain usable space; narrow lists return to a full-width row and panels remain visible. |
+| Change side-list width directly to 192/256/320 on Left/Right, try every Alignment option, and resize narrowly. | Each slider change applies immediately on wide lists; tabs remain equal width regardless of Alignment; narrow lists return to an equal-width full-width row and panels remain visible. |
 | Set icon size 12/32 and spacing 0/16, using the Icons section. | Icon boxes and gaps change without moving plain-label tabs off baseline. |
-| In Nested blocks, switch Nested block style between Card and Flat while viewing section 9 with Primary and Secondary palettes. | Card shows a bordered nested surface; Flat shows tabs directly under their parent without a wrapper surface; nested controls remain subtly colored in both modes and at every depth. |
-| Use the long Labels block with Scroll, Wrap, Equal width, Left/Right, and narrow panes. | Equal width shares spare space without squeezing labels: Scroll scrolls and Wrap moves whole tabs to another row; panels never collapse to zero. |
+| In Nested blocks, switch Nested block style between Card and Flat while viewing section 9 with Primary and Secondary palettes. | Card shows a bordered nested surface; Flat shows tabs directly under their parent without a wrapper surface; nested surfaces remain subtle while Primary selected Separator text and Rail segments stay accented. |
+| Use the long Labels block with Scroll, Wrap, Equal width, Left/Right, and narrow panes. | Complete equal-width rows align their columns and gaps; an incomplete final row expands evenly to fill the list; panels never collapse to zero. |
 | Toggle theme button outline and test mouse hover, keyboard focus, touch taps, reduced motion, light/dark themes, and rapid setting changes. | Theme shadow toggles without replacing the focus outline; hover never sticks on touch; motion and selected state remain correct. |
 
 ## 1. Positions
@@ -177,8 +178,18 @@ The neighboring panel confirms that escaping one label does not affect the rest 
 ```tabsdown
 tab: A very long label that should force the tab list to overflow or wrap depending on the layout value
 This release-readiness summary deliberately uses a long label so Scroll, Wrap, and Equal width can be compared without collapsing the text.
-tab: **not bold** `not code` [not a link](https://example.com)
-Markdown punctuation in a label stays literal; formatting is allowed in the panel body instead.
+tab: **Bold** *italic* ~~removed~~ `code()`
+The four supported, non-overlapping inline formats render inside the label.
+tab: icon:code **Formatted icon label**
+The icon stays hidden from assistive technology and the formatted remainder names the tab.
+tab: [literal link](https://example.com) ![literal image](image.png) <b>literal HTML</b>
+Links, images, and raw HTML remain visible text and create no interactive label descendants.
+tab: **** | ** ** | ~~~~ | ``
+Empty and whitespace-only delimiter runs remain literal and nonblank.
+tab: **outer *nested* text** and ***overlap***
+Nested and overlapping formatting remains literal.
+tab: \*escaped\* and \\
+Escaped delimiters and backslashes render literally.
 tab: 1
 Quarter-one planning notes and the current delivery target.
 tab: ・
@@ -186,6 +197,8 @@ Punctuation-only labels remain valid for compact visual workflows.
 tab: release-readiness-owner-handoff-checklist-without-any-natural-break-opportunities-0123456789abcdefghijklmnopqrstuvwxyz
 This deliberately unbroken label must stay inside the note when Equal width and Wrap are enabled together.
 ```
+
+For the mounted API, repeat with group label `**Trace** details`, labels `**Strong**`, `*Em*`, `~~Delete~~`, and `` `Code` ``, then hide the first, middle, and last control. The group name must read “Trace details”; formatting descendants must activate their button; Separator must remain centered only between visible controls on the same visual line; `destroy()` must restore every panel.
 
 ## 6. Bodies
 

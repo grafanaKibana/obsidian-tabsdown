@@ -90,6 +90,75 @@ afterEach(() => {
 });
 
 describe("selection", () => {
+	test("formats labels synchronously and derives the group name", () => {
+		const container = document.createElement("div");
+		const controller = mountTabs(container, {
+			label: "**Trace** details",
+			tabs: [
+				{
+					id: "trace",
+					label: "**Strong** *em* ~~old~~ `code` [link](url)",
+					panel: panel("Trace"),
+				},
+				{ id: "literal", label: "****", panel: panel("Literal") },
+			],
+		});
+		const labels = container.querySelectorAll<HTMLElement>(".tabsdown__tab-label");
+
+		expect(container.querySelector(".tabsdown__tablist")?.getAttribute("aria-label")).toBe("Trace details");
+		expect(labels[0]?.innerHTML).toBe(
+			"<strong>Strong</strong> <em>em</em> <del>old</del> <code>code</code> [link](url)",
+		);
+		expect(labels[0]?.querySelector("a, img, script")).toBeNull();
+		expect(labels[1]?.textContent).toBe("****");
+		const reserve = labels[0]?.closest("button")?.querySelector<HTMLElement>(
+			".tabsdown__tab-reserve",
+		);
+		expect(reserve?.innerHTML).toBe(labels[0]?.innerHTML);
+		expect(reserve?.getAttribute("aria-hidden")).toBe("true");
+		expect(reserve?.parentElement?.classList.contains("tabsdown__tab-content")).toBe(true);
+		expect(controller.selection).toBeNull();
+	});
+
+	test("keeps delimiter-only names nonblank and derived duplicates allowed", () => {
+		for (const groupLabel of ["****", "** **", "~~~~", "``"]) {
+			const container = document.createElement("div");
+			const controller = mountTabs(container, {
+				label: groupLabel,
+				tabs: [
+					{ id: "plain", label: "A", panel: panel("Plain") },
+					{ id: "formatted", label: "**A**", panel: panel("Formatted") },
+				],
+			});
+			expect(container.querySelector(".tabsdown__tablist")?.getAttribute("aria-label")).toBe(groupLabel);
+			expect(
+				Array.from(
+					container.querySelectorAll(".tabsdown__tab-label"),
+					(label) => label.textContent,
+				),
+			).toEqual(["A", "A"]);
+			controller.destroy();
+		}
+	});
+
+	test("activates API controls from every formatted descendant", () => {
+		const container = document.createElement("div");
+		const controller = mountTabs(container, {
+			label: "Formatted",
+			tabs: [
+				{ id: "strong", label: "**Strong**", panel: panel("Strong") },
+				{ id: "em", label: "*Em*", panel: panel("Em") },
+				{ id: "delete", label: "~~Delete~~", panel: panel("Delete") },
+				{ id: "code", label: "`Code`", panel: panel("Code") },
+			],
+		});
+
+		for (const [id, selector] of [["strong", "strong"], ["em", "em"], ["delete", "del"], ["code", "code"]] as const) {
+			container.querySelector<HTMLElement>(selector)?.click();
+			expect(controller.selection).toBe(id);
+		}
+	});
+
 	test("starts with nothing selected", () => {
 		const { container, controller } = setup();
 		const root = container.querySelector<HTMLElement>(".tabsdown--mounted");
@@ -187,6 +256,22 @@ describe("availability", () => {
 			selection: "watch",
 			onSelectionChange,
 		});
+		vi.spyOn(buttons[0]!, "getBoundingClientRect").mockReturnValue({
+			left: 0,
+			right: 40,
+			top: 0,
+			bottom: 32,
+			width: 40,
+			height: 32,
+		} as DOMRect);
+		vi.spyOn(buttons[1]!, "getBoundingClientRect").mockReturnValue({
+			left: 44,
+			right: 84,
+			top: 0,
+			bottom: 32,
+			width: 40,
+			height: 32,
+		} as DOMRect);
 
 		controller.setAvailable("watch", false);
 
@@ -199,6 +284,7 @@ describe("availability", () => {
 		controller.setAvailable("watch", true);
 		controller.setSelection("watch");
 		expect(buttons[1]?.hidden).toBe(false);
+		expect(buttons[1]?.querySelector<HTMLElement>(".tabsdown__separator")?.hidden).toBe(false);
 		expect(controller.selection).toBe("watch");
 	});
 
@@ -235,14 +321,21 @@ describe("availability", () => {
 		const watch = popup.createElement("div");
 		popup.body.append(container);
 		const controller = mountTabs(container, {
-			label: "Trace and watch",
+			label: "**Trace** and watch",
 			selection: "watch",
 			tabs: [
-				{ id: "trace", label: "Trace", panel: trace },
-				{ id: "watch", label: "Watch", panel: watch },
+				{ id: "trace", label: "**Trace**", panel: trace },
+				{ id: "watch", label: "`Watch`", panel: watch },
 			],
 		});
 		const buttons = container.querySelectorAll<HTMLButtonElement>("button");
+		expect(container.querySelector(".tabsdown__tablist")?.getAttribute("aria-label")).toBe("Trace and watch");
+		const created = container.querySelectorAll(
+			".tabsdown--mounted, .tabsdown__tablist, button, .tabsdown__separator, .tabsdown__tab-label, strong, code",
+		);
+		for (const element of Array.from(created)) {
+			expect(element.ownerDocument).toBe(popup);
+		}
 		buttons[1]?.focus();
 
 		controller.setAvailable("watch", false);
@@ -255,7 +348,11 @@ describe("availability", () => {
 		buttons[0]?.click();
 		// The visible panel is observed in its own pop-out window rather than the
 		// main window, whose timers and ResizeObserver cannot follow it.
-		expect(popupResize.observed()).toEqual([trace]);
+		expect(popupResize.observed()).toEqual([
+			container.querySelector(".tabsdown__tablist"),
+			...Array.from(buttons),
+			trace,
+		]);
 		expect(adoptionCount).toBe(0);
 		controller.destroy();
 		expect(clearTimer).toHaveBeenCalled();
@@ -507,7 +604,12 @@ describe("animation and teardown", () => {
 
 		buttons[1]?.click();
 		expect(panelsEl.getBoundingClientRect().height).toBe(240);
-		expect(resize.observed()).toEqual([panelsEl, query]);
+		expect(resize.observed()).toEqual([
+			container.querySelector(".tabsdown__tablist"),
+			...buttons,
+			panelsEl,
+			query,
+		]);
 
 		query.append(document.createElement("table"));
 		setHeight(1, 80);

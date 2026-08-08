@@ -41,6 +41,12 @@ settings:
       -
         label: Underline
         value: tabsdown-personality-underline
+      -
+        label: Separator
+        value: tabsdown-personality-separator
+      -
+        label: Rail
+        value: tabsdown-personality-rail
   -
     id: tabsdown-overflow
     title: Overflow behavior
@@ -108,6 +114,28 @@ settings:
     max: 8
     step: 1
     format: px
+  -
+    id: tabsdown-underline-placement
+    title: Underline placement
+    type: class-select
+    allowEmpty: false
+    default: tabsdown-underline-placement-auto
+    options:
+      -
+        label: Auto
+        value: tabsdown-underline-placement-auto
+      -
+        label: Top
+        value: tabsdown-underline-placement-top
+      -
+        label: Right
+        value: tabsdown-underline-placement-right
+      -
+        label: Bottom
+        value: tabsdown-underline-placement-bottom
+      -
+        label: Left
+        value: tabsdown-underline-placement-left
   -
     id: tabsdown-layout-heading
     title: Layout
@@ -191,17 +219,17 @@ settings:
     title: Selected tab font weight
     type: class-select
     allowEmpty: false
-    default: tabsdown-selected-font-weight-theme-default
+    default: tabsdown-selected-font-weight-default
     options:
       -
-        label: Theme default
-        value: tabsdown-selected-font-weight-theme-default
+        label: Thinner
+        value: tabsdown-selected-font-weight-thinner
       -
-        label: Medium
-        value: tabsdown-selected-font-weight-medium
+        label: Default
+        value: tabsdown-selected-font-weight-default
       -
-        label: Bold
-        value: tabsdown-selected-font-weight-bold
+        label: Bolder
+        value: tabsdown-selected-font-weight-bolder
   -
     id: tabsdown-nested-blocks-heading
     title: Nested blocks
@@ -250,6 +278,12 @@ settings:
       -
         label: Underline
         value: tabsdown-top-personality-underline
+      -
+        label: Separator
+        value: tabsdown-top-personality-separator
+      -
+        label: Rail
+        value: tabsdown-top-personality-rail
   -
     id: tabsdown-top-palette
     title: Palette
@@ -307,6 +341,12 @@ settings:
       -
         label: Underline
         value: tabsdown-bottom-personality-underline
+      -
+        label: Separator
+        value: tabsdown-bottom-personality-separator
+      -
+        label: Rail
+        value: tabsdown-bottom-personality-rail
   -
     id: tabsdown-bottom-palette
     title: Palette
@@ -364,6 +404,12 @@ settings:
       -
         label: Underline
         value: tabsdown-left-personality-underline
+      -
+        label: Separator
+        value: tabsdown-left-personality-separator
+      -
+        label: Rail
+        value: tabsdown-left-personality-rail
   -
     id: tabsdown-left-palette
     title: Palette
@@ -421,6 +467,12 @@ settings:
       -
         label: Underline
         value: tabsdown-right-personality-underline
+      -
+        label: Separator
+        value: tabsdown-right-personality-separator
+      -
+        label: Rail
+        value: tabsdown-right-personality-rail
   -
     id: tabsdown-right-palette
     title: Palette
@@ -485,15 +537,27 @@ settings:
 	--tabsdown-accent: var(--tabsdown-accent-override, var(--interactive-accent));
 	--tabsdown-tab-background: var(--interactive-normal);
 	--tabsdown-tab-border: var(--background-modifier-border);
-	--tabsdown-tab-color: var(--text-normal);
+	--tabsdown-tab-color: var(--text-muted);
 	--tabsdown-tab-hover-background: var(--interactive-hover);
 	--tabsdown-tab-hover-border: var(--background-modifier-border-hover);
 	--tabsdown-tab-selected-background: var(--tabsdown-accent);
 	--tabsdown-tab-selected-border: var(--tabsdown-accent);
 	--tabsdown-tab-selected-color: var(--text-on-accent);
 	--tabsdown-tab-underline-color: var(--tabsdown-accent);
+	--tabsdown-rail-selected-background: var(--tabsdown-accent);
 	--tabsdown-animation-duration: var(--tabsdown-animation-speed, 160ms);
 	--tabsdown-tab-min-size: 44px;
+	--tabsdown-tab-min-block-size: var(--tabsdown-tab-min-size);
+	--tabsdown-equal-wrap-basis: min(
+		100%,
+		max(
+			var(--tabsdown-tab-min-size),
+			calc(
+				6em + var(--tabsdown-tab-padding-inline) +
+					var(--tabsdown-tab-padding-inline)
+			)
+		)
+	);
 
 	box-sizing: border-box;
 	max-inline-size: 100%;
@@ -596,7 +660,7 @@ body.tabsdown-nested-style-flat .tabsdown .tabsdown {
 		100% - var(--tabsdown-side-panel-min, 14rem) - var(--tabsdown-content-spacing, 0.75rem)
 	);
 	margin-block-end: 0;
-	align-items: var(--tabsdown-side-tab-alignment, stretch);
+	align-items: stretch;
 	overflow-x: hidden;
 	overflow-y: auto;
 }
@@ -622,12 +686,14 @@ body.tabsdown-nested-style-flat .tabsdown .tabsdown {
 
 .tabsdown__tab {
 	flex: 0 0 auto;
+	position: relative;
+	display: block;
 	box-sizing: border-box;
 	height: auto;
 	max-height: none;
 	max-inline-size: 100%;
 	min-inline-size: var(--tabsdown-tab-min-size);
-	min-block-size: var(--tabsdown-tab-min-size);
+	min-block-size: var(--tabsdown-tab-min-block-size);
 	padding: var(--tabsdown-tab-padding-block)
 		var(--tabsdown-tab-padding-inline);
 	border: var(--border-width) solid var(--tabsdown-tab-border);
@@ -636,7 +702,7 @@ body.tabsdown-nested-style-flat .tabsdown .tabsdown {
 	color: var(--tabsdown-tab-color);
 	font-family: var(--font-interface);
 	font-size: var(--font-ui-small);
-	font-weight: inherit;
+	font-weight: var(--font-normal, 400);
 	line-height: var(--line-height-tight);
 	text-align: center;
 	cursor: pointer;
@@ -644,6 +710,33 @@ body.tabsdown-nested-style-flat .tabsdown .tabsdown {
 		background-color var(--anim-duration-fast) var(--anim-motion-swing),
 		border-color var(--anim-duration-fast) var(--anim-motion-swing),
 		color var(--anim-duration-fast) var(--anim-motion-swing);
+}
+
+.tabsdown__tab[hidden] {
+	display: none;
+}
+
+.tabsdown__tab-content {
+	display: inline-grid;
+	grid-template-columns: auto minmax(0, 1fr);
+	align-items: center;
+	max-inline-size: 100%;
+	min-inline-size: 0;
+	vertical-align: middle;
+}
+
+.tabsdown__tab-reserve {
+	grid-area: 1 / 1 / 2 / -1;
+	min-inline-size: 0;
+	overflow-wrap: anywhere;
+	font-weight: 700;
+	visibility: hidden;
+}
+
+.tabsdown__tab-reserve--icon {
+	padding-inline-start: calc(
+		var(--tabsdown-icon-size, 1em) + var(--tabsdown-icon-spacing, 0.35em)
+	);
 }
 
 /* Themes draw button chrome as an inset ring in --input-shadow, which core
@@ -665,20 +758,42 @@ body.tabsdown-theme-button-outline .tabsdown__tab:active {
 
 .tabsdown__tab-icon {
 	--icon-size: var(--tabsdown-icon-size, 1em);
+	grid-area: 1 / 1;
 	display: inline-flex;
 	margin-inline-end: var(--tabsdown-icon-spacing, 0.35em);
 	vertical-align: -0.15em;
 }
 
 .tabsdown__tab-label {
+	grid-area: 1 / 2;
 	min-inline-size: 0;
 	overflow-wrap: anywhere;
+}
+
+.tabsdown__separator {
+	display: none;
+	position: absolute;
+	inline-size: 1px;
+	block-size: var(--tabsdown-separator-length, 80%);
+	background-color: var(--tabsdown-tab-border);
+	pointer-events: none;
+	transform: translate(-50%, -50%);
+}
+
+.tabsdown__separator--column {
+	inline-size: var(--tabsdown-separator-length, 80%);
+	block-size: 1px;
+}
+
+.tabsdown__separator[hidden] {
+	display: none;
 }
 
 @media (hover: hover) {
 	.tabsdown__tab:hover {
 		border-color: var(--tabsdown-tab-hover-border);
 		background-color: var(--tabsdown-tab-hover-background);
+		color: var(--text-normal);
 		box-shadow: none;
 	}
 
@@ -692,6 +807,7 @@ body.tabsdown-theme-button-outline .tabsdown__tab:active {
 	border-color: var(--tabsdown-tab-selected-border);
 	background-color: var(--tabsdown-tab-selected-background);
 	color: var(--tabsdown-tab-selected-color);
+	font-weight: 600;
 }
 
 @media (hover: hover) {
@@ -757,6 +873,130 @@ body.tabsdown-animations-disabled .tabsdown__tab {
 @media (prefers-reduced-motion: reduce) {
 	.tabsdown {
 		--tabsdown-animation-duration: 0ms;
+	}
+}
+
+/* Underline placement is resolved from the authored position. The side widths
+   stay reserved in every state, so hover and selection never move a label. */
+.tabsdown {
+	--tabsdown-underline-block-start-width: var(--border-width);
+	--tabsdown-underline-inline-end-width: var(--border-width);
+	--tabsdown-underline-block-end-width: var(--tabsdown-underline-thickness, 2px);
+	--tabsdown-underline-inline-start-width: var(--border-width);
+	--tabsdown-underline-block-start-color: transparent;
+	--tabsdown-underline-inline-end-color: transparent;
+	--tabsdown-underline-block-end-color: var(--tabsdown-tab-selected-border);
+	--tabsdown-underline-inline-start-color: transparent;
+}
+
+body.tabsdown-underline-placement-auto .tabsdown--left,
+body.tabsdown-underline-placement-right .tabsdown {
+	--tabsdown-underline-block-start-width: var(--border-width);
+	--tabsdown-underline-inline-end-width: var(--tabsdown-underline-thickness, 2px);
+	--tabsdown-underline-block-end-width: var(--border-width);
+	--tabsdown-underline-inline-start-width: var(--border-width);
+	--tabsdown-underline-block-start-color: transparent;
+	--tabsdown-underline-inline-end-color: var(--tabsdown-tab-selected-border);
+	--tabsdown-underline-block-end-color: transparent;
+	--tabsdown-underline-inline-start-color: transparent;
+}
+
+body.tabsdown-underline-placement-auto .tabsdown--right,
+body.tabsdown-underline-placement-left .tabsdown {
+	--tabsdown-underline-block-start-width: var(--border-width);
+	--tabsdown-underline-inline-end-width: var(--border-width);
+	--tabsdown-underline-block-end-width: var(--border-width);
+	--tabsdown-underline-inline-start-width: var(--tabsdown-underline-thickness, 2px);
+	--tabsdown-underline-block-start-color: transparent;
+	--tabsdown-underline-inline-end-color: transparent;
+	--tabsdown-underline-block-end-color: transparent;
+	--tabsdown-underline-inline-start-color: var(--tabsdown-tab-selected-border);
+}
+
+body.tabsdown-underline-placement-top .tabsdown {
+	--tabsdown-underline-block-start-width: var(--tabsdown-underline-thickness, 2px);
+	--tabsdown-underline-inline-end-width: var(--border-width);
+	--tabsdown-underline-block-end-width: var(--border-width);
+	--tabsdown-underline-inline-start-width: var(--border-width);
+	--tabsdown-underline-block-start-color: var(--tabsdown-tab-selected-border);
+	--tabsdown-underline-inline-end-color: transparent;
+	--tabsdown-underline-block-end-color: transparent;
+	--tabsdown-underline-inline-start-color: transparent;
+}
+
+body.tabsdown-underline-placement-bottom .tabsdown {
+	--tabsdown-underline-block-start-width: var(--border-width);
+	--tabsdown-underline-inline-end-width: var(--border-width);
+	--tabsdown-underline-block-end-width: var(--tabsdown-underline-thickness, 2px);
+	--tabsdown-underline-inline-start-width: var(--border-width);
+	--tabsdown-underline-block-start-color: transparent;
+	--tabsdown-underline-inline-end-color: transparent;
+	--tabsdown-underline-block-end-color: var(--tabsdown-tab-selected-border);
+	--tabsdown-underline-inline-start-color: transparent;
+}
+
+body.tabsdown-personality-underline .tabsdown--mounted > .tabsdown__tablist > .tabsdown__tab,
+body.tabsdown-personality-underline:not(.tabsdown-top-personality-button):not(.tabsdown-top-personality-separator):not(.tabsdown-top-personality-rail) .tabsdown--top > .tabsdown__tablist > .tabsdown__tab,
+body.tabsdown-personality-underline:not(.tabsdown-bottom-personality-button):not(.tabsdown-bottom-personality-separator):not(.tabsdown-bottom-personality-rail) .tabsdown--bottom > .tabsdown__tablist > .tabsdown__tab,
+body.tabsdown-personality-underline:not(.tabsdown-left-personality-button):not(.tabsdown-left-personality-separator):not(.tabsdown-left-personality-rail) .tabsdown--left > .tabsdown__tablist > .tabsdown__tab,
+body.tabsdown-personality-underline:not(.tabsdown-right-personality-button):not(.tabsdown-right-personality-separator):not(.tabsdown-right-personality-rail) .tabsdown--right > .tabsdown__tablist > .tabsdown__tab,
+body.tabsdown-top-personality-underline .tabsdown--top > .tabsdown__tablist > .tabsdown__tab,
+body.tabsdown-bottom-personality-underline .tabsdown--bottom > .tabsdown__tablist > .tabsdown__tab,
+body.tabsdown-left-personality-underline .tabsdown--left > .tabsdown__tablist > .tabsdown__tab,
+body.tabsdown-right-personality-underline .tabsdown--right > .tabsdown__tablist > .tabsdown__tab {
+	border-width: var(--border-width);
+	border-block-start-width: var(--tabsdown-underline-block-start-width);
+	border-inline-end-width: var(--tabsdown-underline-inline-end-width);
+	border-block-end-width: var(--tabsdown-underline-block-end-width);
+	border-inline-start-width: var(--tabsdown-underline-inline-start-width);
+	border-color: transparent;
+	border-radius: 0;
+	background-color: transparent;
+	color: var(--text-muted);
+}
+
+body.tabsdown-personality-underline .tabsdown--mounted > .tabsdown__tablist > .tabsdown__tab[aria-selected="true"],
+body.tabsdown-personality-underline .tabsdown--mounted > .tabsdown__tablist > .tabsdown__tab[aria-expanded="true"],
+body.tabsdown-personality-underline:not(.tabsdown-top-personality-button):not(.tabsdown-top-personality-separator):not(.tabsdown-top-personality-rail) .tabsdown--top > .tabsdown__tablist > .tabsdown__tab[aria-selected="true"],
+body.tabsdown-personality-underline:not(.tabsdown-top-personality-button):not(.tabsdown-top-personality-separator):not(.tabsdown-top-personality-rail) .tabsdown--top > .tabsdown__tablist > .tabsdown__tab[aria-expanded="true"],
+body.tabsdown-personality-underline:not(.tabsdown-bottom-personality-button):not(.tabsdown-bottom-personality-separator):not(.tabsdown-bottom-personality-rail) .tabsdown--bottom > .tabsdown__tablist > .tabsdown__tab[aria-selected="true"],
+body.tabsdown-personality-underline:not(.tabsdown-bottom-personality-button):not(.tabsdown-bottom-personality-separator):not(.tabsdown-bottom-personality-rail) .tabsdown--bottom > .tabsdown__tablist > .tabsdown__tab[aria-expanded="true"],
+body.tabsdown-personality-underline:not(.tabsdown-left-personality-button):not(.tabsdown-left-personality-separator):not(.tabsdown-left-personality-rail) .tabsdown--left > .tabsdown__tablist > .tabsdown__tab[aria-selected="true"],
+body.tabsdown-personality-underline:not(.tabsdown-left-personality-button):not(.tabsdown-left-personality-separator):not(.tabsdown-left-personality-rail) .tabsdown--left > .tabsdown__tablist > .tabsdown__tab[aria-expanded="true"],
+body.tabsdown-personality-underline:not(.tabsdown-right-personality-button):not(.tabsdown-right-personality-separator):not(.tabsdown-right-personality-rail) .tabsdown--right > .tabsdown__tablist > .tabsdown__tab[aria-selected="true"],
+body.tabsdown-personality-underline:not(.tabsdown-right-personality-button):not(.tabsdown-right-personality-separator):not(.tabsdown-right-personality-rail) .tabsdown--right > .tabsdown__tablist > .tabsdown__tab[aria-expanded="true"],
+body.tabsdown-top-personality-underline .tabsdown--top > .tabsdown__tablist > .tabsdown__tab[aria-selected="true"],
+body.tabsdown-top-personality-underline .tabsdown--top > .tabsdown__tablist > .tabsdown__tab[aria-expanded="true"],
+body.tabsdown-bottom-personality-underline .tabsdown--bottom > .tabsdown__tablist > .tabsdown__tab[aria-selected="true"],
+body.tabsdown-bottom-personality-underline .tabsdown--bottom > .tabsdown__tablist > .tabsdown__tab[aria-expanded="true"],
+body.tabsdown-left-personality-underline .tabsdown--left > .tabsdown__tablist > .tabsdown__tab[aria-selected="true"],
+body.tabsdown-left-personality-underline .tabsdown--left > .tabsdown__tablist > .tabsdown__tab[aria-expanded="true"],
+body.tabsdown-right-personality-underline .tabsdown--right > .tabsdown__tablist > .tabsdown__tab[aria-selected="true"],
+body.tabsdown-right-personality-underline .tabsdown--right > .tabsdown__tablist > .tabsdown__tab[aria-expanded="true"] {
+	border-block-start-color: var(--tabsdown-underline-block-start-color);
+	border-inline-end-color: var(--tabsdown-underline-inline-end-color);
+	border-block-end-color: var(--tabsdown-underline-block-end-color);
+	border-inline-start-color: var(--tabsdown-underline-inline-start-color);
+	background-color: transparent;
+	color: var(--text-normal);
+}
+
+@media (hover: hover) {
+	body.tabsdown-personality-underline .tabsdown--mounted > .tabsdown__tablist > .tabsdown__tab:not([aria-selected="true"]):not([aria-expanded="true"]):hover,
+	body.tabsdown-personality-underline:not(.tabsdown-top-personality-button):not(.tabsdown-top-personality-separator):not(.tabsdown-top-personality-rail) .tabsdown--top > .tabsdown__tablist > .tabsdown__tab:not([aria-selected="true"]):not([aria-expanded="true"]):hover,
+	body.tabsdown-personality-underline:not(.tabsdown-bottom-personality-button):not(.tabsdown-bottom-personality-separator):not(.tabsdown-bottom-personality-rail) .tabsdown--bottom > .tabsdown__tablist > .tabsdown__tab:not([aria-selected="true"]):not([aria-expanded="true"]):hover,
+	body.tabsdown-personality-underline:not(.tabsdown-left-personality-button):not(.tabsdown-left-personality-separator):not(.tabsdown-left-personality-rail) .tabsdown--left > .tabsdown__tablist > .tabsdown__tab:not([aria-selected="true"]):not([aria-expanded="true"]):hover,
+	body.tabsdown-personality-underline:not(.tabsdown-right-personality-button):not(.tabsdown-right-personality-separator):not(.tabsdown-right-personality-rail) .tabsdown--right > .tabsdown__tablist > .tabsdown__tab:not([aria-selected="true"]):not([aria-expanded="true"]):hover,
+	body.tabsdown-top-personality-underline .tabsdown--top > .tabsdown__tablist > .tabsdown__tab:not([aria-selected="true"]):not([aria-expanded="true"]):hover,
+	body.tabsdown-bottom-personality-underline .tabsdown--bottom > .tabsdown__tablist > .tabsdown__tab:not([aria-selected="true"]):not([aria-expanded="true"]):hover,
+	body.tabsdown-left-personality-underline .tabsdown--left > .tabsdown__tablist > .tabsdown__tab:not([aria-selected="true"]):not([aria-expanded="true"]):hover,
+	body.tabsdown-right-personality-underline .tabsdown--right > .tabsdown__tablist > .tabsdown__tab:not([aria-selected="true"]):not([aria-expanded="true"]):hover {
+		border-block-start-color: color-mix(in srgb, var(--tabsdown-underline-block-start-color) 55%, transparent);
+		border-inline-end-color: color-mix(in srgb, var(--tabsdown-underline-inline-end-color) 55%, transparent);
+		border-block-end-color: color-mix(in srgb, var(--tabsdown-underline-block-end-color) 55%, transparent);
+		border-inline-start-color: color-mix(in srgb, var(--tabsdown-underline-inline-start-color) 55%, transparent);
+		background-color: transparent;
+		color: var(--text-normal);
 	}
 }
 
@@ -831,6 +1071,7 @@ body.tabsdown-palette-secondary .tabsdown {
 	--tabsdown-tab-selected-border: var(--background-modifier-border-hover);
 	--tabsdown-tab-selected-color: var(--text-normal);
 	--tabsdown-tab-underline-color: var(--text-normal);
+	--tabsdown-rail-selected-background: var(--background-primary);
 }
 
 body.tabsdown-alignment-start .tabsdown > .tabsdown__tablist {
@@ -865,24 +1106,9 @@ body.tabsdown-alignment-equal-width .tabsdown > .tabsdown__tablist > .tabsdown__
 
 body:where(.tabsdown-overflow-wrap).tabsdown-alignment-equal-width .tabsdown:where(:not(.tabsdown--inline-overflow)) > .tabsdown__tablist > .tabsdown__tab,
 body.tabsdown-alignment-equal-width .tabsdown:where(.tabsdown--inline-overflow.tabsdown--multi) > .tabsdown__tablist > .tabsdown__tab {
-	flex: 1 1 max-content;
-	min-inline-size: var(--tabsdown-tab-min-size);
+	flex: 1 1 var(--tabsdown-equal-wrap-basis);
+	min-inline-size: 0;
 	white-space: normal;
-}
-
-body.tabsdown-alignment-start .tabsdown--left,
-body.tabsdown-alignment-start .tabsdown--right {
-	--tabsdown-side-tab-alignment: flex-start;
-}
-
-body.tabsdown-alignment-center .tabsdown--left,
-body.tabsdown-alignment-center .tabsdown--right {
-	--tabsdown-side-tab-alignment: center;
-}
-
-body.tabsdown-alignment-equal-width .tabsdown--left,
-body.tabsdown-alignment-equal-width .tabsdown--right {
-	--tabsdown-side-tab-alignment: stretch;
 }
 
 body.tabsdown-personality-underline .tabsdown__tab {
@@ -899,7 +1125,7 @@ body.tabsdown-personality-underline .tabsdown__tab[aria-expanded="true"] {
 	border-block-end-color: var(--tabsdown-tab-selected-border);
 	border-block-end-width: var(--tabsdown-underline-thickness, 2px);
 	background-color: transparent;
-	color: var(--tabsdown-tab-underline-color);
+	color: var(--text-normal);
 }
 
 @media (hover: hover) {
@@ -912,18 +1138,83 @@ body.tabsdown-personality-underline .tabsdown__tab[aria-expanded="true"] {
 
 	body.tabsdown-personality-underline .tabsdown__tab[aria-selected="true"]:hover,
 	body.tabsdown-personality-underline .tabsdown__tab[aria-expanded="true"]:hover {
+		color: var(--text-normal);
+	}
+}
+
+body.tabsdown-personality-separator .tabsdown__tab,
+body.tabsdown-personality-rail .tabsdown__tab {
+	border-color: transparent;
+	border-radius: 0;
+	background-color: transparent;
+	color: var(--text-muted);
+}
+
+body.tabsdown-personality-separator .tabsdown__tab[aria-selected="true"],
+body.tabsdown-personality-separator .tabsdown__tab[aria-expanded="true"] {
+	border-color: transparent;
+	background-color: transparent;
+	color: var(--tabsdown-tab-underline-color);
+}
+
+body.tabsdown-personality-rail .tabsdown__tablist {
+	--tabsdown-tab-min-block-size: 36px;
+	padding: 0.375rem;
+	border-radius: var(--tabsdown-radius, var(--radius-s));
+	background-color: var(--background-secondary);
+}
+
+body.tabsdown-personality-rail .tabsdown__tab {
+	padding-block: 0.125rem;
+}
+
+body.tabsdown-personality-rail .tabsdown__tab[aria-selected="true"],
+body.tabsdown-personality-rail .tabsdown__tab[aria-expanded="true"] {
+	border-color: transparent;
+	border-radius: var(--tabsdown-radius, var(--radius-s));
+	background-color: var(--tabsdown-rail-selected-background);
+	color: var(--tabsdown-tab-selected-color);
+}
+
+@media (hover: hover) {
+	body.tabsdown-personality-separator .tabsdown__tab:hover,
+	body.tabsdown-personality-rail .tabsdown__tab:hover {
+		border-color: transparent;
+		background-color: transparent;
+		color: var(--text-normal);
+	}
+
+	body.tabsdown-personality-rail .tabsdown__tab[aria-selected="true"]:hover,
+	body.tabsdown-personality-rail .tabsdown__tab[aria-expanded="true"]:hover {
+		background-color: var(--tabsdown-rail-selected-background);
+		color: var(--tabsdown-tab-selected-color);
+	}
+
+	body.tabsdown-personality-separator .tabsdown__tab[aria-selected="true"]:hover,
+	body.tabsdown-personality-separator .tabsdown__tab[aria-expanded="true"]:hover {
 		color: var(--tabsdown-tab-underline-color);
 	}
 }
 
-body.tabsdown-selected-font-weight-medium .tabsdown__tab[aria-selected="true"],
-body.tabsdown-selected-font-weight-medium .tabsdown__tab[aria-expanded="true"] {
-	font-weight: var(--font-medium);
+body.tabsdown-selected-font-weight-thinner .tabsdown__tab[aria-selected="true"],
+body.tabsdown-selected-font-weight-thinner .tabsdown__tab[aria-expanded="true"] {
+	font-weight: 400;
 }
 
+body.tabsdown-selected-font-weight-bolder .tabsdown__tab[aria-selected="true"],
+body.tabsdown-selected-font-weight-bolder .tabsdown__tab[aria-expanded="true"],
 body.tabsdown-selected-font-weight-bold .tabsdown__tab[aria-selected="true"],
 body.tabsdown-selected-font-weight-bold .tabsdown__tab[aria-expanded="true"] {
-	font-weight: var(--font-bold, 700);
+	font-weight: 700;
+}
+
+body.tabsdown-selected-font-weight-default .tabsdown__tab[aria-selected="true"],
+body.tabsdown-selected-font-weight-default .tabsdown__tab[aria-expanded="true"],
+body.tabsdown-selected-font-weight-theme-default .tabsdown__tab[aria-selected="true"],
+body.tabsdown-selected-font-weight-theme-default .tabsdown__tab[aria-expanded="true"],
+body.tabsdown-selected-font-weight-medium .tabsdown__tab[aria-selected="true"],
+body.tabsdown-selected-font-weight-medium .tabsdown__tab[aria-expanded="true"] {
+	font-weight: 600;
 }
 
 /* Top position overrides are complete resets so changing a global
@@ -931,13 +1222,14 @@ body.tabsdown-selected-font-weight-bold .tabsdown__tab[aria-expanded="true"] {
 body.tabsdown-top-palette-primary .tabsdown--top {
 	--tabsdown-tab-background: var(--interactive-normal);
 	--tabsdown-tab-border: var(--background-modifier-border);
-	--tabsdown-tab-color: var(--text-normal);
+	--tabsdown-tab-color: var(--text-muted);
 	--tabsdown-tab-hover-background: var(--interactive-hover);
 	--tabsdown-tab-hover-border: var(--background-modifier-border-hover);
 	--tabsdown-tab-selected-background: var(--tabsdown-accent);
 	--tabsdown-tab-selected-border: var(--tabsdown-accent);
 	--tabsdown-tab-selected-color: var(--text-on-accent);
 	--tabsdown-tab-underline-color: var(--tabsdown-accent);
+	--tabsdown-rail-selected-background: var(--tabsdown-accent);
 }
 
 body.tabsdown-top-palette-secondary .tabsdown--top {
@@ -950,6 +1242,7 @@ body.tabsdown-top-palette-secondary .tabsdown--top {
 	--tabsdown-tab-selected-border: var(--background-modifier-border-hover);
 	--tabsdown-tab-selected-color: var(--text-normal);
 	--tabsdown-tab-underline-color: var(--text-normal);
+	--tabsdown-rail-selected-background: var(--background-primary);
 }
 
 body.tabsdown-top-alignment-start .tabsdown--top > .tabsdown__tablist {
@@ -984,8 +1277,8 @@ body.tabsdown-top-alignment-equal-width .tabsdown--top > .tabsdown__tablist > .t
 
 body.tabsdown-overflow-wrap.tabsdown-top-alignment-equal-width .tabsdown--top:where(:not(.tabsdown--inline-overflow)) > .tabsdown__tablist > .tabsdown__tab,
 body.tabsdown-top-alignment-equal-width .tabsdown--top:where(.tabsdown--inline-overflow.tabsdown--multi) > .tabsdown__tablist > .tabsdown__tab {
-	flex: 1 1 max-content;
-	min-inline-size: var(--tabsdown-tab-min-size);
+	flex: 1 1 var(--tabsdown-equal-wrap-basis);
+	min-inline-size: 0;
 	white-space: normal;
 }
 
@@ -1024,7 +1317,7 @@ body.tabsdown-top-personality-underline .tabsdown--top > .tabsdown__tablist > .t
 	border-block-end-width: var(--tabsdown-underline-thickness, 2px);
 	border-radius: 0;
 	background-color: transparent;
-	color: var(--tabsdown-tab-underline-color);
+	color: var(--text-normal);
 }
 
 @media (hover: hover) {
@@ -1033,7 +1326,7 @@ body.tabsdown-top-personality-underline .tabsdown--top > .tabsdown__tablist > .t
 		border-color: var(--tabsdown-tab-hover-border);
 		border-radius: var(--tabsdown-radius, var(--radius-s));
 		background-color: var(--tabsdown-tab-hover-background);
-		color: var(--tabsdown-tab-color);
+		color: var(--text-normal);
 	}
 
 	body.tabsdown-top-personality-button .tabsdown--top > .tabsdown__tablist > .tabsdown__tab[aria-selected="true"]:hover,
@@ -1054,7 +1347,7 @@ body.tabsdown-top-personality-underline .tabsdown--top > .tabsdown__tablist > .t
 	body.tabsdown-top-personality-underline .tabsdown--top > .tabsdown__tablist > .tabsdown__tab[aria-selected="true"]:hover,
 	body.tabsdown-top-personality-underline .tabsdown--top > .tabsdown__tablist > .tabsdown__tab[aria-expanded="true"]:hover {
 		background-color: transparent;
-		color: var(--tabsdown-tab-underline-color);
+		color: var(--text-normal);
 	}
 }
 
@@ -1063,13 +1356,14 @@ body.tabsdown-top-personality-underline .tabsdown--top > .tabsdown__tablist > .t
 body.tabsdown-bottom-palette-primary .tabsdown--bottom {
 	--tabsdown-tab-background: var(--interactive-normal);
 	--tabsdown-tab-border: var(--background-modifier-border);
-	--tabsdown-tab-color: var(--text-normal);
+	--tabsdown-tab-color: var(--text-muted);
 	--tabsdown-tab-hover-background: var(--interactive-hover);
 	--tabsdown-tab-hover-border: var(--background-modifier-border-hover);
 	--tabsdown-tab-selected-background: var(--tabsdown-accent);
 	--tabsdown-tab-selected-border: var(--tabsdown-accent);
 	--tabsdown-tab-selected-color: var(--text-on-accent);
 	--tabsdown-tab-underline-color: var(--tabsdown-accent);
+	--tabsdown-rail-selected-background: var(--tabsdown-accent);
 }
 
 body.tabsdown-bottom-palette-secondary .tabsdown--bottom {
@@ -1082,6 +1376,7 @@ body.tabsdown-bottom-palette-secondary .tabsdown--bottom {
 	--tabsdown-tab-selected-border: var(--background-modifier-border-hover);
 	--tabsdown-tab-selected-color: var(--text-normal);
 	--tabsdown-tab-underline-color: var(--text-normal);
+	--tabsdown-rail-selected-background: var(--background-primary);
 }
 
 body.tabsdown-bottom-alignment-start .tabsdown--bottom > .tabsdown__tablist {
@@ -1116,8 +1411,8 @@ body.tabsdown-bottom-alignment-equal-width .tabsdown--bottom > .tabsdown__tablis
 
 body.tabsdown-overflow-wrap.tabsdown-bottom-alignment-equal-width .tabsdown--bottom:where(:not(.tabsdown--inline-overflow)) > .tabsdown__tablist > .tabsdown__tab,
 body.tabsdown-bottom-alignment-equal-width .tabsdown--bottom:where(.tabsdown--inline-overflow.tabsdown--multi) > .tabsdown__tablist > .tabsdown__tab {
-	flex: 1 1 max-content;
-	min-inline-size: var(--tabsdown-tab-min-size);
+	flex: 1 1 var(--tabsdown-equal-wrap-basis);
+	min-inline-size: 0;
 	white-space: normal;
 }
 
@@ -1156,7 +1451,7 @@ body.tabsdown-bottom-personality-underline .tabsdown--bottom > .tabsdown__tablis
 	border-block-end-width: var(--tabsdown-underline-thickness, 2px);
 	border-radius: 0;
 	background-color: transparent;
-	color: var(--tabsdown-tab-underline-color);
+	color: var(--text-normal);
 }
 
 @media (hover: hover) {
@@ -1165,7 +1460,7 @@ body.tabsdown-bottom-personality-underline .tabsdown--bottom > .tabsdown__tablis
 		border-color: var(--tabsdown-tab-hover-border);
 		border-radius: var(--tabsdown-radius, var(--radius-s));
 		background-color: var(--tabsdown-tab-hover-background);
-		color: var(--tabsdown-tab-color);
+		color: var(--text-normal);
 	}
 
 	body.tabsdown-bottom-personality-button .tabsdown--bottom > .tabsdown__tablist > .tabsdown__tab[aria-selected="true"]:hover,
@@ -1186,7 +1481,7 @@ body.tabsdown-bottom-personality-underline .tabsdown--bottom > .tabsdown__tablis
 	body.tabsdown-bottom-personality-underline .tabsdown--bottom > .tabsdown__tablist > .tabsdown__tab[aria-selected="true"]:hover,
 	body.tabsdown-bottom-personality-underline .tabsdown--bottom > .tabsdown__tablist > .tabsdown__tab[aria-expanded="true"]:hover {
 		background-color: transparent;
-		color: var(--tabsdown-tab-underline-color);
+		color: var(--text-normal);
 	}
 }
 
@@ -1195,13 +1490,14 @@ body.tabsdown-bottom-personality-underline .tabsdown--bottom > .tabsdown__tablis
 body.tabsdown-left-palette-primary .tabsdown--left {
 	--tabsdown-tab-background: var(--interactive-normal);
 	--tabsdown-tab-border: var(--background-modifier-border);
-	--tabsdown-tab-color: var(--text-normal);
+	--tabsdown-tab-color: var(--text-muted);
 	--tabsdown-tab-hover-background: var(--interactive-hover);
 	--tabsdown-tab-hover-border: var(--background-modifier-border-hover);
 	--tabsdown-tab-selected-background: var(--tabsdown-accent);
 	--tabsdown-tab-selected-border: var(--tabsdown-accent);
 	--tabsdown-tab-selected-color: var(--text-on-accent);
 	--tabsdown-tab-underline-color: var(--tabsdown-accent);
+	--tabsdown-rail-selected-background: var(--tabsdown-accent);
 }
 
 body.tabsdown-left-palette-secondary .tabsdown--left {
@@ -1214,6 +1510,7 @@ body.tabsdown-left-palette-secondary .tabsdown--left {
 	--tabsdown-tab-selected-border: var(--background-modifier-border-hover);
 	--tabsdown-tab-selected-color: var(--text-normal);
 	--tabsdown-tab-underline-color: var(--text-normal);
+	--tabsdown-rail-selected-background: var(--background-primary);
 }
 
 body.tabsdown-left-alignment-start .tabsdown--left > .tabsdown__tablist {
@@ -1253,18 +1550,6 @@ body.tabsdown-left-alignment-equal-width .tabsdown--left:where(.tabsdown--inline
 	white-space: normal;
 }
 
-body.tabsdown-left-alignment-start .tabsdown--left {
-	--tabsdown-side-tab-alignment: flex-start;
-}
-
-body.tabsdown-left-alignment-center .tabsdown--left {
-	--tabsdown-side-tab-alignment: center;
-}
-
-body.tabsdown-left-alignment-equal-width .tabsdown--left {
-	--tabsdown-side-tab-alignment: stretch;
-}
-
 body.tabsdown-left-personality-button .tabsdown--left > .tabsdown__tablist > .tabsdown__tab {
 	border-width: var(--border-width);
 	border-style: solid;
@@ -1300,7 +1585,7 @@ body.tabsdown-left-personality-underline .tabsdown--left > .tabsdown__tablist > 
 	border-block-end-width: var(--tabsdown-underline-thickness, 2px);
 	border-radius: 0;
 	background-color: transparent;
-	color: var(--tabsdown-tab-underline-color);
+	color: var(--text-normal);
 }
 
 @media (hover: hover) {
@@ -1309,7 +1594,7 @@ body.tabsdown-left-personality-underline .tabsdown--left > .tabsdown__tablist > 
 		border-color: var(--tabsdown-tab-hover-border);
 		border-radius: var(--tabsdown-radius, var(--radius-s));
 		background-color: var(--tabsdown-tab-hover-background);
-		color: var(--tabsdown-tab-color);
+		color: var(--text-normal);
 	}
 
 	body.tabsdown-left-personality-button .tabsdown--left > .tabsdown__tablist > .tabsdown__tab[aria-selected="true"]:hover,
@@ -1330,7 +1615,7 @@ body.tabsdown-left-personality-underline .tabsdown--left > .tabsdown__tablist > 
 	body.tabsdown-left-personality-underline .tabsdown--left > .tabsdown__tablist > .tabsdown__tab[aria-selected="true"]:hover,
 	body.tabsdown-left-personality-underline .tabsdown--left > .tabsdown__tablist > .tabsdown__tab[aria-expanded="true"]:hover {
 		background-color: transparent;
-		color: var(--tabsdown-tab-underline-color);
+		color: var(--text-normal);
 	}
 }
 
@@ -1339,13 +1624,14 @@ body.tabsdown-left-personality-underline .tabsdown--left > .tabsdown__tablist > 
 body.tabsdown-right-palette-primary .tabsdown--right {
 	--tabsdown-tab-background: var(--interactive-normal);
 	--tabsdown-tab-border: var(--background-modifier-border);
-	--tabsdown-tab-color: var(--text-normal);
+	--tabsdown-tab-color: var(--text-muted);
 	--tabsdown-tab-hover-background: var(--interactive-hover);
 	--tabsdown-tab-hover-border: var(--background-modifier-border-hover);
 	--tabsdown-tab-selected-background: var(--tabsdown-accent);
 	--tabsdown-tab-selected-border: var(--tabsdown-accent);
 	--tabsdown-tab-selected-color: var(--text-on-accent);
 	--tabsdown-tab-underline-color: var(--tabsdown-accent);
+	--tabsdown-rail-selected-background: var(--tabsdown-accent);
 }
 
 body.tabsdown-right-palette-secondary .tabsdown--right {
@@ -1358,11 +1644,11 @@ body.tabsdown-right-palette-secondary .tabsdown--right {
 	--tabsdown-tab-selected-border: var(--background-modifier-border-hover);
 	--tabsdown-tab-selected-color: var(--text-normal);
 	--tabsdown-tab-underline-color: var(--text-normal);
+	--tabsdown-rail-selected-background: var(--background-primary);
 }
 
-/* Nested controls stay quieter than their parent, regardless of the global or
-   position palette. Keep this after the palette overrides so it wins equally
-   specific selectors without affecting layout or touch targets. */
+/* Nested surfaces stay quieter than their parent. Palette-owned accents remain
+   inherited for Separator and Rail selection. */
 body .tabsdown--nested-odd.tabsdown {
 	--tabsdown-tab-background: color-mix(in srgb, var(--text-normal) 6%, transparent);
 	--tabsdown-tab-border: color-mix(in srgb, var(--text-normal) 12%, transparent);
@@ -1372,7 +1658,6 @@ body .tabsdown--nested-odd.tabsdown {
 	--tabsdown-tab-selected-background: color-mix(in srgb, var(--text-normal) 14%, transparent);
 	--tabsdown-tab-selected-border: color-mix(in srgb, var(--text-normal) 24%, transparent);
 	--tabsdown-tab-selected-color: var(--text-normal);
-	--tabsdown-tab-underline-color: var(--text-normal);
 }
 
 body .tabsdown--nested-even.tabsdown {
@@ -1384,7 +1669,6 @@ body .tabsdown--nested-even.tabsdown {
 	--tabsdown-tab-selected-background: color-mix(in srgb, var(--text-normal) 18%, transparent);
 	--tabsdown-tab-selected-border: color-mix(in srgb, var(--text-normal) 24%, transparent);
 	--tabsdown-tab-selected-color: var(--text-normal);
-	--tabsdown-tab-underline-color: var(--text-normal);
 }
 
 body.tabsdown-right-alignment-start .tabsdown--right > .tabsdown__tablist {
@@ -1424,18 +1708,6 @@ body.tabsdown-right-alignment-equal-width .tabsdown--right:where(.tabsdown--inli
 	white-space: normal;
 }
 
-body.tabsdown-right-alignment-start .tabsdown--right {
-	--tabsdown-side-tab-alignment: flex-start;
-}
-
-body.tabsdown-right-alignment-center .tabsdown--right {
-	--tabsdown-side-tab-alignment: center;
-}
-
-body.tabsdown-right-alignment-equal-width .tabsdown--right {
-	--tabsdown-side-tab-alignment: stretch;
-}
-
 body.tabsdown-right-personality-button .tabsdown--right > .tabsdown__tablist > .tabsdown__tab {
 	border-width: var(--border-width);
 	border-style: solid;
@@ -1471,7 +1743,7 @@ body.tabsdown-right-personality-underline .tabsdown--right > .tabsdown__tablist 
 	border-block-end-width: var(--tabsdown-underline-thickness, 2px);
 	border-radius: 0;
 	background-color: transparent;
-	color: var(--tabsdown-tab-underline-color);
+	color: var(--text-normal);
 }
 
 @media (hover: hover) {
@@ -1480,7 +1752,7 @@ body.tabsdown-right-personality-underline .tabsdown--right > .tabsdown__tablist 
 		border-color: var(--tabsdown-tab-hover-border);
 		border-radius: var(--tabsdown-radius, var(--radius-s));
 		background-color: var(--tabsdown-tab-hover-background);
-		color: var(--tabsdown-tab-color);
+		color: var(--text-normal);
 	}
 
 	body.tabsdown-right-personality-button .tabsdown--right > .tabsdown__tablist > .tabsdown__tab[aria-selected="true"]:hover,
@@ -1501,22 +1773,191 @@ body.tabsdown-right-personality-underline .tabsdown--right > .tabsdown__tablist 
 	body.tabsdown-right-personality-underline .tabsdown--right > .tabsdown__tablist > .tabsdown__tab[aria-selected="true"]:hover,
 	body.tabsdown-right-personality-underline .tabsdown--right > .tabsdown__tablist > .tabsdown__tab[aria-expanded="true"]:hover {
 		background-color: transparent;
+		color: var(--text-normal);
+	}
+}
+
+/* Separator and Rail position overrides share one complete reset. */
+body.tabsdown-top-personality-separator .tabsdown--top > .tabsdown__tablist > .tabsdown__tab,
+body.tabsdown-bottom-personality-separator .tabsdown--bottom > .tabsdown__tablist > .tabsdown__tab,
+body.tabsdown-left-personality-separator .tabsdown--left > .tabsdown__tablist > .tabsdown__tab,
+body.tabsdown-right-personality-separator .tabsdown--right > .tabsdown__tablist > .tabsdown__tab,
+body.tabsdown-top-personality-rail .tabsdown--top > .tabsdown__tablist > .tabsdown__tab,
+body.tabsdown-bottom-personality-rail .tabsdown--bottom > .tabsdown__tablist > .tabsdown__tab,
+body.tabsdown-left-personality-rail .tabsdown--left > .tabsdown__tablist > .tabsdown__tab,
+body.tabsdown-right-personality-rail .tabsdown--right > .tabsdown__tablist > .tabsdown__tab {
+	border-width: var(--border-width);
+	border-style: solid;
+	border-color: transparent;
+	border-radius: 0;
+	background-color: transparent;
+	color: var(--text-muted);
+}
+
+body.tabsdown-top-personality-separator .tabsdown--top > .tabsdown__tablist > .tabsdown__tab[aria-selected="true"],
+body.tabsdown-top-personality-separator .tabsdown--top > .tabsdown__tablist > .tabsdown__tab[aria-expanded="true"],
+body.tabsdown-bottom-personality-separator .tabsdown--bottom > .tabsdown__tablist > .tabsdown__tab[aria-selected="true"],
+body.tabsdown-bottom-personality-separator .tabsdown--bottom > .tabsdown__tablist > .tabsdown__tab[aria-expanded="true"],
+body.tabsdown-left-personality-separator .tabsdown--left > .tabsdown__tablist > .tabsdown__tab[aria-selected="true"],
+body.tabsdown-left-personality-separator .tabsdown--left > .tabsdown__tablist > .tabsdown__tab[aria-expanded="true"],
+body.tabsdown-right-personality-separator .tabsdown--right > .tabsdown__tablist > .tabsdown__tab[aria-selected="true"],
+body.tabsdown-right-personality-separator .tabsdown--right > .tabsdown__tablist > .tabsdown__tab[aria-expanded="true"] {
+	border-color: transparent;
+	border-radius: 0;
+	background-color: transparent;
+	color: var(--tabsdown-tab-underline-color);
+}
+
+body.tabsdown-personality-separator .tabsdown--mounted > .tabsdown__tablist > .tabsdown__tab > .tabsdown__separator:not([hidden]),
+body.tabsdown-personality-separator:not(.tabsdown-top-personality-button):not(.tabsdown-top-personality-underline):not(.tabsdown-top-personality-separator):not(.tabsdown-top-personality-rail) .tabsdown--top > .tabsdown__tablist > .tabsdown__tab > .tabsdown__separator:not([hidden]),
+body.tabsdown-personality-separator:not(.tabsdown-bottom-personality-button):not(.tabsdown-bottom-personality-underline):not(.tabsdown-bottom-personality-separator):not(.tabsdown-bottom-personality-rail) .tabsdown--bottom > .tabsdown__tablist > .tabsdown__tab > .tabsdown__separator:not([hidden]),
+body.tabsdown-personality-separator:not(.tabsdown-left-personality-button):not(.tabsdown-left-personality-underline):not(.tabsdown-left-personality-separator):not(.tabsdown-left-personality-rail) .tabsdown--left > .tabsdown__tablist > .tabsdown__tab > .tabsdown__separator:not([hidden]),
+body.tabsdown-personality-separator:not(.tabsdown-right-personality-button):not(.tabsdown-right-personality-underline):not(.tabsdown-right-personality-separator):not(.tabsdown-right-personality-rail) .tabsdown--right > .tabsdown__tablist > .tabsdown__tab > .tabsdown__separator:not([hidden]),
+body.tabsdown-top-personality-separator .tabsdown--top > .tabsdown__tablist > .tabsdown__tab > .tabsdown__separator:not([hidden]),
+body.tabsdown-bottom-personality-separator .tabsdown--bottom > .tabsdown__tablist > .tabsdown__tab > .tabsdown__separator:not([hidden]),
+body.tabsdown-left-personality-separator .tabsdown--left > .tabsdown__tablist > .tabsdown__tab > .tabsdown__separator:not([hidden]),
+body.tabsdown-right-personality-separator .tabsdown--right > .tabsdown__tablist > .tabsdown__tab > .tabsdown__separator:not([hidden]) {
+	display: block;
+}
+
+body.tabsdown-top-personality-rail .tabsdown--top > .tabsdown__tablist,
+body.tabsdown-bottom-personality-rail .tabsdown--bottom > .tabsdown__tablist,
+body.tabsdown-left-personality-rail .tabsdown--left > .tabsdown__tablist,
+body.tabsdown-right-personality-rail .tabsdown--right > .tabsdown__tablist {
+	--tabsdown-tab-min-block-size: 36px;
+	padding: 0.375rem;
+	border-radius: var(--tabsdown-radius, var(--radius-s));
+	background-color: var(--background-secondary);
+}
+
+body.tabsdown-top-personality-rail .tabsdown--top > .tabsdown__tablist > .tabsdown__tab,
+body.tabsdown-bottom-personality-rail .tabsdown--bottom > .tabsdown__tablist > .tabsdown__tab,
+body.tabsdown-left-personality-rail .tabsdown--left > .tabsdown__tablist > .tabsdown__tab,
+body.tabsdown-right-personality-rail .tabsdown--right > .tabsdown__tablist > .tabsdown__tab {
+	padding-block: 0.125rem;
+}
+
+body.tabsdown-top-personality-rail .tabsdown--top > .tabsdown__tablist > .tabsdown__tab[aria-selected="true"],
+body.tabsdown-top-personality-rail .tabsdown--top > .tabsdown__tablist > .tabsdown__tab[aria-expanded="true"],
+body.tabsdown-bottom-personality-rail .tabsdown--bottom > .tabsdown__tablist > .tabsdown__tab[aria-selected="true"],
+body.tabsdown-bottom-personality-rail .tabsdown--bottom > .tabsdown__tablist > .tabsdown__tab[aria-expanded="true"],
+body.tabsdown-left-personality-rail .tabsdown--left > .tabsdown__tablist > .tabsdown__tab[aria-selected="true"],
+body.tabsdown-left-personality-rail .tabsdown--left > .tabsdown__tablist > .tabsdown__tab[aria-expanded="true"],
+body.tabsdown-right-personality-rail .tabsdown--right > .tabsdown__tablist > .tabsdown__tab[aria-selected="true"],
+body.tabsdown-right-personality-rail .tabsdown--right > .tabsdown__tablist > .tabsdown__tab[aria-expanded="true"] {
+	border-color: transparent;
+	border-radius: var(--tabsdown-radius, var(--radius-s));
+	background-color: var(--tabsdown-rail-selected-background);
+	color: var(--tabsdown-tab-selected-color);
+}
+
+body.tabsdown-top-personality-button .tabsdown--top > .tabsdown__tablist,
+body.tabsdown-top-personality-underline .tabsdown--top > .tabsdown__tablist,
+body.tabsdown-top-personality-separator .tabsdown--top > .tabsdown__tablist,
+body.tabsdown-bottom-personality-button .tabsdown--bottom > .tabsdown__tablist,
+body.tabsdown-bottom-personality-underline .tabsdown--bottom > .tabsdown__tablist,
+body.tabsdown-bottom-personality-separator .tabsdown--bottom > .tabsdown__tablist,
+body.tabsdown-left-personality-button .tabsdown--left > .tabsdown__tablist,
+body.tabsdown-left-personality-underline .tabsdown--left > .tabsdown__tablist,
+body.tabsdown-left-personality-separator .tabsdown--left > .tabsdown__tablist,
+body.tabsdown-right-personality-button .tabsdown--right > .tabsdown__tablist,
+body.tabsdown-right-personality-underline .tabsdown--right > .tabsdown__tablist,
+body.tabsdown-right-personality-separator .tabsdown--right > .tabsdown__tablist {
+	--tabsdown-tab-min-block-size: var(--tabsdown-tab-min-size);
+	padding: var(--border-width);
+	border-radius: 0;
+	background-color: transparent;
+}
+
+body.tabsdown-top-personality-button .tabsdown--top > .tabsdown__tablist > .tabsdown__tab,
+body.tabsdown-top-personality-underline .tabsdown--top > .tabsdown__tablist > .tabsdown__tab,
+body.tabsdown-top-personality-separator .tabsdown--top > .tabsdown__tablist > .tabsdown__tab,
+body.tabsdown-bottom-personality-button .tabsdown--bottom > .tabsdown__tablist > .tabsdown__tab,
+body.tabsdown-bottom-personality-underline .tabsdown--bottom > .tabsdown__tablist > .tabsdown__tab,
+body.tabsdown-bottom-personality-separator .tabsdown--bottom > .tabsdown__tablist > .tabsdown__tab,
+body.tabsdown-left-personality-button .tabsdown--left > .tabsdown__tablist > .tabsdown__tab,
+body.tabsdown-left-personality-underline .tabsdown--left > .tabsdown__tablist > .tabsdown__tab,
+body.tabsdown-left-personality-separator .tabsdown--left > .tabsdown__tablist > .tabsdown__tab,
+body.tabsdown-right-personality-button .tabsdown--right > .tabsdown__tablist > .tabsdown__tab,
+body.tabsdown-right-personality-underline .tabsdown--right > .tabsdown__tablist > .tabsdown__tab,
+body.tabsdown-right-personality-separator .tabsdown--right > .tabsdown__tablist > .tabsdown__tab {
+	padding-block: var(--tabsdown-tab-padding-block);
+}
+
+@media (hover: hover) {
+	body.tabsdown-top-personality-separator .tabsdown--top > .tabsdown__tablist > .tabsdown__tab:hover,
+	body.tabsdown-bottom-personality-separator .tabsdown--bottom > .tabsdown__tablist > .tabsdown__tab:hover,
+	body.tabsdown-left-personality-separator .tabsdown--left > .tabsdown__tablist > .tabsdown__tab:hover,
+	body.tabsdown-right-personality-separator .tabsdown--right > .tabsdown__tablist > .tabsdown__tab:hover,
+	body.tabsdown-top-personality-rail .tabsdown--top > .tabsdown__tablist > .tabsdown__tab:hover,
+	body.tabsdown-bottom-personality-rail .tabsdown--bottom > .tabsdown__tablist > .tabsdown__tab:hover,
+	body.tabsdown-left-personality-rail .tabsdown--left > .tabsdown__tablist > .tabsdown__tab:hover,
+	body.tabsdown-right-personality-rail .tabsdown--right > .tabsdown__tablist > .tabsdown__tab:hover {
+		border-color: transparent;
+		background-color: transparent;
+		color: var(--text-normal);
+	}
+
+	body.tabsdown-top-personality-rail .tabsdown--top > .tabsdown__tablist > .tabsdown__tab[aria-selected="true"]:hover,
+	body.tabsdown-top-personality-rail .tabsdown--top > .tabsdown__tablist > .tabsdown__tab[aria-expanded="true"]:hover,
+	body.tabsdown-bottom-personality-rail .tabsdown--bottom > .tabsdown__tablist > .tabsdown__tab[aria-selected="true"]:hover,
+	body.tabsdown-bottom-personality-rail .tabsdown--bottom > .tabsdown__tablist > .tabsdown__tab[aria-expanded="true"]:hover,
+	body.tabsdown-left-personality-rail .tabsdown--left > .tabsdown__tablist > .tabsdown__tab[aria-selected="true"]:hover,
+	body.tabsdown-left-personality-rail .tabsdown--left > .tabsdown__tablist > .tabsdown__tab[aria-expanded="true"]:hover,
+	body.tabsdown-right-personality-rail .tabsdown--right > .tabsdown__tablist > .tabsdown__tab[aria-selected="true"]:hover,
+	body.tabsdown-right-personality-rail .tabsdown--right > .tabsdown__tablist > .tabsdown__tab[aria-expanded="true"]:hover {
+		background-color: var(--tabsdown-rail-selected-background);
+		color: var(--tabsdown-tab-selected-color);
+	}
+
+	body.tabsdown-top-personality-separator .tabsdown--top > .tabsdown__tablist > .tabsdown__tab:is([aria-selected="true"], [aria-expanded="true"]):hover,
+	body.tabsdown-bottom-personality-separator .tabsdown--bottom > .tabsdown__tablist > .tabsdown__tab:is([aria-selected="true"], [aria-expanded="true"]):hover,
+	body.tabsdown-left-personality-separator .tabsdown--left > .tabsdown__tablist > .tabsdown__tab:is([aria-selected="true"], [aria-expanded="true"]):hover,
+	body.tabsdown-right-personality-separator .tabsdown--right > .tabsdown__tablist > .tabsdown__tab:is([aria-selected="true"], [aria-expanded="true"]):hover {
 		color: var(--tabsdown-tab-underline-color);
 	}
 }
 
-/* A side list runs down the block axis. Never let inline equal-width controls
-   stretch its tabs along the block axis. */
-body.tabsdown-alignment-equal-width .tabsdown--left > .tabsdown__tablist > .tabsdown__tab,
-body.tabsdown-alignment-equal-width .tabsdown--right > .tabsdown__tablist > .tabsdown__tab,
-body.tabsdown-left-alignment-start .tabsdown--left > .tabsdown__tablist > .tabsdown__tab,
-body.tabsdown-left-alignment-center .tabsdown--left > .tabsdown__tablist > .tabsdown__tab,
-body.tabsdown-right-alignment-start .tabsdown--right > .tabsdown__tablist > .tabsdown__tab,
-body.tabsdown-right-alignment-center .tabsdown--right > .tabsdown__tablist > .tabsdown__tab,
-body.tabsdown-left-alignment-equal-width .tabsdown--left > .tabsdown__tablist > .tabsdown__tab,
-body.tabsdown-right-alignment-equal-width .tabsdown--right > .tabsdown__tablist > .tabsdown__tab {
+@media (any-pointer: coarse) {
+	body.tabsdown-personality-rail .tabsdown__tablist,
+	body.tabsdown-top-personality-rail .tabsdown--top > .tabsdown__tablist,
+	body.tabsdown-bottom-personality-rail .tabsdown--bottom > .tabsdown__tablist,
+	body.tabsdown-left-personality-rail .tabsdown--left > .tabsdown__tablist,
+	body.tabsdown-right-personality-rail .tabsdown--right > .tabsdown__tablist {
+		--tabsdown-tab-min-block-size: 44px;
+	}
+
+	body:is(
+		.tabsdown-top-personality-button,
+		.tabsdown-top-personality-underline,
+		.tabsdown-top-personality-separator
+	) .tabsdown--top > .tabsdown__tablist,
+	body:is(
+		.tabsdown-bottom-personality-button,
+		.tabsdown-bottom-personality-underline,
+		.tabsdown-bottom-personality-separator
+	) .tabsdown--bottom > .tabsdown__tablist,
+	body:is(
+		.tabsdown-left-personality-button,
+		.tabsdown-left-personality-underline,
+		.tabsdown-left-personality-separator
+	) .tabsdown--left > .tabsdown__tablist,
+	body:is(
+		.tabsdown-right-personality-button,
+		.tabsdown-right-personality-underline,
+		.tabsdown-right-personality-separator
+	) .tabsdown--right > .tabsdown__tablist {
+		--tabsdown-tab-min-block-size: var(--tabsdown-tab-min-size);
+	}
+}
+
+/* Side tabs always share the full list width; alignment settings only position
+   the list itself. */
+.tabsdown--left > .tabsdown__tablist > .tabsdown__tab,
+.tabsdown--right > .tabsdown__tablist > .tabsdown__tab {
 	flex: 0 0 auto;
-	min-inline-size: var(--tabsdown-tab-min-size);
+	inline-size: 100%;
+	min-inline-size: 0;
 	white-space: normal;
 }
 
@@ -1534,50 +1975,29 @@ body.tabsdown-right-alignment-equal-width .tabsdown--right > .tabsdown__tablist 
 		flex-direction: row;
 		inline-size: 100%;
 		max-inline-size: 100%;
-		--tabsdown-side-tab-alignment: stretch;
 		overflow-x: auto;
 		overflow-y: hidden;
 	}
 
-	body.tabsdown-alignment-equal-width .tabsdown--left > .tabsdown__tablist > .tabsdown__tab,
-	body.tabsdown-alignment-equal-width .tabsdown--right > .tabsdown__tablist > .tabsdown__tab {
-		flex: 1 0 0;
-		min-inline-size: max-content;
-		white-space: nowrap;
-	}
-
-	body:where(.tabsdown-overflow-wrap).tabsdown-alignment-equal-width .tabsdown--left:where(:not(.tabsdown--inline-overflow)) > .tabsdown__tablist > .tabsdown__tab,
-	body:where(.tabsdown-overflow-wrap).tabsdown-alignment-equal-width .tabsdown--right:where(:not(.tabsdown--inline-overflow)) > .tabsdown__tablist > .tabsdown__tab,
-	body.tabsdown-alignment-equal-width .tabsdown--left:where(.tabsdown--inline-overflow.tabsdown--multi) > .tabsdown__tablist > .tabsdown__tab,
-	body.tabsdown-alignment-equal-width .tabsdown--right:where(.tabsdown--inline-overflow.tabsdown--multi) > .tabsdown__tablist > .tabsdown__tab {
-		flex: 1 1 max-content;
+	body .tabsdown.tabsdown--left > .tabsdown__tablist > .tabsdown__tab.tabsdown__tab,
+	body .tabsdown.tabsdown--right > .tabsdown__tablist > .tabsdown__tab.tabsdown__tab {
+		flex: 1 1 0;
+		inline-size: 0;
 		min-inline-size: var(--tabsdown-tab-min-size);
 		white-space: normal;
 	}
 
-	body.tabsdown-left-alignment-start .tabsdown--left > .tabsdown__tablist > .tabsdown__tab,
-	body.tabsdown-left-alignment-center .tabsdown--left > .tabsdown__tablist > .tabsdown__tab,
-	body.tabsdown-right-alignment-start .tabsdown--right > .tabsdown__tablist > .tabsdown__tab,
-	body.tabsdown-right-alignment-center .tabsdown--right > .tabsdown__tablist > .tabsdown__tab {
-		flex: 0 0 auto;
-		min-inline-size: var(--tabsdown-tab-min-size);
-		white-space: normal;
-	}
-
-	body.tabsdown-left-alignment-equal-width .tabsdown--left > .tabsdown__tablist > .tabsdown__tab,
-	body.tabsdown-right-alignment-equal-width .tabsdown--right > .tabsdown__tablist > .tabsdown__tab {
-		flex: 1 0 0;
-		min-inline-size: max-content;
-		white-space: nowrap;
-	}
-
+	body:where(.tabsdown-overflow-wrap).tabsdown-alignment-equal-width:not(.tabsdown-left-alignment-start):not(.tabsdown-left-alignment-center) .tabsdown--left:where(:not(.tabsdown--inline-overflow)) > .tabsdown__tablist > .tabsdown__tab,
+	body.tabsdown-alignment-equal-width:not(.tabsdown-left-alignment-start):not(.tabsdown-left-alignment-center) .tabsdown--left:where(.tabsdown--inline-overflow.tabsdown--multi) > .tabsdown__tablist > .tabsdown__tab,
+	body:where(.tabsdown-overflow-wrap).tabsdown-alignment-equal-width:not(.tabsdown-right-alignment-start):not(.tabsdown-right-alignment-center) .tabsdown--right:where(:not(.tabsdown--inline-overflow)) > .tabsdown__tablist > .tabsdown__tab,
+	body.tabsdown-alignment-equal-width:not(.tabsdown-right-alignment-start):not(.tabsdown-right-alignment-center) .tabsdown--right:where(.tabsdown--inline-overflow.tabsdown--multi) > .tabsdown__tablist > .tabsdown__tab,
 	body.tabsdown-overflow-wrap.tabsdown-left-alignment-equal-width .tabsdown--left:where(:not(.tabsdown--inline-overflow)) > .tabsdown__tablist > .tabsdown__tab,
-	body.tabsdown-overflow-wrap.tabsdown-right-alignment-equal-width .tabsdown--right:where(:not(.tabsdown--inline-overflow)) > .tabsdown__tablist > .tabsdown__tab,
 	body.tabsdown-left-alignment-equal-width .tabsdown--left:where(.tabsdown--inline-overflow.tabsdown--multi) > .tabsdown__tablist > .tabsdown__tab,
+	body.tabsdown-overflow-wrap.tabsdown-right-alignment-equal-width .tabsdown--right:where(:not(.tabsdown--inline-overflow)) > .tabsdown__tablist > .tabsdown__tab,
 	body.tabsdown-right-alignment-equal-width .tabsdown--right:where(.tabsdown--inline-overflow.tabsdown--multi) > .tabsdown__tablist > .tabsdown__tab {
-		flex: 1 1 max-content;
-		min-inline-size: var(--tabsdown-tab-min-size);
-		white-space: normal;
+		flex: 1 1 var(--tabsdown-equal-wrap-basis);
+		inline-size: auto;
+		min-inline-size: 0;
 	}
 }
 
@@ -1588,5 +2008,67 @@ body.tabsdown-right-alignment-equal-width .tabsdown--right > .tabsdown__tablist 
 
 	.tabsdown__tab {
 		transition: none;
+	}
+}
+
+/* Close the cascade after position overrides. */
+:is(
+	body.tabsdown-personality-underline .tabsdown--mounted,
+	body.tabsdown-personality-underline:not(.tabsdown-top-personality-button):not(.tabsdown-top-personality-separator):not(.tabsdown-top-personality-rail) .tabsdown--top,
+	body.tabsdown-personality-underline:not(.tabsdown-bottom-personality-button):not(.tabsdown-bottom-personality-separator):not(.tabsdown-bottom-personality-rail) .tabsdown--bottom,
+	body.tabsdown-personality-underline:not(.tabsdown-left-personality-button):not(.tabsdown-left-personality-separator):not(.tabsdown-left-personality-rail) .tabsdown--left,
+	body.tabsdown-personality-underline:not(.tabsdown-right-personality-button):not(.tabsdown-right-personality-separator):not(.tabsdown-right-personality-rail) .tabsdown--right,
+	body.tabsdown-top-personality-underline .tabsdown--top,
+	body.tabsdown-bottom-personality-underline .tabsdown--bottom,
+	body.tabsdown-left-personality-underline .tabsdown--left,
+	body.tabsdown-right-personality-underline .tabsdown--right
+) > .tabsdown__tablist > .tabsdown__tab {
+	border-width: var(--border-width);
+	border-block-start-width: var(--tabsdown-underline-block-start-width);
+	border-inline-end-width: var(--tabsdown-underline-inline-end-width);
+	border-block-end-width: var(--tabsdown-underline-block-end-width);
+	border-inline-start-width: var(--tabsdown-underline-inline-start-width);
+	border-color: transparent;
+	border-radius: 0;
+	background-color: transparent;
+	color: var(--text-muted);
+}
+
+:is(
+	body.tabsdown-personality-underline .tabsdown--mounted,
+	body.tabsdown-personality-underline:not(.tabsdown-top-personality-button):not(.tabsdown-top-personality-separator):not(.tabsdown-top-personality-rail) .tabsdown--top,
+	body.tabsdown-personality-underline:not(.tabsdown-bottom-personality-button):not(.tabsdown-bottom-personality-separator):not(.tabsdown-bottom-personality-rail) .tabsdown--bottom,
+	body.tabsdown-personality-underline:not(.tabsdown-left-personality-button):not(.tabsdown-left-personality-separator):not(.tabsdown-left-personality-rail) .tabsdown--left,
+	body.tabsdown-personality-underline:not(.tabsdown-right-personality-button):not(.tabsdown-right-personality-separator):not(.tabsdown-right-personality-rail) .tabsdown--right,
+	body.tabsdown-top-personality-underline .tabsdown--top,
+	body.tabsdown-bottom-personality-underline .tabsdown--bottom,
+	body.tabsdown-left-personality-underline .tabsdown--left,
+	body.tabsdown-right-personality-underline .tabsdown--right
+) > .tabsdown__tablist > .tabsdown__tab:is([aria-selected="true"], [aria-expanded="true"]) {
+	border-block-start-color: var(--tabsdown-underline-block-start-color);
+	border-inline-end-color: var(--tabsdown-underline-inline-end-color);
+	border-block-end-color: var(--tabsdown-underline-block-end-color);
+	border-inline-start-color: var(--tabsdown-underline-inline-start-color);
+	background-color: transparent;
+	color: var(--text-normal);
+}
+
+@media (hover: hover) {
+	:is(
+		body.tabsdown-personality-underline .tabsdown--mounted,
+		body.tabsdown-personality-underline:not(.tabsdown-top-personality-button):not(.tabsdown-top-personality-separator):not(.tabsdown-top-personality-rail) .tabsdown--top,
+		body.tabsdown-personality-underline:not(.tabsdown-bottom-personality-button):not(.tabsdown-bottom-personality-separator):not(.tabsdown-bottom-personality-rail) .tabsdown--bottom,
+		body.tabsdown-personality-underline:not(.tabsdown-left-personality-button):not(.tabsdown-left-personality-separator):not(.tabsdown-left-personality-rail) .tabsdown--left,
+		body.tabsdown-personality-underline:not(.tabsdown-right-personality-button):not(.tabsdown-right-personality-separator):not(.tabsdown-right-personality-rail) .tabsdown--right,
+		body.tabsdown-top-personality-underline .tabsdown--top,
+		body.tabsdown-bottom-personality-underline .tabsdown--bottom,
+		body.tabsdown-left-personality-underline .tabsdown--left,
+		body.tabsdown-right-personality-underline .tabsdown--right
+	) > .tabsdown__tablist > .tabsdown__tab:not([aria-selected="true"]):not([aria-expanded="true"]):hover {
+		border-block-start-color: color-mix(in srgb, var(--tabsdown-underline-block-start-color) 55%, transparent);
+		border-inline-end-color: color-mix(in srgb, var(--tabsdown-underline-inline-end-color) 55%, transparent);
+		border-block-end-color: color-mix(in srgb, var(--tabsdown-underline-block-end-color) 55%, transparent);
+		border-inline-start-color: color-mix(in srgb, var(--tabsdown-underline-inline-start-color) 55%, transparent);
+		color: var(--text-normal);
 	}
 }

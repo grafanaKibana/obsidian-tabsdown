@@ -6,6 +6,11 @@ export interface ParsedTab {
 
 export type TabDefinition = ParsedTab;
 
+export interface InlineLabelToken {
+	type: "text" | "strong" | "emphasis" | "delete" | "code";
+	text: string;
+}
+
 export type TabConfiguration = "top" | "left" | "right" | "bottom" | "one" | "multi";
 
 export type TabsDiagnosticCode =
@@ -40,6 +45,120 @@ const configurationValues = new Set<TabConfiguration>([
 ]);
 const backtickFence = /^ {0,3}(`{3,})([^`]*)$/;
 const tildeFence = /^ {0,3}(~{3,})(.*)$/;
+
+const inlineDelimiters = ["**", "~~", "`", "*"] as const;
+const inlineTokenTypes = {
+	"**": "strong",
+	"~~": "delete",
+	"`": "code",
+	"*": "emphasis",
+} as const;
+
+function isEscaped(source: string, index: number): boolean {
+	let slashes = 0;
+	for (let cursor = index - 1; cursor >= 0 && source[cursor] === "\\"; cursor -= 1) {
+		slashes += 1;
+	}
+	return slashes % 2 === 1;
+}
+
+function overlapsDelimiterRun(
+	source: string,
+	delimiter: (typeof inlineDelimiters)[number],
+	index: number,
+): boolean {
+	const marker = delimiter[0];
+	return (
+		source[index - 1] === marker ||
+		source[index + delimiter.length] === marker
+	);
+}
+
+function findClosingDelimiter(
+	source: string,
+	delimiter: (typeof inlineDelimiters)[number],
+	start: number,
+): number {
+	for (let index = start; index <= source.length - delimiter.length; index += 1) {
+		if (!source.startsWith(delimiter, index) || isEscaped(source, index)) continue;
+		if (overlapsDelimiterRun(source, delimiter, index)) continue;
+		return index;
+	}
+	return -1;
+}
+
+function containsInlineDelimiter(source: string): boolean {
+	for (let index = 0; index < source.length; index += 1) {
+		if (
+			inlineDelimiters.some((delimiter) => source.startsWith(delimiter, index)) &&
+			!isEscaped(source, index)
+		) {
+			return true;
+		}
+	}
+	return false;
+}
+
+function unescapeInlineText(source: string): string {
+	return source.replace(/\\([*~`\\])/g, "$1");
+}
+
+export function parseInlineLabel(source: string): InlineLabelToken[] {
+	const tokens: InlineLabelToken[] = [];
+	let text = "";
+	const flushText = (): void => {
+		if (text !== "") tokens.push({ type: "text", text });
+		text = "";
+	};
+
+	for (let index = 0; index < source.length; ) {
+		if (source[index] === "\\" && /[*~`\\]/.test(source[index + 1] ?? "")) {
+			text += source[index + 1] ?? "";
+			index += 2;
+			continue;
+		}
+
+		const delimiter = inlineDelimiters.find((candidate) => {
+			if (!source.startsWith(candidate, index)) return false;
+			return !overlapsDelimiterRun(source, candidate, index);
+		});
+		if (!delimiter) {
+			text += source[index] ?? "";
+			index += 1;
+			continue;
+		}
+
+		const close = findClosingDelimiter(source, delimiter, index + delimiter.length);
+		if (close < 0) {
+			text += delimiter;
+			index += delimiter.length;
+			continue;
+		}
+		const raw = source.slice(index + delimiter.length, close);
+		if (
+			raw.trim() === "" ||
+			(delimiter !== "`" && containsInlineDelimiter(raw))
+		) {
+			text += source.slice(index, close + delimiter.length);
+			index = close + delimiter.length;
+			continue;
+		}
+
+		flushText();
+		tokens.push({
+			type: inlineTokenTypes[delimiter],
+			text: delimiter === "`" ? raw : unescapeInlineText(raw),
+		});
+		index = close + delimiter.length;
+	}
+
+	flushText();
+	return tokens;
+}
+
+export function inlineLabelText(tokens: readonly InlineLabelToken[]): string {
+	return tokens.map((token) => token.text).join("");
+}
 
 export function parseTabs(source: string): TabsParseResult {
 	const tabs: ParsedTab[] = [];

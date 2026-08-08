@@ -1,6 +1,90 @@
 import { describe, expect, test } from "vitest";
 
-import { parseTabs } from "../src/parser";
+import { inlineLabelText, parseInlineLabel, parseTabs } from "../src/parser";
+
+describe("parseInlineLabel", () => {
+	test.each([
+		["Plain", [{ type: "text", text: "Plain" }]],
+		["**Bold**", [{ type: "strong", text: "Bold" }]],
+		["*Italic*", [{ type: "emphasis", text: "Italic" }]],
+		["~~Strike~~", [{ type: "delete", text: "Strike" }]],
+		["`code()`", [{ type: "code", text: "code()" }]],
+		[
+			"**Bold** and *italic*",
+			[
+				{ type: "strong", text: "Bold" },
+				{ type: "text", text: " and " },
+				{ type: "emphasis", text: "italic" },
+			],
+		],
+		[
+			"~~Old~~ + **strong** + `code`",
+			[
+				{ type: "delete", text: "Old" },
+				{ type: "text", text: " + " },
+				{ type: "strong", text: "strong" },
+				{ type: "text", text: " + " },
+				{ type: "code", text: "code" },
+			],
+		],
+		["`**literal** <b>`", [{ type: "code", text: "**literal** <b>" }]],
+		["`\\*`", [{ type: "code", text: "\\*" }]],
+		[String.raw`\*literal\* and \\`, [{ type: "text", text: "*literal* and \\" }]],
+		[
+			"Unicode **中文** ✨",
+			[
+				{ type: "text", text: "Unicode " },
+				{ type: "strong", text: "中文" },
+				{ type: "text", text: " ✨" },
+			],
+		],
+	] as const)("tokenizes %s", (source, expected) => {
+		const tokens = parseInlineLabel(source);
+		expect(tokens).toEqual(expected);
+		expect(inlineLabelText(tokens)).toBe(
+			expected.map((token) => token.text).join(""),
+		);
+	});
+
+	test.each([
+		"**unclosed",
+		"*",
+		"~~open",
+		"`open",
+		"**outer *nested* text**",
+		"***overlap***",
+		"~~~old~~~",
+		"~~~old~~",
+		"~~old~~~",
+		"```code```",
+		"``code``",
+		"****",
+		"** **",
+		"~~~~",
+		"``",
+		"<img src=x onerror=alert(1)>",
+		"<strong>html</strong>",
+		"[link](https://example.com)",
+		"![alt](image.png)",
+		"[[Wiki]] # heading - list > quote",
+	])("keeps unsupported or malformed source literal: %s", (source) => {
+		expect(parseInlineLabel(source)).toEqual([{ type: "text", text: source }]);
+	});
+
+	test("does not reinterpret an unmatched strong opener as emphasis", () => {
+		expect(parseInlineLabel("**unclosed *valid*")).toEqual([
+			{ type: "text", text: "**unclosed " },
+			{ type: "emphasis", text: "valid" },
+		]);
+	});
+
+	test("keeps long unmatched escape runs linear", () => {
+		const source = `*${"\\".repeat(20_000)}`;
+		expect(parseInlineLabel(source)).toEqual([
+			{ type: "text", text: `*${"\\".repeat(10_000)}` },
+		]);
+	});
+});
 
 describe("parseTabs", () => {
 	test("parses multiple tabs, blank lines, whitespace, and empty bodies", () => {
@@ -310,6 +394,16 @@ describe("parseTabs", () => {
 			tabs: [
 				{ label: "<img src=x onerror=alert(1)>", body: "" },
 				{ label: "<b>safe text</b>", body: "" },
+			],
+		});
+	});
+
+	test("keeps raw and formatted-equivalent labels as distinct keys", () => {
+		expect(parseTabs("tab: A\ntab: **A**")).toEqual({
+			ok: true,
+			tabs: [
+				{ label: "A", body: "" },
+				{ label: "**A**", body: "" },
 			],
 		});
 	});

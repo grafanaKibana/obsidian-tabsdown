@@ -5,8 +5,18 @@ import {
 	MarkdownRenderer,
 	setIcon,
 } from "obsidian";
-import type { TabConfiguration, TabDefinition, TabsDiagnostic } from "./parser";
+import { renderLabel } from "./label";
 import { trackPanelHeight, type PanelHeightTracker } from "./panel-height";
+import {
+	parseInlineLabel,
+	type TabConfiguration,
+	type TabDefinition,
+	type TabsDiagnostic,
+} from "./parser";
+import {
+	trackSeparators,
+	type SeparatorTracker,
+} from "./separator";
 
 interface PanelState {
 	panelEl: HTMLElement;
@@ -56,6 +66,7 @@ export class TabBlockRenderChild extends MarkdownRenderChild {
 	private readonly panels: PanelState[] = [];
 	private panelsEl?: HTMLElement;
 	private height?: PanelHeightTracker;
+	private separators?: SeparatorTracker;
 	private selectedIndex = 0;
 	private focusIndex = 0;
 	private disposed = false;
@@ -82,7 +93,11 @@ export class TabBlockRenderChild extends MarkdownRenderChild {
 			this.containerEl.classList.add(`tabsdown--${configuration}`);
 		}
 
-	const tabList = createElement(this.containerEl, "div", "tabsdown__tablist");
+		const tabList = createElement(
+			this.containerEl,
+			"div",
+			"tabsdown__tablist",
+		);
 		tabList.setAttribute("role", "tablist");
 		tabList.setAttribute("aria-label", "Tabbed content");
 
@@ -99,13 +114,22 @@ export class TabBlockRenderChild extends MarkdownRenderChild {
 			const button = createElement(tabList, "button", "tabsdown__tab");
 			button.type = "button";
 			button.id = tabId;
+			const labelTokens = parseInlineLabel(tab.label);
+			const separator = createElement(button, "span", "tabsdown__separator");
+			separator.setAttribute("aria-hidden", "true");
+			separator.hidden = true;
+			const content = createElement(button, "span", "tabsdown__tab-content");
 			if (tab.icon) {
-				const icon = createElement(button, "span", "tabsdown__tab-icon");
+				const icon = createElement(content, "span", "tabsdown__tab-icon");
 				icon.setAttribute("aria-hidden", "true");
 				setIcon(icon, tab.icon);
 			}
-			createElement(button, "span", "tabsdown__tab-label").textContent =
-				tab.label;
+			const label = createElement(content, "span", "tabsdown__tab-label");
+			renderLabel(label, labelTokens);
+			const reserve = createElement(content, "span", "tabsdown__tab-reserve");
+			reserve.setAttribute("aria-hidden", "true");
+			if (tab.icon) reserve.classList.add("tabsdown__tab-reserve--icon");
+			renderLabel(reserve, labelTokens);
 			button.setAttribute("role", "tab");
 			button.setAttribute("aria-controls", panelId);
 
@@ -136,6 +160,7 @@ export class TabBlockRenderChild extends MarkdownRenderChild {
 		});
 
 		this.containerEl.append(tabList, panels);
+		this.separators = trackSeparators(tabList, this.buttons);
 		this.updateState();
 		this.ensureRendered(0);
 	}
@@ -171,6 +196,7 @@ export class TabBlockRenderChild extends MarkdownRenderChild {
 	onunload(): void {
 		this.disposed = true;
 		this.height?.destroy();
+		this.separators?.destroy();
 		for (const panel of this.panels) {
 			this.disposePanel(panel);
 		}

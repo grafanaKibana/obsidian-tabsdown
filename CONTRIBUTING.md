@@ -34,7 +34,7 @@ For manual testing, copy or link this repository into:
 
 Build `main.js`, reload Obsidian, then enable **Tabsdown** under **Settings → Community plugins**.
 
-The demo vault always ships the plugin built from the same commit, so anyone can open `demo/` in Obsidian and exercise the current behavior. After changing `src/`, `styles.css`, or `manifest.json`, run `npm run demo` and commit the result; CI fails the `quality` check when the committed build does not match the source.
+The demo vault must always contain the latest plugin built from the same commit, so anyone can open `demo/` in Obsidian and exercise the current behavior. After any change that affects the plugin or its release assets, run `npm run demo` and commit all changed files under `demo/.obsidian/plugins/tabsdown/`; never leave the demo vault on an older build. CI fails the `quality` check when the committed demo plugin does not match the source.
 
 Tabsdown is the only plugin enabled in the tracked demo state. Style Settings, BRAT, Templater, Dataview, and Datacore are tracked as manifests and styles only, because `main.js` is ignored for everything but Tabsdown. Install and enable them through **Settings → Community plugins** before using the parts of `Tabsdown test matrix.md` that need them.
 
