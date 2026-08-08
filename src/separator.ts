@@ -71,7 +71,11 @@ export function trackSeparators(
 					...(node.nodeType === 1
 						? {
 								attributes: true,
-								attributeFilter: ["class", "style", "dir"],
+								attributeFilter: (node as Element).classList.contains(
+									"tabsdown__panels",
+								)
+									? ["class", "dir"]
+									: ["class", "style", "dir"],
 							}
 						: {}),
 				});
