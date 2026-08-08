@@ -116,6 +116,7 @@ describe("selection", () => {
 		);
 		expect(reserve?.innerHTML).toBe(labels[0]?.innerHTML);
 		expect(reserve?.getAttribute("aria-hidden")).toBe("true");
+		expect(reserve?.parentElement?.classList.contains("tabsdown__tab-content")).toBe(true);
 		expect(controller.selection).toBeNull();
 	});
 

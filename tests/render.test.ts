@@ -667,6 +667,7 @@ test("renders only the bounded inline label elements beside icons", () => {
 	expect(reserve?.innerHTML).toBe(labels[0]?.innerHTML);
 	expect(reserve?.getAttribute("aria-hidden")).toBe("true");
 	expect(reserve?.classList.contains("tabsdown__tab-reserve--icon")).toBe(true);
+	expect(reserve?.parentElement?.classList.contains("tabsdown__tab-content")).toBe(true);
 	expect(container.querySelector(".tabsdown__tab-icon")?.getAttribute("aria-hidden")).toBe("true");
 });
 
@@ -1080,11 +1081,16 @@ test("renders separators as centered, non-layout elements", () => {
 });
 
 test("reserves bolder formatted label metrics without changing selected tab width", () => {
-	const reserve = matchingRuleBodies(readStyles(), ".tabsdown__tab-reserve");
+	const styles = readStyles();
+	const content = matchingRuleBodies(styles, ".tabsdown__tab-content");
+	const reserve = matchingRuleBodies(styles, ".tabsdown__tab-reserve");
+	expect(content).toContain("display: inline-grid");
 	expect(reserve).toContain("font-weight: 700");
 	expect(reserve).toContain("visibility: hidden");
-	expect(readStyles()).toContain(".tabsdown__tab-reserve--icon");
-	expect(readStyles()).toContain("@media (any-pointer: coarse)");
+	expect(reserve).toContain("grid-area: 1 / 1 / 2 / -1");
+	expect(reserve).not.toContain("block-size: 0");
+	expect(styles).toContain(".tabsdown__tab-reserve--icon");
+	expect(styles).toContain("@media (any-pointer: coarse)");
 });
 
 test("computed global personalities yield to every explicit position override", () => {
@@ -1293,7 +1299,7 @@ test("side tabs are equal width in wide and narrow layouts", () => {
 
 test("wrapped equal-width rows align and the final row fills the list", () => {
 	const styles = readStyles();
-	expect(styles).not.toContain("grid-template-columns");
+	expect(styles).not.toContain("grid-template-columns: repeat");
 	expect(styles).toMatch(
 		/6em \+ var\(--tabsdown-tab-padding-inline\) \+\s*var\(--tabsdown-tab-padding-inline\)/,
 	);

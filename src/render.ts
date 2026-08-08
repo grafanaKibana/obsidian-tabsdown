@@ -118,14 +118,15 @@ export class TabBlockRenderChild extends MarkdownRenderChild {
 			const separator = createElement(button, "span", "tabsdown__separator");
 			separator.setAttribute("aria-hidden", "true");
 			separator.hidden = true;
+			const content = createElement(button, "span", "tabsdown__tab-content");
 			if (tab.icon) {
-				const icon = createElement(button, "span", "tabsdown__tab-icon");
+				const icon = createElement(content, "span", "tabsdown__tab-icon");
 				icon.setAttribute("aria-hidden", "true");
 				setIcon(icon, tab.icon);
 			}
-			const label = createElement(button, "span", "tabsdown__tab-label");
+			const label = createElement(content, "span", "tabsdown__tab-label");
 			renderLabel(label, labelTokens);
-			const reserve = createElement(button, "span", "tabsdown__tab-reserve");
+			const reserve = createElement(content, "span", "tabsdown__tab-reserve");
 			reserve.setAttribute("aria-hidden", "true");
 			if (tab.icon) reserve.classList.add("tabsdown__tab-reserve--icon");
 			renderLabel(reserve, labelTokens);

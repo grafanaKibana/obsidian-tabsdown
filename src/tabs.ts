@@ -228,15 +228,18 @@ export function mountTabs(
 		separator.setAttribute("aria-hidden", "true");
 		separator.hidden = true;
 		button.append(separator);
+		const content = ownerDocument.createElement("span");
+		content.className = "tabsdown__tab-content";
+		button.append(content);
 		const label = ownerDocument.createElement("span");
 		label.className = "tabsdown__tab-label";
 		renderLabel(label, tabLabels[index] ?? []);
-		button.append(label);
+		content.append(label);
 		const reserve = ownerDocument.createElement("span");
 		reserve.className = "tabsdown__tab-reserve";
 		reserve.setAttribute("aria-hidden", "true");
 		renderLabel(reserve, tabLabels[index] ?? []);
-		button.append(reserve);
+		content.append(reserve);
 		tabList.append(button);
 
 		const restore = new Map<string, string | null>(

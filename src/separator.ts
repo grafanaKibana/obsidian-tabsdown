@@ -28,7 +28,7 @@ export function trackSeparators(
 			false;
 		let previous: DOMRect | undefined;
 		for (const button of buttons) {
-			const separator = button.querySelector<HTMLElement>(":scope > .tabsdown__separator");
+			const separator = button.querySelector<HTMLElement>(".tabsdown__separator");
 			if (!separator || button.hidden) continue;
 
 			const current = button.getBoundingClientRect();
@@ -62,12 +62,22 @@ export function trackSeparators(
 	if (view?.MutationObserver) {
 		const observeAncestors = (): void => {
 			mutations?.disconnect();
-			mutations?.observe(tabList.ownerDocument, { childList: true, subtree: true });
-			for (let element: Element | null = tabList; element; element = element.parentElement) {
-				mutations?.observe(element, {
-					attributes: true,
-					attributeFilter: ["class", "style", "dir"],
+			if (!tabList.isConnected) {
+				mutations?.observe(tabList.ownerDocument, { childList: true, subtree: true });
+			}
+			for (let node: Node | null = tabList; node; ) {
+				mutations?.observe(node, {
+					childList: true,
+					...(node.nodeType === 1
+						? {
+								attributes: true,
+								attributeFilter: ["class", "style", "dir"],
+							}
+						: {}),
 				});
+				node =
+					node.parentNode ??
+					("host" in node ? (node as ShadowRoot).host : null);
 			}
 		};
 		mutations = new view.MutationObserver(() => {

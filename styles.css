@@ -716,10 +716,19 @@ body.tabsdown-nested-style-flat .tabsdown .tabsdown {
 	display: none;
 }
 
+.tabsdown__tab-content {
+	display: inline-grid;
+	grid-template-columns: auto minmax(0, 1fr);
+	align-items: center;
+	max-inline-size: 100%;
+	min-inline-size: 0;
+	vertical-align: middle;
+}
+
 .tabsdown__tab-reserve {
-	display: block;
-	block-size: 0;
-	overflow: hidden;
+	grid-area: 1 / 1 / 2 / -1;
+	min-inline-size: 0;
+	overflow-wrap: anywhere;
 	font-weight: 700;
 	visibility: hidden;
 }
@@ -749,12 +758,14 @@ body.tabsdown-theme-button-outline .tabsdown__tab:active {
 
 .tabsdown__tab-icon {
 	--icon-size: var(--tabsdown-icon-size, 1em);
+	grid-area: 1 / 1;
 	display: inline-flex;
 	margin-inline-end: var(--tabsdown-icon-spacing, 0.35em);
 	vertical-align: -0.15em;
 }
 
 .tabsdown__tab-label {
+	grid-area: 1 / 2;
 	min-inline-size: 0;
 	overflow-wrap: anywhere;
 }
