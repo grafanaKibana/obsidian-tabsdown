@@ -11,6 +11,9 @@ interface CapturedEvent {
 	callback: () => void;
 }
 
+const STYLE_SETTINGS_FIXTURE =
+	"/* @settings\n\nname: Tabsdown\nid: tabsdown\n*/";
+
 function createPlugin(): {
 	app: App;
 	editor: {
@@ -78,7 +81,7 @@ beforeEach(() => {
 });
 
 test("registers one processor, forwards sourcePath, and advances freshness events", async () => {
-	const { events, plugin, trigger } = createPlugin();
+	const { events, plugin } = createPlugin();
 	plugin.onload();
 
 	expect(processorRegistrationMock).toHaveBeenCalledOnce();
@@ -90,8 +93,6 @@ test("registers one processor, forwards sourcePath, and advances freshness event
 		"rename",
 		"changed",
 	]);
-	expect(trigger).toHaveBeenCalledWith("parse-style-settings");
-
 	const handler = processorRegistrationMock.mock.calls[0]?.[1];
 	if (!handler) throw new Error("Expected a tabsdown processor.");
 	const container = document.createElement("div");
@@ -126,6 +127,24 @@ test("registers one processor, forwards sourcePath, and advances freshness event
 	buttons[1]?.click();
 	await flush();
 	expect(renderMock).toHaveBeenCalledTimes(3);
+});
+
+test("refreshes Style Settings only after the plugin stylesheet loads", async () => {
+	const { plugin, trigger } = createPlugin();
+	plugin.onload();
+
+	expect(trigger).not.toHaveBeenCalled();
+
+	const style = document.createElement("style");
+	style.textContent = STYLE_SETTINGS_FIXTURE;
+	document.head.append(style);
+	await flush();
+
+	expect(trigger).toHaveBeenCalledOnce();
+	expect(trigger).toHaveBeenCalledWith("parse-style-settings");
+
+	plugin.unload();
+	style.remove();
 });
 
 test("renders invalid source as text with only the edit bridge", () => {

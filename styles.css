@@ -33,10 +33,10 @@ settings:
     title: Personality
     type: class-select
     allowEmpty: false
-    default: tabsdown-personality-default
+    default: tabsdown-personality-rail
     options:
       -
-        label: Default
+        label: Button
         value: tabsdown-personality-default
       -
         label: Underline
@@ -83,7 +83,7 @@ settings:
     title: Alignment
     type: class-select
     allowEmpty: false
-    default: tabsdown-alignment-start
+    default: tabsdown-alignment-equal-width
     options:
       -
         label: Start
@@ -239,10 +239,10 @@ settings:
   -
     id: tabsdown-nested-style
     title: Nested block style
-    description: Card adds a bordered surface; Flat shows tabs directly inside the parent panel.
+    description: Flat shows tabs directly inside the parent panel; Card adds a bordered surface.
     type: class-select
     allowEmpty: false
-    default: tabsdown-nested-style-card
+    default: tabsdown-nested-style-flat
     options:
       -
         label: Card
@@ -393,7 +393,7 @@ settings:
     title: Personality
     type: class-select
     allowEmpty: false
-    default: tabsdown-left-personality-inherit
+    default: tabsdown-left-personality-underline
     options:
       -
         label: Inherit defaults
@@ -456,7 +456,7 @@ settings:
     title: Personality
     type: class-select
     allowEmpty: false
-    default: tabsdown-right-personality-inherit
+    default: tabsdown-right-personality-underline
     options:
       -
         label: Inherit defaults
@@ -593,9 +593,19 @@ settings:
 	margin-block-end: var(--tabsdown-content-spacing, 0.75rem);
 }
 
+/* Flat is the no-class baseline so nested tabs stay inside the parent panel
+   even when Style Settings is not installed. */
+.tabsdown .tabsdown {
+	margin-block: 0;
+	padding: 0;
+	border: 0;
+	border-radius: 0;
+	background-color: transparent;
+}
+
 /* A surface rather than a rule: an inline border reads as a tab underline under
    the underline personality, and as a quote bar everywhere else. */
-.tabsdown .tabsdown {
+body.tabsdown-nested-style-card .tabsdown .tabsdown {
 	margin-block: var(--tabsdown-content-spacing, 0.75rem);
 	padding: var(--tabsdown-content-spacing, 0.75rem);
 	border: var(--border-width) solid var(--tabsdown-tab-border);
@@ -605,16 +615,8 @@ settings:
 
 /* The renderer alternates parity classes at every depth so adjacent cards keep
    distinct surfaces without imposing a nesting limit. */
-body .tabsdown--nested-even.tabsdown {
+body.tabsdown-nested-style-card .tabsdown--nested-even.tabsdown {
 	background-color: var(--background-primary);
-}
-
-body.tabsdown-nested-style-flat .tabsdown .tabsdown {
-	margin-block: 0;
-	padding: 0;
-	border: 0;
-	border-radius: 0;
-	background-color: transparent;
 }
 
 /* Doubled so it outranks .tabsdown rather than relying on source order. A caller
@@ -1647,28 +1649,20 @@ body.tabsdown-right-palette-secondary .tabsdown--right {
 	--tabsdown-rail-selected-background: var(--background-primary);
 }
 
-/* Nested surfaces stay quieter than their parent. Palette-owned accents remain
-   inherited for Separator and Rail selection. */
-body .tabsdown--nested-odd.tabsdown {
-	--tabsdown-tab-background: color-mix(in srgb, var(--text-normal) 6%, transparent);
-	--tabsdown-tab-border: color-mix(in srgb, var(--text-normal) 12%, transparent);
-	--tabsdown-tab-color: var(--text-muted);
-	--tabsdown-tab-hover-background: color-mix(in srgb, var(--text-normal) 10%, transparent);
-	--tabsdown-tab-hover-border: color-mix(in srgb, var(--text-normal) 20%, transparent);
-	--tabsdown-tab-selected-background: color-mix(in srgb, var(--text-normal) 14%, transparent);
-	--tabsdown-tab-selected-border: color-mix(in srgb, var(--text-normal) 24%, transparent);
-	--tabsdown-tab-selected-color: var(--text-normal);
-}
-
+/* Nested tabs always use the neutral Secondary palette, independently of the
+   parent and position palette settings. */
+body .tabsdown--nested-odd.tabsdown,
 body .tabsdown--nested-even.tabsdown {
-	--tabsdown-tab-background: color-mix(in srgb, var(--text-normal) 10%, transparent);
-	--tabsdown-tab-border: color-mix(in srgb, var(--text-normal) 12%, transparent);
+	--tabsdown-tab-background: var(--background-secondary-alt);
+	--tabsdown-tab-border: var(--background-modifier-border);
 	--tabsdown-tab-color: var(--text-muted);
-	--tabsdown-tab-hover-background: color-mix(in srgb, var(--text-normal) 14%, transparent);
-	--tabsdown-tab-hover-border: color-mix(in srgb, var(--text-normal) 20%, transparent);
-	--tabsdown-tab-selected-background: color-mix(in srgb, var(--text-normal) 18%, transparent);
-	--tabsdown-tab-selected-border: color-mix(in srgb, var(--text-normal) 24%, transparent);
+	--tabsdown-tab-hover-background: var(--background-secondary);
+	--tabsdown-tab-hover-border: var(--background-modifier-border-hover);
+	--tabsdown-tab-selected-background: var(--background-secondary);
+	--tabsdown-tab-selected-border: var(--background-modifier-border-hover);
 	--tabsdown-tab-selected-color: var(--text-normal);
+	--tabsdown-tab-underline-color: var(--text-normal);
+	--tabsdown-rail-selected-background: var(--background-primary);
 }
 
 body.tabsdown-right-alignment-start .tabsdown--right > .tabsdown__tablist {

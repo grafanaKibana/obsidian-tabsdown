@@ -1,3 +1,8 @@
 [
+  "datacore",
+  "dataview",
+  "obsidian-style-settings",
+  "hot-reload",
+  "templater-obsidian",
   "tabsdown"
 ]

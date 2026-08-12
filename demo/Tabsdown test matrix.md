@@ -13,14 +13,14 @@ Reuse the Positions, Icons, and Labels sections below while changing settings; n
 
 | Check | Expected |
 | --- | --- |
-| Leave every Top/Bottom/Left/Right override on **Inherit defaults**, then change each global Personality, Palette, and Alignment value. | All four positions follow the globals; any `mountTabs` demo remains global-only. |
+| Start from the defaults, then set Left/Right Personality to **Inherit defaults** and change each global Personality, Palette, and Alignment value. | Top/Bottom and `mountTabs` start as Rail; Left/Right start as Underline. After inheriting, all four fenced positions follow the globals while `mountTabs` remains global-only. |
 | Try Button, Underline, Separator, and Rail globally, then reverse each with every position override. | Only that position changes. Separator is centered between tabs, spans 80% of their cross-axis, and is absent at wrapped row/column starts. Rail has a larger padded rounded track and shorter desktop tabs while preserving 44px coarse-pointer targets. |
 | Try Underline placement Auto/Top/Right/Bottom/Left and thickness 1/2/8. | Auto is bottom for Top/Bottom, right for Left, and left for Right—even when a narrow side list becomes a row. Explicit placement wins without hover/selection layout shifts. |
 | Hover selected and unselected tabs, switch Primary/Secondary, then try gap 0/48 in Scroll/Wrap, content spacing 0/12/48, and selected weight Thinner/Default/Bolder. | Primary accents selected Separator text and the Rail segment; Secondary remains neutral. Only selected/expanded labels change weight at 400/600/700, without changing tab width. |
 | Change horizontal padding directly to 0/36/48 in Default and Compact. | Each slider change applies immediately without a separate toggle and overflow remains usable. |
 | Change side-list width directly to 192/256/320 on Left/Right, try every Alignment option, and resize narrowly. | Each slider change applies immediately on wide lists; tabs remain equal width regardless of Alignment; narrow lists return to an equal-width full-width row and panels remain visible. |
 | Set icon size 12/32 and spacing 0/16, using the Icons section. | Icon boxes and gaps change without moving plain-label tabs off baseline. |
-| In Nested blocks, switch Nested block style between Card and Flat while viewing section 9 with Primary and Secondary palettes. | Card shows a bordered nested surface; Flat shows tabs directly under their parent without a wrapper surface; nested surfaces remain subtle while Primary selected Separator text and Rail segments stay accented. |
+| In Nested blocks, switch Nested block style between Card and Flat while viewing section 9 with Primary and Secondary palettes. | Card shows a bordered nested surface; Flat shows tabs directly under their parent without a wrapper surface; nested tabs keep the Secondary palette under either parent palette. |
 | Use the long Labels block with Scroll, Wrap, Equal width, Left/Right, and narrow panes. | Complete equal-width rows align their columns and gaps; an incomplete final row expands evenly to fill the list; panels never collapse to zero. |
 | Toggle theme button outline and test mouse hover, keyboard focus, touch taps, reduced motion, light/dark themes, and rapid setting changes. | Theme shadow toggles without replacing the focus outline; hover never sticks on touch; motion and selected state remain correct. |
 
@@ -289,10 +289,10 @@ graph LR
 
 tab: Links + embeds
 
-- resolved: [[Launch workspace]]
+- resolved: [[Lisbon long weekend]]
 - unresolved: [[No such note here]]
-- heading link: [[Launch workspace#Shared launch notes]]
-- embed: ![[Launch workspace#Shared launch notes]]
+- heading link: [[Lisbon long weekend#Loose notes]]
+- embed: ![[Lisbon long weekend#Loose notes]]
 - external image: ![alt](https://obsidian.md/images/obsidian-logo-gradient.svg)
 
 tab: HTML + raw
@@ -450,7 +450,7 @@ tab: Architecture decision
 > ````
 
 tab: Decision outcome
-Card remains the default for compatibility; Flat is available through Style Settings.
+Flat is the default; Card is available through Style Settings when a bordered nested surface is useful.
 `````
 
 ## 10. Stress
@@ -473,7 +473,7 @@ Engineering owns behavior; documentation owns migration and examples.
 tab: 06 Risks
 Theme variance, narrow layouts, touch hover, and long localized labels.
 tab: 07 Decisions
-Card remains the nested default; Flat removes only the wrapper surface.
+Flat is the nested default; Card adds only the wrapper surface.
 tab: 08 Design
 Theme variables provide hierarchy without a Tabsdown-specific palette.
 tab: 09 API
@@ -515,7 +515,7 @@ them they render as plain code fences and prove nothing.
 `````tabsdown
 tab: Embedded note
 
-![[Launch workspace]]
+![[Lisbon long weekend]]
 
 tab: Recently modified notes
 

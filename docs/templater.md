@@ -4,10 +4,6 @@
 
 These recipes use Templater's documented JavaScript execution command, output variable `tR`, and [`tp.system.prompt`](https://silentvoid13.github.io/Templater/internal-functions/internal-modules/system-module.html).
 
-## Validation status
-
-The `0.1.0` beta pass executed both recipes with Templater `2.20.6`. The static recipe generated and rendered ordinary tabs. The prompt recipe generated valid nested-fence output with scripted prompt responses and produced no output for duplicate labels or cancellation. Repeat both recipes with the exact downloaded `1.0.1` draft-release assets before publishing the stable release.
-
 ## Static template
 
 Save this as a Templater template file:
@@ -32,7 +28,7 @@ Use an outer fence longer than every fence in a tab body. Four backticks are eno
 
 This template asks for comma-separated labels, then prompts for each body with a multiline field. It rejects fewer than two unique, non-empty labels. Canceling any prompt produces no partial `tabsdown` block.
 
-The template measures every run of backticks in the generated tab bodies and makes the outer fence one character longer, with a minimum of four backticks.
+The template measures every run of backticks in the generated source and makes the outer fence one character longer, with a minimum of four backticks.
 
 ~~~~markdown
 <%*
@@ -94,6 +90,6 @@ The first prompt is single-line and uses its fifth argument to select the defaul
 
 1. Insert either template with Templater.
 2. Confirm the result is ordinary fenced Markdown with at least two tab markers.
-3. Move the editing locus outside the block in Live Preview, or open Reading View.
+3. Move the cursor outside the block in Live Preview, or open Reading View.
 
 If Templater is disabled or absent, existing generated `tabsdown` Markdown still works. If a template expression remains visible, run Templater or replace the expression manually; Tabsdown intentionally does not evaluate it.

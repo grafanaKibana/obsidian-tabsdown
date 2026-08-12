@@ -83,7 +83,25 @@ export default class TabsdownPlugin extends Plugin {
 			);
 		});
 
-		this.app.workspace.trigger("parse-style-settings");
+		const refreshStyleSettings = (): boolean => {
+			const stylesLoaded = Array.from(
+				document.head.querySelectorAll("style"),
+			).some((style) =>
+				style.textContent?.includes("\nname: Tabsdown\nid: tabsdown\n"),
+			);
+			if (!stylesLoaded) return false;
+
+			this.app.workspace.trigger("parse-style-settings");
+			return true;
+		};
+
+		if (!refreshStyleSettings()) {
+			const observer = new MutationObserver(() => {
+				if (refreshStyleSettings()) observer.disconnect();
+			});
+			observer.observe(document.head, { childList: true });
+			this.register(() => observer.disconnect());
+		}
 	}
 
 	onunload(): void {
