@@ -38,11 +38,24 @@ tab: icon:calendar-days Timeline
 > [!abstract] The final stretch
 > A focused path from content freeze to launch day.
 
-| Date | Milestone | Outcome |
-| --- | --- | --- |
-| July 27 | Content freeze | Lock messaging and screenshots |
-| July 29 | Final QA | Sign off on desktop and mobile |
-| July 31 | Launch | Publish and monitor feedback |
+```tabsdown
+config: left
+
+tab: July 27
+### Content freeze
+
+Lock messaging and screenshots.
+
+tab: July 29
+### Final QA
+
+Sign off on desktop and mobile.
+
+tab: July 31
+### Launch
+
+Publish and monitor feedback.
+```
 
 tab: icon:book-open Resources
 

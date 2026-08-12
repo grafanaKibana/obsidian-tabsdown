@@ -724,12 +724,12 @@ test("preserves global Style Settings and adds the approved hierarchy", () => {
 	const styles = readStyles();
 	for (const [id, fragments] of Object.entries({
 		"tabsdown-density": ["default: tabsdown-density-default", "value: tabsdown-density-compact"],
-		"tabsdown-personality": ["default: tabsdown-personality-default", "value: tabsdown-personality-underline", "value: tabsdown-personality-separator", "value: tabsdown-personality-rail"],
+		"tabsdown-personality": ["default: tabsdown-personality-rail", "value: tabsdown-personality-default", "value: tabsdown-personality-underline", "value: tabsdown-personality-separator"],
 		"tabsdown-underline-placement": ["default: tabsdown-underline-placement-auto", "value: tabsdown-underline-placement-top", "value: tabsdown-underline-placement-right", "value: tabsdown-underline-placement-bottom", "value: tabsdown-underline-placement-left"],
 		"tabsdown-overflow": ["default: tabsdown-overflow-scroll", "value: tabsdown-overflow-wrap"],
 		"tabsdown-palette": ["default: tabsdown-palette-primary", "value: tabsdown-palette-secondary"],
 		"tabsdown-accent-override": ["type: variable-color"],
-		"tabsdown-alignment": ["default: tabsdown-alignment-start", "value: tabsdown-alignment-center", "value: tabsdown-alignment-equal-width"],
+		"tabsdown-alignment": ["default: tabsdown-alignment-equal-width", "value: tabsdown-alignment-start", "value: tabsdown-alignment-center"],
 		"tabsdown-gap": ["default: 4", "min: 0", "step: 1", "format: px"],
 		"tabsdown-radius": ["default: 4", "min: 0", "max: 24", "step: 1", "format: px"],
 		"tabsdown-content-spacing": ["default: 12", "min: 0", "max: 48", "step: 1", "format: px"],
@@ -773,7 +773,10 @@ test("gives every position explicit inheritable appearance controls", () => {
 			const setting = styleSetting(styles, "id", id);
 			expect(setting, id).toMatch(/type: class-select/);
 			expect(setting, id).toMatch(/allowEmpty: false/);
-			expect(setting, id).toContain(`default: ${id}-inherit`);
+			const defaultOption = axis === "personality" && (position === "left" || position === "right")
+				? "underline"
+				: "inherit";
+			expect(setting, id).toContain(`default: ${id}-${defaultOption}`);
 			for (const option of options) {
 				expect(setting, `${id}-${option}`).toContain(`value: ${id}-${option}`);
 			}
@@ -813,16 +816,16 @@ test("defines the requested control ranges and selected weights", () => {
 	const nested = styleSetting(styles, "title", "Nested block style");
 	expect(nested).toMatch(/type: class-select/);
 	expect(nested).toMatch(/allowEmpty: false/);
-	expect(nested).toContain("default: tabsdown-nested-style-card");
+	expect(nested).toContain("default: tabsdown-nested-style-flat");
 	expect(nested).toContain("value: tabsdown-nested-style-card");
 	expect(nested).toContain("value: tabsdown-nested-style-flat");
 });
 
-test("offers flat nested blocks while keeping nested controls subtle", () => {
+test("defaults nested blocks to Flat while keeping Card optional", () => {
 	const styles = readStyles();
-	const card = matchingRuleBodies(styles, ".tabsdown .tabsdown");
-	const evenCard = matchingRuleBodies(styles, ".tabsdown--nested-even");
-	const flat = matchingRuleBodies(styles, "body.tabsdown-nested-style-flat .tabsdown .tabsdown");
+	const flat = matchingRuleBodies(styles, ".tabsdown .tabsdown");
+	const card = matchingRuleBodies(styles, "body.tabsdown-nested-style-card .tabsdown .tabsdown");
+	const evenCard = matchingRuleBodies(styles, "body.tabsdown-nested-style-card .tabsdown--nested-even");
 	const subtle = matchingRuleBodies(styles, "body .tabsdown--nested-odd");
 	const deeper = matchingRuleBodies(styles, "body .tabsdown--nested-even");
 
@@ -833,32 +836,24 @@ test("offers flat nested blocks while keeping nested controls subtle", () => {
 		expect(flat).toContain(reset);
 	}
 	for (const variable of [
-		"--tabsdown-tab-background: color-mix(",
+		"--tabsdown-tab-background: var(--background-secondary-alt)",
+		"--tabsdown-tab-border: var(--background-modifier-border)",
 		"--tabsdown-tab-color: var(--text-muted)",
-		"--tabsdown-tab-selected-background: color-mix(",
+		"--tabsdown-tab-hover-background: var(--background-secondary)",
+		"--tabsdown-tab-selected-background: var(--background-secondary)",
 		"--tabsdown-tab-selected-color: var(--text-normal)",
+		"--tabsdown-tab-underline-color: var(--text-normal)",
+		"--tabsdown-rail-selected-background: var(--background-primary)",
 	]) {
 		expect(subtle).toContain(variable);
-	}
-	for (const paletteVariable of [
-		"--tabsdown-tab-underline-color",
-		"--tabsdown-rail-selected-background",
-	]) {
-		expect(subtle).not.toContain(paletteVariable);
-		expect(deeper).not.toContain(paletteVariable);
+		expect(deeper).toContain(variable);
 	}
 	expect(styles.indexOf("body .tabsdown--nested-odd")).toBeGreaterThan(
 		styles.indexOf("body.tabsdown-right-palette-secondary"),
 	);
-	const background = (body: string): string =>
-		/--tabsdown-tab-background:\s*([^;]+)/.exec(body)?.[1]?.trim() ?? "";
-	expect(background(subtle)).not.toBe(
-		background(matchingRuleBodies(styles, "body.tabsdown-palette-secondary")),
-	);
-	expect(background(deeper)).not.toBe(background(subtle));
 });
 
-test("nested parity tints outrank global and position palettes", () => {
+test("nested Secondary palette outranks global and position palettes", () => {
 	const styles = readStyles();
 	const palettes = [
 		"body.tabsdown-palette-secondary .tabsdown",
@@ -886,26 +881,19 @@ test("nested parity tints outrank global and position palettes", () => {
 	}
 });
 
-test("even Card surfaces beat the base card while Flat stays transparent", () => {
+test("Card surfaces override the Flat baseline", () => {
 	const styles = readStyles();
-	const baseSelector = ".tabsdown .tabsdown";
-	const evenSelector = "body .tabsdown--nested-even.tabsdown";
-	const flatSelector = "body.tabsdown-nested-style-flat .tabsdown .tabsdown";
+	const flatSelector = ".tabsdown .tabsdown";
+	const cardSelector = "body.tabsdown-nested-style-card .tabsdown .tabsdown";
+	const evenSelector = "body.tabsdown-nested-style-card .tabsdown--nested-even.tabsdown";
 
-	expect(matchingRuleBodies(styles, baseSelector)).toContain(
-		"background-color: var(--background-secondary)",
-	);
+	expect(matchingRuleBodies(styles, flatSelector)).toContain("background-color: transparent");
+	expect(matchingRuleBodies(styles, cardSelector)).toContain("background-color: var(--background-secondary)");
 	expect(matchingRuleBodies(styles, evenSelector)).toContain(
 		"background-color: var(--background-primary)",
 	);
 	expect(classSelectorCount(evenSelector)).toBeGreaterThanOrEqual(
-		classSelectorCount(baseSelector),
-	);
-	expect(matchingRuleBodies(styles, flatSelector)).toContain(
-		"background-color: transparent",
-	);
-	expect(classSelectorCount(flatSelector)).toBeGreaterThan(
-		classSelectorCount(evenSelector),
+		classSelectorCount(cardSelector),
 	);
 });
 
