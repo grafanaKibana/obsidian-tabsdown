@@ -2,7 +2,7 @@
 
 Tabsdown turns ordinary Markdown into theme-native tabs in Obsidian. Tabs can contain notes, queries, embeds, callouts, math, Mermaid diagrams, and compatible community-plugin blocks.
 
-![A note in Reading View cycling through the Overview, Timeline, and Resources tabs of a tabsdown block, with a nested block inside the first tab](docs/assets/tabsdown-showcase.gif)
+![](docs/assets/tabsdown-showcase.gif)
 
 ## What it does
 
