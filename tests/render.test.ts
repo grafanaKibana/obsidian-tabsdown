@@ -1223,12 +1223,12 @@ test("wires appearance controls without breaking touch, labels, or spacing", () 
 });
 
 test("documents the public horizontal padding variable", () => {
-	const readme = readFileSync(
-		resolve(dirname(fileURLToPath(import.meta.url)), "../README.md"),
+	const cssGuide = readFileSync(
+		resolve(dirname(fileURLToPath(import.meta.url)), "../docs/css-snippets.md"),
 		"utf8",
 	);
-	expect(readme).toContain("--tabsdown-horizontal-padding: 1.5rem");
-	expect(readme).not.toContain("--tabsdown-tab-padding-inline");
+	expect(cssGuide).toContain("--tabsdown-horizontal-padding: 1.5rem");
+	expect(cssGuide).not.toContain("--tabsdown-tab-padding-inline");
 });
 
 test("panels contain their own margins so height stays stable", () => {

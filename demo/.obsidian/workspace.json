@@ -4,11 +4,11 @@
     "type": "split",
     "children": [
       {
-        "id": "bcfa991f0b3b9947",
+        "id": "484ed30c79a4e1ef",
         "type": "tabs",
         "children": [
           {
-            "id": "0a844c5eb2a2430f",
+            "id": "ffec61a15132679d",
             "type": "leaf",
             "state": {
               "type": "markdown",
@@ -186,14 +186,13 @@
       "templates:Insert template": false,
       "command-palette:Open command palette": false,
       "bases:Create new base": false,
-      "obsidian42-brat:BRAT": false,
       "templater-obsidian:Templater": false
     }
   },
-  "active": "0a844c5eb2a2430f",
+  "active": "ffec61a15132679d",
   "lastOpenFiles": [
-    "Tabsdown test matrix.md",
     "Launch workspace.md",
+    "Tabsdown test matrix.md",
     "Icon check.md",
     "Templates/Tabbed note.md",
     "Templates/Tabbed folder embeds.md",
