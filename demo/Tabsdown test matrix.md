@@ -289,10 +289,10 @@ graph LR
 
 tab: Links + embeds
 
-- resolved: [[Launch workspace]]
+- resolved: [[Lisbon long weekend]]
 - unresolved: [[No such note here]]
-- heading link: [[Launch workspace#Shared launch notes]]
-- embed: ![[Launch workspace#Shared launch notes]]
+- heading link: [[Lisbon long weekend#Loose notes]]
+- embed: ![[Lisbon long weekend#Loose notes]]
 - external image: ![alt](https://obsidian.md/images/obsidian-logo-gradient.svg)
 
 tab: HTML + raw
@@ -515,7 +515,7 @@ them they render as plain code fences and prove nothing.
 `````tabsdown
 tab: Embedded note
 
-![[Launch workspace]]
+![[Lisbon long weekend]]
 
 tab: Recently modified notes
 

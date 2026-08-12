@@ -13,12 +13,12 @@
             "state": {
               "type": "markdown",
               "state": {
-                "file": "Launch workspace.md",
+                "file": "Lisbon long weekend.md",
                 "mode": "preview",
                 "source": true
               },
               "icon": "lucide-file",
-              "title": "Launch workspace"
+              "title": "Lisbon long weekend"
             }
           }
         ]
@@ -192,7 +192,7 @@
   },
   "active": "ffec61a15132679d",
   "lastOpenFiles": [
-    "Launch workspace.md",
+    "Lisbon long weekend.md",
     "Tabsdown test matrix.md",
     "Icon check.md",
     "Templates/Tabbed note.md",

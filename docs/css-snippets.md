@@ -21,4 +21,6 @@ Open **Settings → Appearance → CSS snippets**, select the folder icon, and c
 }
 ```
 
+The background rules above target the **Button** personality. If Style Settings is installed, select **Settings → Style Settings → Tabsdown → Personality → Button** before using them.
+
 After saving the file, return to **CSS snippets**, select **Reload snippets**, and enable `tabsdown`. You may need to adjust the overrides after changing themes.
