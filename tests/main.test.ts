@@ -85,6 +85,21 @@ function flush(): Promise<void> {
 	return new Promise((resolve) => window.setTimeout(resolve, 0));
 }
 
+function openContextMenu(element: HTMLElement, clientX = 10, clientY = 10): void {
+	element.dispatchEvent(new MouseEvent("contextmenu", {
+		bubbles: true,
+		cancelable: true,
+		clientX,
+		clientY,
+	}));
+}
+
+function renderedBlocks(container: HTMLElement): HTMLElement[] {
+	const nested: HTMLElement[] = [];
+	container.querySelectorAll<HTMLElement>(".tabsdown").forEach((block) => nested.push(block));
+	return [container, ...nested];
+}
+
 beforeEach(() => {
 	processorRegistrationMock.mockReset();
 	renderMock.mockReset();
@@ -175,7 +190,7 @@ async function openWritableModal(
 		},
 		getSectionInfo: () => ({ lineStart: 0, lineEnd: 5, text: source }),
 	});
-	container.querySelector<HTMLButtonElement>(".tabsdown__options")?.click();
+	openContextMenu(container);
 	beforeOpen?.(children);
 	await menuItems[0]?.callback?.(new MouseEvent("click"));
 	return children;
@@ -239,9 +254,9 @@ test("writes the exact CRLF nested callout range from LF processor source", asyn
 		getSectionInfo: () => ({ lineStart: 0, lineEnd: 13, text: source }),
 	});
 	await flush();
-	const triggers = container.querySelectorAll<HTMLButtonElement>(".tabsdown__options");
-	expect(triggers).toHaveLength(2);
-	triggers[1]?.click();
+	const blocks = renderedBlocks(container);
+	expect(blocks).toHaveLength(2);
+	openContextMenu(blocks[1]!);
 	await menuItems[menuItems.length - 1]?.callback?.(new MouseEvent("click"));
 	vi.spyOn(window.crypto, "randomUUID").mockReturnValue(
 		"550e8400-e29b-41d4-a716-446655440000",
@@ -299,9 +314,9 @@ test("edits the first identical nested block after a structural marker in a stat
 	await flush();
 	container.querySelectorAll<HTMLButtonElement>(".tabsdown__tab")[2]?.click();
 	await flush();
-	const triggers = container.querySelectorAll<HTMLButtonElement>(".tabsdown__options");
-	expect(triggers).toHaveLength(3);
-	triggers[1]?.click();
+	const blocks = renderedBlocks(container);
+	expect(blocks).toHaveLength(3);
+	openContextMenu(blocks[1]!);
 	await menuItems[menuItems.length - 1]?.callback?.(new MouseEvent("click"));
 	vi.spyOn(window.crypto, "randomUUID").mockReturnValue(
 		"550e8400-e29b-41d4-a716-446655440000",
@@ -357,9 +372,9 @@ test("edits the second identical nested block after a structural tab inside a st
 	await flush();
 	container.querySelectorAll<HTMLButtonElement>(".tabsdown__tab")[2]?.click();
 	await flush();
-	const triggers = container.querySelectorAll<HTMLButtonElement>(".tabsdown__options");
-	expect(triggers).toHaveLength(3);
-	triggers[2]?.click();
+	const blocks = renderedBlocks(container);
+	expect(blocks).toHaveLength(3);
+	openContextMenu(blocks[2]!);
 	await menuItems[menuItems.length - 1]?.callback?.(new MouseEvent("click"));
 	vi.spyOn(window.crypto, "randomUUID").mockReturnValue(
 		"550e8400-e29b-41d4-a716-446655440000",
@@ -408,7 +423,7 @@ test.each([
 			getSectionInfo: () => ({ lineStart: 0, lineEnd: 11, text: source }),
 		});
 		await flush();
-		container.querySelectorAll<HTMLButtonElement>(".tabsdown__options")[triggerIndex]?.click();
+		openContextMenu(renderedBlocks(container)[triggerIndex]!);
 		await menuItems[menuItems.length - 1]?.callback?.(new MouseEvent("click"));
 		vi.spyOn(window.crypto, "randomUUID").mockReturnValue(
 			"550e8400-e29b-41d4-a716-446655440000",
@@ -643,7 +658,7 @@ test("writes through a sole inactive editor", async () => {
 	expect(process).not.toHaveBeenCalled();
 });
 
-test("anchors keyboard menus to the trigger and pointer menus to the event", async () => {
+test("anchors keyboard context menus to the target and pointer menus to the event", async () => {
 	const source = "tab: One\nA\ntab: Two\nB\n";
 	const text = `~~~tabsdown\n${source}~~~`;
 	const { plugin } = writablePlugin(text, 0);
@@ -656,20 +671,20 @@ test("anchors keyboard menus to the trigger and pointer menus to the event", asy
 		addChild: (child: { load(): void }) => child.load(),
 		getSectionInfo: () => ({ lineStart: 0, lineEnd: 5, text: source }),
 	});
-	const trigger = container.querySelector<HTMLButtonElement>(".tabsdown__options");
+	const trigger = container.querySelector<HTMLButtonElement>('[role="tab"]');
 	vi.spyOn(trigger!, "getBoundingClientRect").mockReturnValue({
 		bottom: 42, height: 10, left: 7, right: 27, top: 32, width: 20,
 		x: 7, y: 32, toJSON: () => ({}),
 	});
 
-	trigger?.click();
+	openContextMenu(trigger!, 0, 0);
 	expect(menuShowAtPositionMock).toHaveBeenCalledWith(
 		{ x: 7, y: 42, width: 20 },
 		trigger?.ownerDocument,
 	);
 	expect(menuShowAtMouseEventMock).not.toHaveBeenCalled();
 
-	trigger?.dispatchEvent(new MouseEvent("click", { bubbles: true, detail: 1 }));
+	openContextMenu(trigger!, 10, 10);
 	expect(menuShowAtMouseEventMock).toHaveBeenCalledOnce();
 });
 

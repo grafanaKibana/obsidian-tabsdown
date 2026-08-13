@@ -14,7 +14,7 @@ import {
 	type TabsDiagnostic,
 	type TabsdownConfig,
 } from "./parser";
-import { addBlockSettingsTrigger, type SaveBlockSettings } from "./block-settings";
+import { addBlockSettingsContextMenu, type SaveBlockSettings } from "./block-settings";
 import {
 	trackSeparators,
 	type SeparatorTracker,
@@ -30,7 +30,7 @@ interface PanelState {
 }
 
 export interface BlockEditing {
-	open(trigger: HTMLButtonElement, available: () => boolean): Promise<SaveBlockSettings>;
+	open(trigger: HTMLElement, available: () => boolean): Promise<SaveBlockSettings>;
 	registerPanel(element: HTMLElement, tabIndex: number): void;
 }
 
@@ -173,8 +173,8 @@ export class TabBlockRenderChild extends MarkdownRenderChild {
 		});
 
 		const available = () => !this.disposed;
-		const optionsButton = this.editing
-			? addBlockSettingsTrigger(
+		if (this.editing) {
+			addBlockSettingsContextMenu(
 					this.app,
 					this.containerEl,
 					this.options,
@@ -189,9 +189,9 @@ export class TabBlockRenderChild extends MarkdownRenderChild {
 					(element, type, callback) => this.registerDomEvent(element, type, callback),
 					(menu) => { this.addChild(menu); },
 					(modal) => { this.register(() => modal.close()); },
-				)
-			: undefined;
-		this.containerEl.append(tabList, ...(optionsButton ? [optionsButton] : []), panels);
+				);
+		}
+		this.containerEl.append(tabList, panels);
 		this.separators = trackSeparators(tabList, this.buttons);
 		this.updateState();
 		this.ensureRendered(0);

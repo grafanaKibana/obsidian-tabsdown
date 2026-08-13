@@ -1,4 +1,4 @@
-import { App, Menu, Modal, Notice, Setting, setIcon } from "obsidian";
+import { App, Menu, Modal, Notice, Setting } from "obsidian";
 import type { TabsdownConfig } from "./config";
 
 export type SaveBlockSettings = (options: TabsdownConfig) => Promise<void>;
@@ -39,7 +39,7 @@ export class BlockSettingsModal extends Modal {
 		app: App,
 		private readonly initial: TabsdownConfig,
 		private readonly save: SaveBlockSettings,
-		private readonly trigger: HTMLButtonElement,
+		private readonly trigger: HTMLElement,
 		private readonly cancel: () => void,
 	) {
 		super(app);
@@ -98,29 +98,30 @@ export class BlockSettingsModal extends Modal {
 	}
 }
 
-export function addBlockSettingsTrigger(
+export function addBlockSettingsContextMenu(
 	app: App,
 	parent: HTMLElement,
 	options: TabsdownConfig,
 	open: (
-		trigger: HTMLButtonElement,
+		trigger: HTMLElement,
 		available: () => boolean,
 	) => Promise<SaveBlockSettings>,
 	available: () => boolean,
-	register: (element: HTMLElement, type: "click", callback: EventListener) => void,
+	register: (element: HTMLElement, type: "contextmenu", callback: EventListener) => void,
 	ownMenu: (menu: Menu) => void,
 	ownModal: (modal: BlockSettingsModal) => void,
-): HTMLButtonElement {
-	const trigger = parent.createEl("button", { cls: "tabsdown__options" });
-	trigger.type = "button";
-	trigger.setAttribute("aria-label", "Tabsdown block options");
-	trigger.setAttribute("aria-haspopup", "menu");
-	setIcon(trigger, "ellipsis");
-	register(trigger, "click", (event) => {
+): void {
+	register(parent, "contextmenu", (event) => {
+		if (!(event instanceof MouseEvent)) return;
+		const target = event.target instanceof Element
+			? event.target.closest<HTMLElement>(".tabsdown")
+			: null;
+		if (target !== parent) return;
 		event.preventDefault();
 		event.stopPropagation();
+		const trigger = event.target instanceof HTMLElement ? event.target : parent;
 		const menu = new Menu()
-			.setParentElement(trigger)
+			.setParentElement(parent)
 			.addItem((item) => item.setTitle("Configure block…").onClick(async () => {
 				try {
 					let cancelled = false;
@@ -141,9 +142,8 @@ export function addBlockSettingsTrigger(
 				}
 			}));
 		ownMenu(menu);
-		const mouseEvent = event as MouseEvent;
-		if (mouseEvent.detail > 0) {
-			menu.showAtMouseEvent(mouseEvent);
+		if (event.clientX !== 0 || event.clientY !== 0) {
+			menu.showAtMouseEvent(event);
 		} else {
 			const rect = trigger.getBoundingClientRect();
 			menu.showAtPosition(
@@ -152,5 +152,4 @@ export function addBlockSettingsTrigger(
 			);
 		}
 	});
-	return trigger;
 }

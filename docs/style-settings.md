@@ -15,12 +15,12 @@ Tabsdown works without [Style Settings](https://github.com/mgmeyers/obsidian-sty
 
 Top, Bottom, Left, and Right can each override personality, palette, and alignment. Top and Bottom inherit Rail by default; Left and Right default to Underline. **Inherit defaults** restores the global choice. These overrides apply to fenced Markdown blocks; tabs created with `mountTabs` use the global settings.
 
-An authored block can override position, overflow, density, personality, palette, and alignment through its ellipsis menu. The cascade is block override → automatic narrow Compact density → position override → global setting → built-in fallback. Nested blocks resolve independently, and `mountTabs` remains global-only.
+An authored block can override position, overflow, density, personality, palette, and alignment by right-clicking the block and selecting **Configure block…**. The cascade is block override → automatic narrow Compact density → position override → global setting → built-in fallback. Nested blocks resolve independently, and `mountTabs` remains global-only.
 
 ## Behavior notes
 
 - Underline Auto uses the bottom edge for Top, Bottom, and mounted controls, the right edge for Left, and the left edge for Right.
 - Left and Right tabs always fill their side list on wide layouts and become an equal-width row above the content in narrow containers; Alignment positions the list without changing that structural sizing. Equal width with Wrap keeps complete rows aligned and expands the final row.
 - An unconfigured authored block becomes Compact when its own container is 28rem wide or narrower, including split panes on desktop. Explicit Default and Compact choices do not change with width.
-- Touch/coarse-pointer tabs and the block options action retain at least 44 × 44 px targets across every personality.
+- Touch/coarse-pointer tabs retain at least 44 × 44 px targets across every personality.
 - Theme colors, focus styles, and reduced-motion behavior still come from Obsidian.

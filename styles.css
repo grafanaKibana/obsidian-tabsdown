@@ -2257,42 +2257,9 @@ body .tabsdown.tabsdown--right > .tabsdown__tablist > .tabsdown__tab.tabsdown__t
 	--tabsdown-tab-padding-inline: var(--tabsdown-horizontal-padding, 12px);
 }
 
-.tabsdown:has(> .tabsdown__options) {
-	position: relative;
-	padding-inline-end: calc(32px + var(--tabsdown-gap, 0.25rem));
-}
-
-.tabsdown__options {
-	position: absolute;
-	inset-block-start: 0;
-	inset-inline-end: 0;
-	display: inline-flex;
-	align-items: center;
-	justify-content: center;
-	min-inline-size: 32px;
-	min-block-size: 32px;
-	margin: 0;
-	padding: 0;
-	color: var(--text-muted);
-}
-
-.tabsdown__options:focus-visible {
-	outline: var(--border-width) solid var(--background-modifier-border-focus);
-	outline-offset: var(--border-width);
-}
-
 @media (any-pointer: coarse) {
 	body .tabsdown > .tabsdown__tablist {
 		--tabsdown-tab-min-size: 44px !important;
 		--tabsdown-tab-min-block-size: 44px !important;
-	}
-
-	.tabsdown:has(> .tabsdown__options) {
-		padding-inline-end: calc(44px + var(--tabsdown-gap, 0.25rem));
-	}
-
-	.tabsdown__options {
-		min-inline-size: 44px;
-		min-block-size: 44px;
 	}
 }

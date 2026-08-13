@@ -43,6 +43,15 @@ function keys(element: HTMLElement, key: string): void {
 	element.dispatchEvent(new KeyboardEvent("keydown", { bubbles: true, key }));
 }
 
+function openContextMenu(element: HTMLElement, clientX = 10, clientY = 10): void {
+	element.dispatchEvent(new MouseEvent("contextmenu", {
+		bubbles: true,
+		cancelable: true,
+		clientX,
+		clientY,
+	}));
+}
+
 function readStyles(): string {
 	return readFileSync(
 		resolve(dirname(fileURLToPath(import.meta.url)), "../styles.css"),
@@ -122,7 +131,7 @@ afterEach(() => {
 	openModals.splice(0);
 });
 
-test("opens one accessible native block settings action outside the tablist", async () => {
+test("opens block settings from the native context menu without a visible control", async () => {
 	const container = document.createElement("div");
 	document.body.append(container);
 	const save = vi.fn(async () => {});
@@ -138,16 +147,13 @@ test("opens one accessible native block settings action outside the tablist", as
 	);
 	child.load();
 
-	const trigger = container.querySelector<HTMLButtonElement>(
-		'button[aria-label="Tabsdown block options"]',
-	);
-	expect(trigger?.type).toBe("button");
-	expect(trigger?.getAttribute("aria-haspopup")).toBe("menu");
-	expect(trigger?.closest('[role="tablist"]')).toBeNull();
+	expect(container.querySelector(".tabsdown__options")).toBeNull();
+	expect(container.querySelectorAll("button")).toHaveLength(tabs.length);
 	expect(container.classList.contains("tabsdown--density-compact")).toBe(true);
 	expect(container.classList.contains("tabsdown--layout-multi")).toBe(false);
 
-	trigger?.click();
+	const trigger = container.querySelector<HTMLButtonElement>('[role="tab"]')!;
+	openContextMenu(trigger);
 	expect(menuItems.map((item) => item.title)).toEqual(["Configure block…"]);
 	await menuItems[0]?.callback?.(new MouseEvent("click"));
 	const modal = openModals[0];
@@ -175,8 +181,8 @@ test("disables Save while pending and closes only after success", async () => {
 		{} as App, container, "Note.md", tabs, [], () => 0, {},
 		{ open: vi.fn(async () => save), registerPanel: vi.fn() },
 	).load();
-	const trigger = container.querySelector<HTMLButtonElement>(".tabsdown__options")!;
-	trigger.click();
+	const trigger = container.querySelector<HTMLButtonElement>('[role="tab"]')!;
+	openContextMenu(trigger);
 	await menuItems[0]?.callback?.(new MouseEvent("click"));
 	const modal = openModals[0]!;
 	const saveButton = Array.from(modal.contentEl.querySelectorAll("button")).find(
@@ -212,7 +218,7 @@ test.each(["Cancel", "Escape", "direct close"])(
 				registerPanel: vi.fn(),
 			},
 		).load();
-		container.querySelector<HTMLButtonElement>(".tabsdown__options")?.click();
+		openContextMenu(container.querySelector<HTMLButtonElement>('[role="tab"]')!);
 		await menuItems[0]?.callback?.(new MouseEvent("click"));
 		const modal = openModals[0]!;
 		Array.from(modal.contentEl.querySelectorAll("button")).find(
@@ -242,7 +248,7 @@ test("does not save after the rendered block unloads", async () => {
 		{ open: vi.fn(async () => save), registerPanel: vi.fn() },
 	);
 	child.load();
-	container.querySelector<HTMLButtonElement>(".tabsdown__options")?.click();
+	openContextMenu(container.querySelector<HTMLButtonElement>('[role="tab"]')!);
 	await menuItems[0]?.callback?.(new MouseEvent("click"));
 	child.unload();
 	const modal = openModals[0]!;
@@ -264,7 +270,7 @@ test("does not open a modal after the rendered block unloads during open", async
 		},
 	);
 	child.load();
-	container.querySelector<HTMLButtonElement>(".tabsdown__options")?.click();
+	openContextMenu(container.querySelector<HTMLButtonElement>('[role="tab"]')!);
 	const opening = menuItems[0]?.callback?.(new MouseEvent("click"));
 	child.unload();
 	finishOpen?.(async () => {});
@@ -1467,18 +1473,10 @@ test("wrapped equal-width rows align and the final row fills the list", () => {
 	expect(narrow).toContain("inline-size: auto");
 });
 
-test("keeps the authored options action separate, focused, and touch sized", () => {
+test("does not reserve layout space for a block options control", () => {
 	const styles = readStyles();
-	const action = matchingRuleBodies(styles, ".tabsdown__options");
-	const focus = matchingRuleBodies(styles, ".tabsdown__options:focus-visible");
-	const coarse = styles.slice(styles.indexOf("@media (any-pointer: coarse)"));
-
-	expect(action).toContain("position: absolute");
-	expect(action).toContain("min-inline-size:");
-	expect(action).toContain("min-block-size:");
-	expect(focus).toContain("outline:");
-	expect(coarse).toMatch(/\.tabsdown__options[^}]*min-inline-size:\s*44px/);
-	expect(coarse).toMatch(/\.tabsdown__options[^}]*min-block-size:\s*44px/);
+	expect(styles).not.toContain("tabsdown__options");
+	expect(styles).not.toContain(":has(> .tabsdown__options)");
 });
 
 test("defines complete direct-child authored appearance resets", () => {

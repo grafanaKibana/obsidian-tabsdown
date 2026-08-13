@@ -14,9 +14,9 @@ Tabsdown turns ordinary Markdown into theme-native tabs in Obsidian. Tabs can co
 
 ## Syntax
 
-Start each tab with a column-zero `tab: <label>` marker. A block needs at least two non-empty, unique labels. Add optional block settings on a column-zero `config: <values>` line before the first tab, or use the block's ellipsis menu in Reading View or Live Preview and select **Configure block…**.
+Start each tab with a column-zero `tab: <label>` marker. A block needs at least two non-empty, unique labels. Add optional block settings on a column-zero `config: <values>` line before the first tab, or right-click the block in Reading View or Live Preview and select **Configure block…**.
 
-The ellipsis is shown only when the rendered block has a writable backing Markdown file.
+The context-menu action is available only when the rendered block has a writable backing Markdown file.
 
 `````markdown
 ````tabsdown
