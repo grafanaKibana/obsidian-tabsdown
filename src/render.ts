@@ -12,7 +12,9 @@ import {
 	type TabConfiguration,
 	type TabDefinition,
 	type TabsDiagnostic,
+	type TabsdownConfig,
 } from "./parser";
+import { addBlockSettingsTrigger, type SaveBlockSettings } from "./block-settings";
 import {
 	trackSeparators,
 	type SeparatorTracker,
@@ -25,6 +27,11 @@ interface PanelState {
 	generation?: number;
 	epoch: number;
 	status: "unrendered" | "rendering" | "rendered" | "error";
+}
+
+export interface BlockEditing {
+	open(trigger: HTMLButtonElement, available: () => boolean): Promise<SaveBlockSettings>;
+	registerPanel(element: HTMLElement, tabIndex: number): void;
 }
 
 let nextBlockId = 0;
@@ -78,6 +85,8 @@ export class TabBlockRenderChild extends MarkdownRenderChild {
 		private readonly tabs: readonly TabDefinition[],
 		private readonly configuration: readonly TabConfiguration[],
 		private readonly getGeneration: () => number,
+		private readonly options: TabsdownConfig = {},
+		private readonly editing?: BlockEditing,
 	) {
 		super(containerEl);
 	}
@@ -91,6 +100,10 @@ export class TabBlockRenderChild extends MarkdownRenderChild {
 		}
 		for (const configuration of this.resolveConfiguration()) {
 			this.containerEl.classList.add(`tabsdown--${configuration}`);
+		}
+		for (const key of ["density", "personality", "palette", "alignment"] as const) {
+			const value = this.options[key];
+			if (value) this.containerEl.classList.add(`tabsdown--${key}-${value}`);
 		}
 
 		const tabList = createElement(
@@ -159,7 +172,26 @@ export class TabBlockRenderChild extends MarkdownRenderChild {
 			});
 		});
 
-		this.containerEl.append(tabList, panels);
+		const available = () => !this.disposed;
+		const optionsButton = this.editing
+			? addBlockSettingsTrigger(
+					this.app,
+					this.containerEl,
+					this.options,
+					async (trigger, modalAvailable) => {
+						const save = await this.editing!.open(trigger, modalAvailable);
+						return async (options) => {
+							if (!modalAvailable()) throw new Error("This Tabsdown block is no longer available.");
+							await save(options);
+						};
+					},
+					available,
+					(element, type, callback) => this.registerDomEvent(element, type, callback),
+					(menu) => { this.addChild(menu); },
+					(modal) => { this.register(() => modal.close()); },
+				)
+			: undefined;
+		this.containerEl.append(tabList, ...(optionsButton ? [optionsButton] : []), panels);
 		this.separators = trackSeparators(tabList, this.buttons);
 		this.updateState();
 		this.ensureRendered(0);
@@ -296,6 +328,7 @@ export class TabBlockRenderChild extends MarkdownRenderChild {
 		const epoch = ++state.epoch;
 		const component = this.addChild(new Component());
 		const attemptEl = createElement(state.panelEl, "div", "tabsdown__content");
+		this.editing?.registerPanel(attemptEl, index);
 		state.panelEl.replaceChildren(attemptEl);
 		state.component = component;
 		state.attemptEl = attemptEl;

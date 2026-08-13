@@ -14,7 +14,9 @@ Tabsdown turns ordinary Markdown into theme-native tabs in Obsidian. Tabs can co
 
 ## Syntax
 
-Start each tab with a column-zero `tab: <label>` marker. A block needs at least two non-empty, unique labels. Add optional block settings on a column-zero `config: <values>` line before the first tab, such as `config: top, multi`; later position or layout values win.
+Start each tab with a column-zero `tab: <label>` marker. A block needs at least two non-empty, unique labels. Add optional block settings on a column-zero `config: <values>` line before the first tab, or use the block's ellipsis menu in Reading View or Live Preview and select **Configure block…**.
+
+The ellipsis is shown only when the rendered block has a writable backing Markdown file.
 
 `````markdown
 ````tabsdown
@@ -35,7 +37,7 @@ Use matching backtick or tilde fences. The outer fence must be longer than any m
 
 ````markdown
 ~~~tabsdown
-config: top, multi
+config: block-id=550e8400-e29b-41d4-a716-446655440000, left, multi, density=compact, personality=rail, palette=secondary, alignment=center
 
 tab: Python
 print("Hello Tabsdown")
@@ -45,7 +47,9 @@ console.log("Hello Tabsdown");
 ~~~
 ````
 
-`top`, `left`, `right`, and `bottom` place the tab list; `one` keeps it on one scrollable line and `multi` wraps labels. The first tab starts active. Empty tab bodies are valid. To render a literal marker-looking line, escape it as `\tab:`.
+`top`, `left`, `right`, and `bottom` place the tab list; `one` keeps it on one scrollable line and `multi` wraps labels. Keyed overrides are `density=default|compact`, `personality=button|underline|separator|rail`, `palette=primary|secondary`, and `alignment=start|center|equal-width`. The example is the canonical form saved by the menu: `block-id` comes first, followed by the selected values. Cancel does not edit Markdown; if the note or target changed while the settings dialog was open, Save stops without overwriting it.
+
+Omitted values inherit in this order: explicit block override, automatic Compact density at a container width of 28rem or less, position Style Settings, global Style Settings, then the built-in fallback. Explicit Default or Compact density stays authoritative at every width. The first tab starts active. Empty tab bodies are valid. To render a literal marker-looking line, escape it as `\tab:`.
 
 ### Icons
 

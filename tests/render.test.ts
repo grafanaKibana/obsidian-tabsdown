@@ -9,8 +9,9 @@ import {
 	TabBlockRenderChild,
 	renderTabsDiagnostic,
 } from "../src/render";
+import type { SaveBlockSettings } from "../src/block-settings";
 import type { TabDefinition } from "../src/parser";
-import { renderMock, setIcon } from "./obsidian.mock";
+import { menuItems, openModals, renderMock, setIcon } from "./obsidian.mock";
 import { stubPanelHeights, stubResizeObserver } from "./panel-size";
 
 const tabs = [
@@ -76,11 +77,25 @@ function matchingSelectors(styles: string, selector: string): string {
 		.join("\n");
 }
 
-function personalityRules(styles: string): string {
+function matchingRules(styles: string, selector: string): string {
 	return [...styles.matchAll(/([^{}]+)\{([^{}]*)\}/g)]
-		.filter((match) => match[1]?.includes("personality-"))
+		.filter((match) => match[1]?.includes(selector))
 		.map((match) => `${match[1]} {${match[2]}}`)
 		.join("\n");
+}
+
+function exactRuleBodies(styles: string, selector: string): string[] {
+	return [...styles.matchAll(/([^{}]+)\{([^{}]*)\}/g)]
+		.filter((match) =>
+			match[1]?.split(",").some(
+				(candidate) => candidate.replace(/\/\*[\s\S]*?\*\//g, "").trim() === selector,
+			),
+		)
+		.map((match) => match[2] ?? "");
+}
+
+function personalityRules(styles: string): string {
+	return matchingRules(styles, "personality-");
 }
 
 function classSelectorCount(selector: string): number {
@@ -103,6 +118,159 @@ beforeEach(() => {
 
 afterEach(() => {
 	document.body.replaceChildren();
+	menuItems.splice(0);
+	openModals.splice(0);
+});
+
+test("opens one accessible native block settings action outside the tablist", async () => {
+	const container = document.createElement("div");
+	document.body.append(container);
+	const save = vi.fn(async () => {});
+	const child = new TabBlockRenderChild(
+		{} as App,
+		container,
+		"Note.md",
+		tabs,
+		[],
+		() => 0,
+		{ density: "compact", layout: "multi" },
+		{ open: vi.fn(async () => save), registerPanel: vi.fn() },
+	);
+	child.load();
+
+	const trigger = container.querySelector<HTMLButtonElement>(
+		'button[aria-label="Tabsdown block options"]',
+	);
+	expect(trigger?.type).toBe("button");
+	expect(trigger?.getAttribute("aria-haspopup")).toBe("menu");
+	expect(trigger?.closest('[role="tablist"]')).toBeNull();
+	expect(container.classList.contains("tabsdown--density-compact")).toBe(true);
+	expect(container.classList.contains("tabsdown--layout-multi")).toBe(false);
+
+	trigger?.click();
+	expect(menuItems.map((item) => item.title)).toEqual(["Configure block…"]);
+	await menuItems[0]?.callback?.(new MouseEvent("click"));
+	const modal = openModals[0];
+	expect(modal?.titleEl.textContent).toBe("Tabsdown block settings");
+	expect(
+		Array.from(modal?.contentEl.querySelectorAll("select") ?? [], (select) =>
+			select.getAttribute("aria-label"),
+		),
+	).toEqual(["Position", "Overflow", "Density", "Personality", "Palette", "Alignment"]);
+	expect(
+		Array.from(modal?.contentEl.querySelectorAll("select") ?? [], (select) => select.value),
+	).toEqual(["", "multi", "compact", "", "", ""]);
+
+	modal?.contentEl.querySelectorAll<HTMLButtonElement>("button")[0]?.click();
+	expect(save).not.toHaveBeenCalled();
+	expect(document.activeElement).toBe(trigger);
+});
+
+test("disables Save while pending and closes only after success", async () => {
+	let finish: (() => void) | undefined;
+	const pending = new Promise<void>((resolve) => { finish = resolve; });
+	const save = vi.fn(() => pending);
+	const container = document.body.appendChild(document.createElement("div"));
+	new TabBlockRenderChild(
+		{} as App, container, "Note.md", tabs, [], () => 0, {},
+		{ open: vi.fn(async () => save), registerPanel: vi.fn() },
+	).load();
+	const trigger = container.querySelector<HTMLButtonElement>(".tabsdown__options")!;
+	trigger.click();
+	await menuItems[0]?.callback?.(new MouseEvent("click"));
+	const modal = openModals[0]!;
+	const saveButton = Array.from(modal.contentEl.querySelectorAll("button")).find(
+		(button) => button.textContent === "Save",
+	)!;
+	const cancelButton = Array.from(modal.contentEl.querySelectorAll("button")).find(
+		(button) => button.textContent === "Cancel",
+	)!;
+	saveButton.click();
+	saveButton.click();
+	expect(save).toHaveBeenCalledOnce();
+	expect(saveButton.disabled).toBe(true);
+	expect(cancelButton.disabled).toBe(true);
+	expect(modal.containerEl.isConnected).toBe(true);
+	finish?.();
+	await new Promise((resolve) => window.setTimeout(resolve, 0));
+	expect(modal.containerEl.isConnected).toBe(false);
+	expect(document.activeElement).toBe(trigger);
+});
+
+test.each(["Cancel", "Escape", "direct close"])(
+	"%s cannot close a pending settings save",
+	async (close) => {
+		let finish: (() => void) | undefined;
+		const pending = new Promise<void>((resolve) => { finish = resolve; });
+		const container = document.body.appendChild(document.createElement("div"));
+		new TabBlockRenderChild(
+			{} as App, container, "Note.md", tabs, [], () => 0, {},
+			{
+				open: vi.fn(async () => async () => {
+					await pending;
+				}),
+				registerPanel: vi.fn(),
+			},
+		).load();
+		container.querySelector<HTMLButtonElement>(".tabsdown__options")?.click();
+		await menuItems[0]?.callback?.(new MouseEvent("click"));
+		const modal = openModals[0]!;
+		Array.from(modal.contentEl.querySelectorAll("button")).find(
+			(button) => button.textContent === "Save",
+		)?.click();
+		if (close === "Cancel") {
+			Array.from(modal.contentEl.querySelectorAll("button")).find(
+				(button) => button.textContent === "Cancel",
+			)?.click();
+		} else if (close === "Escape") {
+			document.dispatchEvent(new KeyboardEvent("keydown", { key: "Escape" }));
+		} else {
+			modal.close();
+		}
+		expect(modal.containerEl.isConnected).toBe(true);
+		finish?.();
+		await new Promise((resolve) => window.setTimeout(resolve, 0));
+		expect(modal.containerEl.isConnected).toBe(false);
+	},
+);
+
+test("does not save after the rendered block unloads", async () => {
+	const save = vi.fn(async () => {});
+	const container = document.body.appendChild(document.createElement("div"));
+	const child = new TabBlockRenderChild(
+		{} as App, container, "Note.md", tabs, [], () => 0, {},
+		{ open: vi.fn(async () => save), registerPanel: vi.fn() },
+	);
+	child.load();
+	container.querySelector<HTMLButtonElement>(".tabsdown__options")?.click();
+	await menuItems[0]?.callback?.(new MouseEvent("click"));
+	child.unload();
+	const modal = openModals[0]!;
+	Array.from(modal.contentEl.querySelectorAll("button")).find(
+		(button) => button.textContent === "Save",
+	)?.click();
+	await Promise.resolve();
+	expect(save).not.toHaveBeenCalled();
+});
+
+test("does not open a modal after the rendered block unloads during open", async () => {
+	let finishOpen: ((save: () => Promise<void>) => void) | undefined;
+	const container = document.body.appendChild(document.createElement("div"));
+	const child = new TabBlockRenderChild(
+		{} as App, container, "Note.md", tabs, [], () => 0, {},
+		{
+			open: vi.fn(() => new Promise<SaveBlockSettings>((resolve) => { finishOpen = resolve; })),
+			registerPanel: vi.fn(),
+		},
+	);
+	child.load();
+	container.querySelector<HTMLButtonElement>(".tabsdown__options")?.click();
+	const opening = menuItems[0]?.callback?.(new MouseEvent("click"));
+	child.unload();
+	finishOpen?.(async () => {});
+	await opening;
+
+	expect(openModals).toHaveLength(0);
 });
 
 describe("tab interaction", () => {
@@ -1275,14 +1443,6 @@ test("side tabs are equal width in wide and narrow layouts", () => {
 		expect(forced).toContain("flex: 1 1 0");
 		expect(forced).toContain("inline-size: 0");
 	}
-	const coarse = styles.slice(
-		styles.indexOf("@media (any-pointer: coarse)"),
-		styles.indexOf("@container (max-width: 28rem)"),
-	);
-	expect(coarse).toContain(".tabsdown-top-personality-button");
-	expect(coarse).toContain(
-		"--tabsdown-tab-min-block-size: var(--tabsdown-tab-min-size)",
-	);
 });
 
 test("wrapped equal-width rows align and the final row fills the list", () => {
@@ -1305,4 +1465,207 @@ test("wrapped equal-width rows align and the final row fills the list", () => {
 	expect(narrow).toContain("tabsdown-right-alignment-equal-width");
 	expect(narrow).toContain("flex: 1 1 var(--tabsdown-equal-wrap-basis)");
 	expect(narrow).toContain("inline-size: auto");
+});
+
+test("keeps the authored options action separate, focused, and touch sized", () => {
+	const styles = readStyles();
+	const action = matchingRuleBodies(styles, ".tabsdown__options");
+	const focus = matchingRuleBodies(styles, ".tabsdown__options:focus-visible");
+	const coarse = styles.slice(styles.indexOf("@media (any-pointer: coarse)"));
+
+	expect(action).toContain("position: absolute");
+	expect(action).toContain("min-inline-size:");
+	expect(action).toContain("min-block-size:");
+	expect(focus).toContain("outline:");
+	expect(coarse).toMatch(/\.tabsdown__options[^}]*min-inline-size:\s*44px/);
+	expect(coarse).toMatch(/\.tabsdown__options[^}]*min-block-size:\s*44px/);
+});
+
+test("defines complete direct-child authored appearance resets", () => {
+	const styles = readStyles();
+	for (const personality of ["button", "underline", "separator", "rail"]) {
+		const selector = `.tabsdown.tabsdown--personality-${personality}`;
+		const body = matchingRuleBodies(styles, selector);
+		const selectors = matchingSelectors(styles, selector);
+		expect(selectors, personality).toContain("> .tabsdown__tablist");
+		expect(selectors, personality).toContain("> .tabsdown__tab");
+		expect(body, personality).toContain("border-color:");
+		expect(body, personality).toContain("background-color:");
+		expect(body, personality).toContain("color:");
+	}
+
+	for (const palette of ["primary", "secondary"]) {
+		const body = matchingRuleBodies(
+			styles,
+			`.tabsdown.tabsdown--palette-${palette}`,
+		);
+		for (const variable of [
+			"--tabsdown-tab-background:",
+			"--tabsdown-tab-hover-background:",
+			"--tabsdown-tab-selected-background:",
+			"--tabsdown-tab-selected-color:",
+			"--tabsdown-tab-underline-color:",
+			"--tabsdown-rail-selected-background:",
+		]) expect(body, palette).toContain(variable);
+	}
+
+	for (const alignment of ["start", "center", "equal-width"]) {
+		const body = matchingRuleBodies(
+			styles,
+			`.tabsdown.tabsdown--alignment-${alignment}`,
+		);
+		const selectors = matchingSelectors(
+			styles,
+			`.tabsdown.tabsdown--alignment-${alignment}`,
+		);
+		expect(selectors, alignment).toContain("> .tabsdown__tablist");
+		expect(selectors, alignment).toContain("> .tabsdown__tab");
+		expect(body, alignment).toContain("justify-content:");
+		expect(body, alignment).toContain("flex:");
+	}
+});
+
+test("makes only unconfigured authored narrow blocks compact", () => {
+	const styles = readStyles();
+	const narrow = styles.slice(styles.indexOf("@container (max-width: 28rem)"));
+	const automatic = matchingRuleBodies(
+		narrow,
+		".tabsdown:not(.tabsdown--mounted):not(.tabsdown--density-default):not(.tabsdown--density-compact) > .tabsdown__tablist",
+	);
+	expect(automatic).toContain("--tabsdown-tab-min-size: 32px");
+	expect(automatic).toContain("--tabsdown-tab-padding-block: 0.375rem");
+	expect(automatic).toContain("--tabsdown-horizontal-padding, 12px");
+
+	const explicitDefault = matchingRuleBodies(
+		styles,
+		".tabsdown.tabsdown--density-default > .tabsdown__tablist",
+	);
+	const explicitCompact = matchingRuleBodies(
+		styles,
+		".tabsdown.tabsdown--density-compact > .tabsdown__tablist",
+	);
+	expect(explicitDefault).toContain("--tabsdown-tab-min-size: 44px");
+	expect(explicitDefault).toContain("--tabsdown-horizontal-padding, 36px");
+	expect(explicitCompact).toContain("--tabsdown-tab-min-size: 32px");
+	expect(explicitCompact).toContain("--tabsdown-horizontal-padding, 12px");
+	expect(styles.lastIndexOf(".tabsdown.tabsdown--density-default > .tabsdown__tablist")).toBeGreaterThan(
+		styles.lastIndexOf("@container (max-width: 28rem)"),
+	);
+});
+
+test("keeps authored overrides root-scoped without runtime width state", () => {
+	const styles = readStyles();
+	expect(styles).not.toMatch(/tabsdown--(narrow|wide)/);
+	expect(styles).not.toContain("ResizeObserver");
+	expect(styles).not.toMatch(
+		/\.tabsdown--(?:personality|palette|alignment)-[\w-]+\s+\.tabsdown\s/,
+	);
+	expect(styles).not.toMatch(
+		/\.tabsdown--mounted\.tabsdown--(?:density|personality|palette|alignment)-/,
+	);
+});
+
+test("coarse pointers keep every authored personality and density at 44px", () => {
+	const styles = readStyles();
+	const coarse = styles.slice(styles.lastIndexOf("@media (any-pointer: coarse)"));
+	const coarseRule = matchingRules(coarse, "body .tabsdown > .tabsdown__tablist");
+	expect(coarseRule).toContain("--tabsdown-tab-min-size: 44px !important");
+	expect(coarseRule).toContain("--tabsdown-tab-min-block-size: 44px !important");
+	expect(styles.lastIndexOf("body .tabsdown > .tabsdown__tablist")).toBeGreaterThan(
+		styles.lastIndexOf(".tabsdown.tabsdown--personality-rail > .tabsdown__tablist"),
+	);
+
+	const style = document.head.appendChild(document.createElement("style"));
+	style.textContent = [
+		matchingRules(styles, ".tabsdown.tabsdown--personality-"),
+		matchingRules(styles, ".tabsdown.tabsdown--density-"),
+		coarseRule,
+	].join("\n");
+	for (const personality of ["button", "underline", "separator", "rail"]) {
+		for (const density of ["", "default", "compact"]) {
+			const root = document.body.appendChild(document.createElement("div"));
+			root.className = `tabsdown tabsdown--personality-${personality}${
+				density ? ` tabsdown--density-${density}` : ""
+			}`;
+			const list = root.appendChild(document.createElement("div"));
+			list.className = "tabsdown__tablist";
+			const computed = getComputedStyle(list);
+			expect(
+				computed.getPropertyValue("--tabsdown-tab-min-size").trim(),
+				`${personality}/${density || "automatic"}`,
+			).toBe("44px");
+			expect(
+				computed.getPropertyValue("--tabsdown-tab-min-block-size").trim(),
+				`${personality}/${density || "automatic"}`,
+			).toBe("44px");
+			root.remove();
+		}
+	}
+	style.remove();
+});
+
+test("authored hover states retain the personality's important cascade", () => {
+	const styles = readStyles();
+	const authoredHover = styles.slice(
+		styles.indexOf("@media (hover: hover)", styles.indexOf("/* Authored block settings")),
+		styles.indexOf("body .tabsdown.tabsdown--alignment-start"),
+	);
+	for (const personality of ["button", "underline", "separator", "rail"]) {
+		const rules = matchingRuleBodies(
+			authoredHover,
+			`.tabsdown.tabsdown--personality-${personality}`,
+		);
+		expect(rules, personality).toMatch(/(?:border|background|color)[^:]*:[^;]+!important/);
+	}
+	const buttonSelected = matchingRuleBodies(
+		authoredHover,
+		'.tabsdown.tabsdown--personality-button > .tabsdown__tablist > .tabsdown__tab:is([aria-selected="true"], [aria-expanded="true"]):hover',
+	);
+	const railSelected = matchingRuleBodies(
+		authoredHover,
+		'.tabsdown.tabsdown--personality-rail > .tabsdown__tablist > .tabsdown__tab:is([aria-selected="true"], [aria-expanded="true"]):hover',
+	);
+	const separatorSelected = matchingRuleBodies(
+		authoredHover,
+		'.tabsdown.tabsdown--personality-separator > .tabsdown__tablist > .tabsdown__tab:is([aria-selected="true"], [aria-expanded="true"]):hover',
+	);
+	expect(buttonSelected.match(/!important/g)).toHaveLength(3);
+	expect(separatorSelected).toContain(
+		"color: var(--tabsdown-tab-underline-color) !important",
+	);
+	expect(railSelected.match(/!important/g)).toHaveLength(2);
+});
+
+test("side structure beats every authored alignment at wide and narrow widths", () => {
+	const styles = readStyles();
+	const authoredAlignment = matchingRules(styles, ".tabsdown.tabsdown--alignment-");
+	for (const position of ["left", "right"]) {
+		const selector =
+			`body .tabsdown.tabsdown--${position} > .tabsdown__tablist > ` +
+			".tabsdown__tab.tabsdown__tab";
+		const [wide, narrow] = exactRuleBodies(styles, selector);
+		expect(wide, `${position} wide`).toContain("inline-size: 100%");
+		expect(narrow, `${position} narrow`).toContain("inline-size: 0");
+		expect(styles.lastIndexOf(selector), `${position} structural order`).toBeGreaterThan(
+			styles.lastIndexOf("body .tabsdown.tabsdown--alignment-equal-width"),
+		);
+
+		for (const alignment of ["start", "center", "equal-width"]) {
+			const style = document.head.appendChild(document.createElement("style"));
+			style.textContent = `${authoredAlignment}\n${selector} {${wide}}`;
+			const root = document.body.appendChild(document.createElement("div"));
+			root.className = `tabsdown tabsdown--${position} tabsdown--alignment-${alignment}`;
+			const list = root.appendChild(document.createElement("div"));
+			list.className = "tabsdown__tablist";
+			const tab = list.appendChild(document.createElement("button"));
+			tab.className = "tabsdown__tab";
+			const computed = getComputedStyle(tab);
+			expect(computed.flex, `${position}/${alignment}/wide`).toBe("0 0 auto");
+			expect(computed.inlineSize, `${position}/${alignment}/wide`).toBe("100%");
+			expect(narrow, `${position}/${alignment}/narrow`).toContain("flex: 1 1 0");
+			expect(narrow, `${position}/${alignment}/narrow`).toContain("inline-size: 0");
+			root.remove();
+			style.remove();
+		}
+	}
 });
