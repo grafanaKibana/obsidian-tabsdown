@@ -286,6 +286,12 @@ function idBlocks(source: string, blockId: string): FenceBlock[] {
 	});
 }
 
+function matchesRenderedSource(authored: string, rendered: string): boolean {
+	return authored === rendered || (
+		authored.endsWith("\n") && authored.slice(0, -1) === rendered
+	);
+}
+
 export function captureBlock(
 	text: string,
 	locator: BlockLocator,
@@ -297,13 +303,14 @@ export function captureBlock(
 		throw new SourceConflictError("The Tabsdown block identity is missing or duplicated.");
 	}
 	const block = matches[0];
-	if (!block || block.inner.text !== renderedSource) {
+	if (!block || !matchesRenderedSource(block.inner.text, renderedSource)) {
 		throw new SourceConflictError("The Tabsdown block changed. Reopen its settings.");
 	}
+	const target = block.inner.text;
 	return {
 		locator,
 		...(blockId ? {} : { text }),
-		target: renderedSource,
+		target,
 		rawTarget: text.slice(block.innerRawFrom, block.innerRawTo),
 		...(blockId ? { blockId } : {}),
 	};

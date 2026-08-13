@@ -206,8 +206,8 @@ async function saveOpenModal(): Promise<void> {
 }
 
 test("writes through the sole editor with one replaceRange and never the vault", async () => {
-	const source = "tab: One\nA\ntab: Two\nB\n";
-	const text = `~~~tabsdown\n${source}~~~`;
+	const source = "tab: One\nA\ntab: Two\nB";
+	const text = `~~~tabsdown\n${source}\n~~~`;
 	const { plugin, editors, process } = writablePlugin(text, 1);
 	await openWritableModal(plugin, source);
 	await saveOpenModal();

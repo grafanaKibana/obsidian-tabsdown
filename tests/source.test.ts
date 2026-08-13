@@ -16,6 +16,15 @@ function save(text: string, snapshot: ReturnType<typeof captureBlock>): string {
 }
 
 describe("guarded authored block rewrites", () => {
+	test("accepts processor source without the fence boundary newline", () => {
+		const text = `~~~tabsdown\n${inner}~~~`;
+		const rendered = inner.slice(0, -1);
+		const snapshot = captureBlock(text, { lineStart: 0, nestedOffsets: [] }, rendered);
+		expect(save(text, snapshot)).toBe(
+			`~~~tabsdown\nconfig: block-id=${id}, density=compact\n${inner}~~~`,
+		);
+	});
+
 	test.each(["\n", "\r\n"])("rewrites the demo callout fixture byte-for-byte with %j", (newline) => {
 		const normalized = [
 			"tab: Card surface",
