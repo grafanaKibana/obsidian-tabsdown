@@ -220,7 +220,11 @@ export default class TabsdownPlugin extends Plugin {
 		const editors = new Set<Editor>();
 		for (const leaf of this.app.workspace.getLeavesOfType("markdown")) {
 			const view = leaf.view;
-			if (view instanceof MarkdownView && view.file === file) {
+			if (
+				view instanceof MarkdownView &&
+				view.file === file &&
+				view.getMode() === "source"
+			) {
 				editors.add(view.editor);
 			}
 		}

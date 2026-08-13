@@ -215,6 +215,26 @@ test("writes through the sole editor with one replaceRange and never the vault",
 	expect(process).not.toHaveBeenCalled();
 });
 
+test("persists Reading View settings through Vault.process instead of its hidden editor", async () => {
+	const source = "tab: One\nA\ntab: Two\nB";
+	const text = `~~~tabsdown\n${source}\n~~~`;
+	const { cachedRead, plugin, editors, process, views } = writablePlugin(text, 1);
+	Object.assign(views[0]!, { getMode: () => "preview" });
+
+	await openWritableModal(plugin, source);
+	const density = openModals[0]?.contentEl.querySelector<HTMLSelectElement>(
+		'select[aria-label="Density"]',
+	);
+	if (!density) throw new Error("Expected Density setting");
+	density.value = "compact";
+	density.dispatchEvent(new Event("change"));
+	await saveOpenModal();
+
+	expect(editors[0]?.replaceRange).not.toHaveBeenCalled();
+	expect(process).toHaveBeenCalledOnce();
+	expect(await cachedRead()).toMatch(/config: block-id=[^,]+, density=compact/);
+});
+
 test("writes the exact CRLF nested callout range from LF processor source", async () => {
 	const inner = "tab: Card surface\nUse a bordered surface.\ntab: Flat tabs\nUse tabs directly.\n";
 	const source = [
@@ -614,7 +634,9 @@ test("aborts the vault transform when an editor opens while process is pending",
 	const { file, plugin, process, views } = writablePlugin(text, 0);
 	const editor = { getValue: vi.fn(() => text), replaceRange: vi.fn() };
 	process.mockImplementationOnce(async (_file, transform) => {
-		views.push(new MarkdownView(editor, file));
+		const view = new MarkdownView(editor, file);
+		Object.assign(view, { getMode: () => "source" });
+		views.push(view);
 		return transform(text);
 	});
 	await openWritableModal(plugin, source);
