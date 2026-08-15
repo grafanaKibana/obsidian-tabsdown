@@ -152,7 +152,7 @@ describe("parseTabs", () => {
 
 	test("parses every keyed axis with released bare tokens", () => {
 		expect(parseTabs([
-			"config: block-id=550e8400-e29b-41d4-a716-446655440000, left, multi",
+			"config: left, multi",
 			"config: density=compact, personality=rail, palette=secondary, alignment=equal-width",
 			"tab: One",
 			"tab: Two",
@@ -160,7 +160,6 @@ describe("parseTabs", () => {
 			ok: true,
 			configuration: ["left", "multi"],
 			options: {
-				blockId: "550e8400-e29b-41d4-a716-446655440000",
 				density: "compact",
 				personality: "rail",
 				palette: "secondary",
@@ -186,6 +185,7 @@ describe("parseTabs", () => {
 	});
 
 	test.each([
+		"block-id=550e8400-e29b-41d4-a716-446655440000",
 		"block-id=550E8400-e29b-41d4-a716-446655440000",
 		"block-id=not-a-uuid",
 		"density=comfortable",

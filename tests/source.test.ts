@@ -7,12 +7,10 @@ import {
 	SourceConflictError,
 } from "../src/source";
 
-const id = "550e8400-e29b-41d4-a716-446655440000";
-const otherId = "660e8400-e29b-41d4-a716-446655440000";
 const inner = "tab: One\nA\ntab: Two\nB\n";
 
 function save(text: string, snapshot: ReturnType<typeof captureBlock>): string {
-	return applySourceEdit(text, rewriteBlock(text, snapshot, { blockId: id, density: "compact" }));
+	return applySourceEdit(text, rewriteBlock(text, snapshot, { density: "compact" }));
 }
 
 describe("guarded authored block rewrites", () => {
@@ -21,7 +19,7 @@ describe("guarded authored block rewrites", () => {
 		const rendered = inner.slice(0, -1);
 		const snapshot = captureBlock(text, { lineStart: 0, nestedOffsets: [] }, rendered);
 		expect(save(text, snapshot)).toBe(
-			`~~~tabsdown\nconfig: block-id=${id}, density=compact\n${inner}~~~`,
+			`~~~tabsdown\nconfig: density=compact\n${inner}~~~`,
 		);
 	});
 
@@ -46,7 +44,7 @@ describe("guarded authored block rewrites", () => {
 		expect(save(raw, snapshot)).toBe([
 			"> [!info] Choose a nested presentation",
 			"> ````tabsdown",
-			`> config: block-id=${id}, density=compact`,
+			"> config: density=compact",
 			"> tab: Card surface",
 			"> Use a bordered surface.",
 			"> tab: Flat tabs",
@@ -60,7 +58,7 @@ describe("guarded authored block rewrites", () => {
 		const normalized = "config: left\n\nconfig: multi\n\ntab: One\ntab: Two\n";
 		const snapshot = captureBlock(source, { lineStart: 0, nestedOffsets: [] }, normalized);
 		expect(save(source, snapshot)).toBe(
-			`> ~~~tabsdown\n> config: block-id=${id}, density=compact\n>\n> tab: One\n> tab: Two\n> ~~~`,
+			"> ~~~tabsdown\n> config: density=compact\n>\n> tab: One\n> tab: Two\n> ~~~",
 		);
 	});
 
@@ -69,8 +67,29 @@ describe("guarded authored block rewrites", () => {
 		const normalized = "config: left\n\nconfig: multi\n\ntab: One\ntab: Two\n";
 		const snapshot = captureBlock(source, { lineStart: 0, nestedOffsets: [] }, normalized);
 		expect(save(source, snapshot)).toBe(
-			`> ~~~tabsdown\r\n> config: block-id=${id}, density=compact\r\n>\r\n> tab: One\r\n> tab: Two\r\n> ~~~`,
+			"> ~~~tabsdown\r\n> config: density=compact\r\n>\r\n> tab: One\r\n> tab: Two\r\n> ~~~",
 		);
+	});
+
+	test.each(["\n", "\r\n"])("removes quoted config when every field inherits with %j", (newline) => {
+		const source = [
+			"> ~~~tabsdown",
+			"> config: left, density=compact",
+			">",
+			"> tab: One",
+			"> tab: Two",
+			"> ~~~",
+		].join(newline);
+		const rendered = "config: left, density=compact\n\ntab: One\ntab: Two\n";
+		const snapshot = captureBlock(source, { lineStart: 0, nestedOffsets: [] }, rendered);
+		const result = applySourceEdit(source, rewriteBlock(source, snapshot, {}));
+		expect(result).toBe([
+			"> ~~~tabsdown",
+			">",
+			"> tab: One",
+			"> tab: Two",
+			"> ~~~",
+		].join(newline));
 	});
 
 	test.each(["\n", "\r\n"])(
@@ -91,7 +110,7 @@ describe("guarded authored block rewrites", () => {
 			expect(save(source, snapshot)).toBe([
 				"  > ~~~tabsdown",
 				">\t",
-				` >\tconfig: block-id=${id}, density=compact`,
+				" >\tconfig: density=compact",
 				" >\ttab: One",
 				"  > tab: Two",
 				"> ~~~",
@@ -104,7 +123,7 @@ describe("guarded authored block rewrites", () => {
 		const normalized = "tab: One\ntab: Two\n";
 		const snapshot = captureBlock(source, { lineStart: 0, nestedOffsets: [] }, normalized);
 		expect(save(source, snapshot)).toBe(
-			`> ~~~tabsdown\n>config: block-id=${id}, density=compact\n>tab: One\n>tab: Two\n> ~~~`,
+			"> ~~~tabsdown\n>config: density=compact\n>tab: One\n>tab: Two\n> ~~~",
 		);
 	});
 
@@ -122,8 +141,8 @@ describe("guarded authored block rewrites", () => {
 			nestedOffsets: [childCandidate.offset, leaves[1]!.offset],
 		}, inner);
 		const result = save(raw, snapshot);
-		expect(result.match(new RegExp(`block-id=${id}`, "g"))).toHaveLength(1);
-		expect(result).toContain(`> config: block-id=${id}, density=compact`);
+		expect(result.match(/config: density=compact/g)).toHaveLength(1);
+		expect(result).toContain("> config: density=compact");
 	});
 
 	test("locates a CRLF nested block from LF processor sources", () => {
@@ -135,47 +154,8 @@ describe("guarded authored block rewrites", () => {
 		const candidate = nestedBlockCandidates(outerSource, 0)[0]!;
 		const snapshot = captureBlock(raw, { lineStart: 0, nestedOffsets: [candidate.offset] }, inner);
 		expect(save(raw, snapshot)).toContain(
-			`~~~tabsdown\r\nconfig: block-id=${id}, density=compact\r\n${inner.replaceAll("\n", "\r\n")}~~~`,
+			`~~~tabsdown\r\nconfig: density=compact\r\n${inner.replaceAll("\n", "\r\n")}~~~`,
 		);
-	});
-
-	test("re-resolves a moved quoted block by unique ID and rejects conflicts", () => {
-		const normalized = `config: block-id=${id}\n${inner}`;
-		const block = `> ~~~tabsdown\n> ${normalized.slice(0, -1).replaceAll("\n", "\n> ")}\n> ~~~`;
-		const original = `before\n${block}\nafter`;
-		const snapshot = captureBlock(original, { lineStart: 1, nestedOffsets: [] }, normalized, id);
-		const moved = `new prose\n${block}\nbefore\nafter`;
-		const result = applySourceEdit(moved, rewriteBlock(moved, snapshot, { blockId: id, alignment: "center" }));
-		expect(result).toContain(`> config: block-id=${id}, alignment=center`);
-		expect(result).toContain("new prose");
-		expect(() => rewriteBlock(moved.replace(id, otherId), snapshot, { blockId: id })).toThrow(SourceConflictError);
-		expect(() => rewriteBlock(`${moved}\n${block}`, snapshot, { blockId: id })).toThrow(SourceConflictError);
-	});
-
-	test("re-resolves a moved CRLF quoted block from LF stable-ID source", () => {
-		const normalized = `config: block-id=${id}\n${inner}`;
-		const quoted = `> ${normalized.slice(0, -1).replaceAll("\n", "\r\n> ")}`;
-		const block = `> ~~~tabsdown\r\n${quoted}\r\n> ~~~`;
-		const original = `before\r\n${block}\r\nafter`;
-		const snapshot = captureBlock(original, { lineStart: 1, nestedOffsets: [] }, normalized, id);
-		const moved = `new prose\r\n${block}\r\nbefore\r\nafter`;
-		const result = applySourceEdit(
-			moved,
-			rewriteBlock(moved, snapshot, { blockId: id, alignment: "center" }),
-		);
-		expect(result).toContain(`> config: block-id=${id}, alignment=center\r\n`);
-		expect(result).toContain("new prose\r\n");
-		expect(() => rewriteBlock(`${moved}\r\n${block}`, snapshot, { blockId: id })).toThrow(
-			SourceConflictError,
-		);
-	});
-
-	test("is idempotent after a quoted block receives its stable ID", () => {
-		const original = `> ~~~tabsdown\n> ${inner.slice(0, -1).replaceAll("\n", "\n> ")}\n> ~~~`;
-		const first = save(original, captureBlock(original, { lineStart: 0, nestedOffsets: [] }, inner));
-		const configured = `config: block-id=${id}, density=compact\n${inner}`;
-		const second = save(first, captureBlock(first, { lineStart: 0, nestedOffsets: [] }, configured, id));
-		expect(second).toBe(first);
 	});
 
 	test("fails closed when quote depth breaks inside a block", () => {
@@ -194,7 +174,7 @@ describe("guarded authored block rewrites", () => {
 		const snapshot = captureBlock(text, { lineStart: 1, nestedOffsets: [] }, inner);
 		const result = save(text, snapshot);
 		expect(result).toBe(
-			`before${newline}${fence}tabsdown${newline}config: block-id=${id}, density=compact${newline}${body}${fence}${newline}after`,
+			`before${newline}${fence}tabsdown${newline}config: density=compact${newline}${body}${fence}${newline}after`,
 		);
 	});
 
@@ -225,7 +205,7 @@ describe("guarded authored block rewrites", () => {
 				: { lineStart: 0, nestedOffsets: [] };
 			const expected = block.replace(
 				`${prefix}~~~tabsdown${newline}`,
-				`${prefix}~~~tabsdown${newline}${prefix}config: block-id=${id}, density=compact${newline}`,
+				`${prefix}~~~tabsdown${newline}${prefix}config: density=compact${newline}`,
 			);
 			expect(save(text, captureBlock(text, locator, inner))).toBe(
 				nested ? text.replace(block, expected) : expected,
@@ -259,7 +239,7 @@ describe("guarded authored block rewrites", () => {
 						)[0]!.offset],
 					}
 				: { lineStart: 0, nestedOffsets: [] };
-			const expectedBody = `config: block-id=${id}, density=compact\n${inner}`;
+			const expectedBody = `config: density=compact\n${inner}`;
 			const expected = [
 				`${prefix}~~~tabsdown`,
 				...expectedBody.trimEnd().replace("\ntab:", "\n\ntab:").split("\n").map((line) => prefix + line),
@@ -277,7 +257,7 @@ describe("guarded authored block rewrites", () => {
 		const snapshot = captureBlock(text, { lineStart: 7, nestedOffsets: [] }, inner);
 		const result = save(text, snapshot);
 		expect(result.slice(0, block.length)).toBe(block);
-		expect(result).toContain(`prose\n~~~tabsdown\nconfig: block-id=${id}`);
+		expect(result).toContain("prose\n~~~tabsdown\nconfig: density=compact");
 	});
 
 	test("rewrites the selected byte-identical nested block only", () => {
@@ -294,8 +274,8 @@ describe("guarded authored block rewrites", () => {
 			inner,
 		);
 		const result = save(text, snapshot);
-		expect(result.match(new RegExp(`block-id=${id}`, "g"))).toHaveLength(1);
-		expect(result.indexOf(`block-id=${id}`)).toBeGreaterThan(
+		expect(result.match(/config: density=compact/g)).toHaveLength(1);
+		expect(result.indexOf("config: density=compact")).toBeGreaterThan(
 			text.indexOf(outer.slice(candidates[0]!.offset)),
 		);
 	});
@@ -350,7 +330,7 @@ describe("guarded authored block rewrites", () => {
 		const targetStart = text.indexOf(block, text.indexOf(block) + block.length);
 		const configured = block.replace(
 			"~~~tabsdown\n",
-			`~~~tabsdown\nconfig: block-id=${id}, density=compact\n`,
+			"~~~tabsdown\nconfig: density=compact\n",
 		);
 		expect(result).toBe(
 			text.slice(0, targetStart) + configured + text.slice(targetStart + block.length),
@@ -360,85 +340,23 @@ describe("guarded authored block rewrites", () => {
 			.toThrow(SourceConflictError);
 	});
 
-	test("fails closed on any pre-ID owning-buffer drift", () => {
+	test("fails closed on any owning-buffer drift", () => {
 		const text = `~~~tabsdown\n${inner}~~~`;
 		const snapshot = captureBlock(text, { lineStart: 0, nestedOffsets: [] }, inner);
 		expect(() => save(`unrelated\n${text}`, snapshot)).toThrow(SourceConflictError);
 	});
 
-	test("re-resolves a moved unique ID, preserving unrelated edits", () => {
-		const configured = `config: block-id=${id}\n${inner}`;
-		const original = `before\n~~~tabsdown\n${configured}~~~\nafter`;
-		const snapshot = captureBlock(
-			original,
-			{ lineStart: 1, nestedOffsets: [] },
-			configured,
-			id,
-		);
-		const moved = `new prose\n~~~tabsdown\n${configured}~~~\nbefore\nafter`;
-		const result = applySourceEdit(
-			moved,
-			rewriteBlock(moved, snapshot, { blockId: id, alignment: "center" }),
-		);
-		expect(result).toContain("new prose");
-		expect(result).toContain(`config: block-id=${id}, alignment=center`);
-	});
-
 	test.each([
 		["line endings", (text: string) => text.replaceAll("\r\n", "\n")],
 		["quote spacing", (text: string) => text.replace("\r\n> tab: One", "\r\n>\ttab: One")],
-	])("rejects raw-only stable-ID drift in %s", (_name, drift) => {
-		const configured = `config: block-id=${id}\n${inner}`;
+	])("rejects raw-only note drift in %s", (_name, drift) => {
+		const configured = `config: left\n${inner}`;
 		const block = `> ~~~tabsdown\r\n> ${configured.slice(0, -1).replaceAll("\n", "\r\n> ")}\r\n> ~~~`;
-		const snapshot = captureBlock(block, { lineStart: 0, nestedOffsets: [] }, configured, id);
+		const snapshot = captureBlock(block, { lineStart: 0, nestedOffsets: [] }, configured);
 		const changed = drift(block);
-		expect(() => captureBlock(changed, { lineStart: 0, nestedOffsets: [] }, configured, id)).not.toThrow();
-		expect(() => rewriteBlock(changed, snapshot, { blockId: id })).toThrow(
+		expect(() => captureBlock(changed, { lineStart: 0, nestedOffsets: [] }, configured)).not.toThrow();
+		expect(() => rewriteBlock(changed, snapshot, { alignment: "center" })).toThrow(
 			SourceConflictError,
 		);
-	});
-
-	test("rejects target drift and missing or duplicate stable IDs", () => {
-		const configured = `config: block-id=${id}\n${inner}`;
-		const original = `~~~tabsdown\n${configured}~~~`;
-		const snapshot = captureBlock(
-			original,
-			{ lineStart: 0, nestedOffsets: [] },
-			configured,
-			id,
-		);
-		expect(() => rewriteBlock(original.replace("A", "changed"), snapshot, { blockId: id })).toThrow(
-			SourceConflictError,
-		);
-		expect(() => rewriteBlock(original.replace(id, otherId), snapshot, { blockId: id })).toThrow(
-			SourceConflictError,
-		);
-		expect(() => rewriteBlock(`${original}\n${original}`, snapshot, { blockId: id })).toThrow(
-			SourceConflictError,
-		);
-	});
-
-	test("counts leading stable IDs in diagnostic blocks but ignores body text", () => {
-		const configured = `config: block-id=${id}\n${inner}`;
-		const original = `~~~tabsdown\n${configured}~~~`;
-		const snapshot = captureBlock(original, { lineStart: 0, nestedOffsets: [] }, configured, id);
-		const malformedDuplicate = [
-			"~~~tabsdown",
-			`config: block-id=${id}, unknown`,
-			"tab: One",
-			"~~~",
-		].join("\n");
-		expect(() => rewriteBlock(`${original}\n${malformedDuplicate}`, snapshot, { blockId: id }))
-			.toThrow(SourceConflictError);
-
-		const bodyMention = [
-			"~~~tabsdown",
-			"tab: One",
-			`config: block-id=${id}`,
-			"tab: Two",
-			"~~~",
-		].join("\n");
-		expect(() => rewriteBlock(`${original}\n${bodyMention}`, snapshot, { blockId: id }))
-			.not.toThrow();
 	});
 });

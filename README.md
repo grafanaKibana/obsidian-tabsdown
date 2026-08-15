@@ -37,7 +37,7 @@ Use matching backtick or tilde fences. The outer fence must be longer than any m
 
 ````markdown
 ~~~tabsdown
-config: block-id=550e8400-e29b-41d4-a716-446655440000, left, multi, density=compact, personality=rail, palette=secondary, alignment=center
+config: left, multi, density=compact, personality=rail, palette=secondary, alignment=center
 
 tab: Python
 print("Hello Tabsdown")
@@ -47,7 +47,7 @@ console.log("Hello Tabsdown");
 ~~~
 ````
 
-`top`, `left`, `right`, and `bottom` place the tab list; `one` keeps it on one scrollable line and `multi` wraps labels. Keyed overrides are `density=default|compact`, `personality=button|underline|separator|rail`, `palette=primary|secondary`, and `alignment=start|center|equal-width`. The example is the canonical form saved by the menu: `block-id` comes first, followed by the selected values. Cancel does not edit Markdown; if the note or target changed while the settings dialog was open, Save stops without overwriting it.
+`top`, `left`, `right`, and `bottom` place the tab list; `one` keeps it on one scrollable line and `multi` wraps labels. Keyed overrides are `density=default|compact`, `personality=button|underline|separator|rail`, `palette=primary|secondary`, and `alignment=start|center|equal-width`. The example is the canonical form saved by the menu. Cancel does not edit Markdown; if the note changed while the settings dialog was open, Save stops without overwriting it.
 
 Omitted values inherit in this order: explicit block override, automatic Compact density at a container width of 28rem or less, position Style Settings, global Style Settings, then the built-in fallback. Explicit Default or Compact density stays authoritative at every width. The first tab starts active. Empty tab bodies are valid. To render a literal marker-looking line, escape it as `\tab:`.
 

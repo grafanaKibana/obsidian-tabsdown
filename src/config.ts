@@ -7,7 +7,6 @@ export type TabPalette = "primary" | "secondary";
 export type TabAlignment = "start" | "center" | "equal-width";
 
 export interface TabsdownConfig {
-	blockId?: string;
 	position?: TabPosition;
 	layout?: TabLayout;
 	density?: TabDensity;
@@ -17,7 +16,6 @@ export interface TabsdownConfig {
 }
 
 export type KeyedConfigName =
-	| "block-id"
 	| "density"
 	| "personality"
 	| "palette"
@@ -37,17 +35,11 @@ const bareValues = new Set<TabConfiguration>([
 	"multi",
 ]);
 const keyedValues: Record<KeyedConfigName, ReadonlySet<string>> = {
-	"block-id": new Set(),
 	density: new Set(["default", "compact"]),
 	personality: new Set(["button", "underline", "separator", "rail"]),
 	palette: new Set(["primary", "secondary"]),
 	alignment: new Set(["start", "center", "equal-width"]),
 };
-const uuid = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/;
-
-export function isValidBlockId(value: string): boolean {
-	return uuid.test(value);
-}
 
 export function parseConfigToken(token: string): ParsedConfigToken {
 	if (bareValues.has(token as TabConfiguration)) {
@@ -59,16 +51,14 @@ export function parseConfigToken(token: string): ParsedConfigToken {
 	const key = match[1] as KeyedConfigName;
 	const value = match[2] ?? "";
 	if (!Object.prototype.hasOwnProperty.call(keyedValues, key)) return { kind: "invalid" };
-	if (key === "block-id" ? !isValidBlockId(value) : !keyedValues[key].has(value)) {
+	if (!keyedValues[key].has(value)) {
 		return { kind: "invalid" };
 	}
 	return { kind: "keyed", key, value };
 }
 
-export function serializeConfig(config: TabsdownConfig & { blockId: string }): string {
-	if (!isValidBlockId(config.blockId)) throw new Error("Invalid Tabsdown block ID.");
+export function serializeConfig(config: TabsdownConfig): string {
 	const values = [
-		`block-id=${config.blockId}`,
 		config.position,
 		config.layout,
 		config.density && `density=${config.density}`,
@@ -76,7 +66,7 @@ export function serializeConfig(config: TabsdownConfig & { blockId: string }): s
 		config.palette && `palette=${config.palette}`,
 		config.alignment && `alignment=${config.alignment}`,
 	].filter(Boolean);
-	return `config: ${values.join(", ")}`;
+	return values.length === 0 ? "" : `config: ${values.join(", ")}`;
 }
 
 export interface ConfigEdit {
@@ -87,7 +77,7 @@ export interface ConfigEdit {
 
 export function configEdit(
 	source: string,
-	config: TabsdownConfig & { blockId: string },
+	config: TabsdownConfig,
 ): ConfigEdit {
 	const lines = [...source.matchAll(/.*(?:\r\n|\n|$)/g)].filter(
 		(match) => match[0] !== "",
@@ -101,8 +91,9 @@ export function configEdit(
 		if (line[0].trim() !== "") break;
 	}
 	const newline = source.match(/\r\n|\n/)?.[0] ?? "\n";
+	const serialized = serializeConfig(config);
 	if (configLines.length === 0) {
-		return { from: 0, to: 0, replacement: `${serializeConfig(config)}${newline}` };
+		return { from: 0, to: 0, replacement: serialized ? `${serialized}${newline}` : "" };
 	}
 
 	const first = configLines[0];
@@ -115,6 +106,6 @@ export function configEdit(
 	return {
 		from: first.index,
 		to: last.index + lastText.length,
-		replacement: `${serializeConfig(config)}${ending}`,
+		replacement: serialized ? `${serialized}${ending}` : "",
 	};
 }

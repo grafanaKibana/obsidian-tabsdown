@@ -2,8 +2,6 @@ import { describe, expect, test } from "vitest";
 
 import { configEdit, parseConfigToken, serializeConfig } from "../src/config";
 
-const blockId = "550e8400-e29b-41d4-a716-446655440000";
-
 test.each(["constructor=value", "__proto__=value"])(
 	"rejects inherited-looking key %s",
 	(token) => expect(parseConfigToken(token)).toEqual({ kind: "invalid" }),
@@ -12,7 +10,6 @@ test.each(["constructor=value", "__proto__=value"])(
 describe("serializeConfig", () => {
 	test("uses canonical option order", () => {
 		expect(serializeConfig({
-			blockId,
 			alignment: "center",
 			palette: "secondary",
 			personality: "rail",
@@ -20,35 +17,29 @@ describe("serializeConfig", () => {
 			layout: "multi",
 			position: "left",
 		})).toBe(
-			`config: block-id=${blockId}, left, multi, density=compact, personality=rail, palette=secondary, alignment=center`,
+			"config: left, multi, density=compact, personality=rail, palette=secondary, alignment=center",
 		);
 	});
 
-	test("keeps only identity when all visible overrides inherit", () => {
-		expect(serializeConfig({ blockId })).toBe(`config: block-id=${blockId}`);
-	});
-
-	test("refuses to serialize a noncanonical block ID", () => {
-		expect(() => serializeConfig({ blockId: blockId.toUpperCase() })).toThrow(
-			"Invalid Tabsdown block ID.",
-		);
+	test("serializes no marker when all overrides inherit", () => {
+		expect(serializeConfig({})).toBe("");
 	});
 });
 
 describe("configEdit", () => {
 	test.each(["\n", "\r\n"])("inserts a config line without changing %j source bytes", (newline) => {
 		const source = `tab: One${newline}body${newline}tab: Two`;
-		const edit = configEdit(source, { blockId, density: "compact" });
+		const edit = configEdit(source, { density: "compact" });
 		expect(source.slice(0, edit.from) + edit.replacement + source.slice(edit.to)).toBe(
-			`config: block-id=${blockId}, density=compact${newline}${source}`,
+			`config: density=compact${newline}${source}`,
 		);
 	});
 
 	test("consolidates repeated leading config lines and preserves the remainder", () => {
 		const source = "config: left\n\nconfig: multi\n\ntab: One\ntab: Two\n";
-		const edit = configEdit(source, { blockId, position: "right" });
+		const edit = configEdit(source, { position: "right" });
 		expect(source.slice(0, edit.from) + edit.replacement + source.slice(edit.to)).toBe(
-			`config: block-id=${blockId}, right\n\ntab: One\ntab: Two\n`,
+			"config: right\n\ntab: One\ntab: Two\n",
 		);
 	});
 
@@ -57,7 +48,7 @@ describe("configEdit", () => {
 			"config: left\ntab: One\ntab: Two",
 			"config: left\ntab: One\ntab: Two\n",
 		]) {
-			const edit = configEdit(source, { blockId });
+			const edit = configEdit(source, {});
 			const rewritten = source.slice(0, edit.from) + edit.replacement + source.slice(edit.to);
 			expect(rewritten.endsWith("\n")).toBe(source.endsWith("\n"));
 		}
@@ -65,9 +56,9 @@ describe("configEdit", () => {
 
 	test("does not treat a config-looking tab body line as leading config", () => {
 		const source = "tab: One\nconfig: body\ntab: Two";
-		const edit = configEdit(source, { blockId });
+		const edit = configEdit(source, { density: "compact" });
 		expect(source.slice(0, edit.from) + edit.replacement + source.slice(edit.to)).toBe(
-			`config: block-id=${blockId}\n${source}`,
+			`config: density=compact\n${source}`,
 		);
 	});
 });

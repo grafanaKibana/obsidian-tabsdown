@@ -1,4 +1,4 @@
-import { configEdit, isValidBlockId, type TabsdownConfig } from "./config";
+import { configEdit, type TabsdownConfig } from "./config";
 import { isTabsdownFence, parseFenceLine } from "./parser";
 
 export interface BlockLocator {
@@ -8,10 +8,9 @@ export interface BlockLocator {
 
 export interface BlockSnapshot {
 	locator: BlockLocator;
-	text?: string;
+	text: string;
 	target: string;
 	rawTarget: string;
-	blockId?: string;
 }
 
 export interface SourceEdit {
@@ -199,14 +198,6 @@ function directBlocks(view: SourceView): FenceBlock[] {
 	return result;
 }
 
-function allBlocks(view: SourceView): FenceBlock[] {
-	const result: FenceBlock[] = [];
-	for (const block of directBlocks(view)) {
-		result.push(block, ...allBlocks(block.inner));
-	}
-	return result;
-}
-
 function lineOffset(source: string, line: number): number {
 	let offset = 0;
 	for (let index = 0; index < line; index += 1) {
@@ -268,24 +259,6 @@ function resolveLocator(source: string, locator: BlockLocator): FenceBlock {
 	return block;
 }
 
-function idBlocks(source: string, blockId: string): FenceBlock[] {
-	return allBlocks(createSourceView(source)).flatMap((block) => {
-		let matches = 0;
-		for (const line of block.inner.text.split(/\r?\n/)) {
-			if (line.trim() === "") continue;
-			if (!line.startsWith("config:")) break;
-			for (const token of line.slice("config:".length).split(",")) {
-				const trimmedToken = token.trim();
-				const value = trimmedToken.slice("block-id=".length);
-				if (trimmedToken.startsWith("block-id=") && value === blockId && isValidBlockId(value)) {
-					matches += 1;
-				}
-			}
-		}
-		return Array.from({ length: matches }, () => block);
-	});
-}
-
 function matchesRenderedSource(authored: string, rendered: string): boolean {
 	return authored === rendered || (
 		authored.endsWith("\n") && authored.slice(0, -1) === rendered
@@ -296,41 +269,29 @@ export function captureBlock(
 	text: string,
 	locator: BlockLocator,
 	renderedSource: string,
-	blockId?: string,
 ): BlockSnapshot {
-	const matches = blockId ? idBlocks(text, blockId) : [resolveLocator(text, locator)];
-	if (matches.length !== 1) {
-		throw new SourceConflictError("The Tabsdown block identity is missing or duplicated.");
-	}
-	const block = matches[0];
+	const block = resolveLocator(text, locator);
 	if (!block || !matchesRenderedSource(block.inner.text, renderedSource)) {
 		throw new SourceConflictError("The Tabsdown block changed. Reopen its settings.");
 	}
 	const target = block.inner.text;
 	return {
 		locator,
-		...(blockId ? {} : { text }),
+		text,
 		target,
 		rawTarget: text.slice(block.innerRawFrom, block.innerRawTo),
-		...(blockId ? { blockId } : {}),
 	};
 }
 
 export function rewriteBlock(
 	text: string,
 	snapshot: BlockSnapshot,
-	config: TabsdownConfig & { blockId: string },
+	config: TabsdownConfig,
 ): SourceEdit {
-	if (!snapshot.blockId && text !== snapshot.text) {
+	if (text !== snapshot.text) {
 		throw new SourceConflictError("The note changed. Reopen the block settings.");
 	}
-	const matches = snapshot.blockId
-		? idBlocks(text, snapshot.blockId)
-		: [resolveLocator(text, snapshot.locator)];
-	if (matches.length !== 1) {
-		throw new SourceConflictError("The Tabsdown block identity is missing or duplicated.");
-	}
-	const block = matches[0];
+	const block = resolveLocator(text, snapshot.locator);
 	if (
 		!block ||
 		block.inner.text !== snapshot.target ||
@@ -347,6 +308,10 @@ export function rewriteBlock(
 			block.inner.rawTo[logicalNewline + 1],
 		);
 	let replacement = edit.replacement.replace(/\r?\n/g, rawNewline);
+	let from = block.inner.rawFrom[edit.from] ?? -1;
+	if (replacement === "" && edit.from < edit.to) {
+		from = text.lastIndexOf("\n", from - 1) + 1;
+	}
 	if (edit.from === edit.to && block.prefix) {
 		const rawInsertion = block.inner.rawFrom[edit.from] ?? -1;
 		const lineStart = text.lastIndexOf("\n", rawInsertion - 1) + 1;
@@ -356,7 +321,7 @@ export function rewriteBlock(
 			: `${block.prefix}${replacement}`;
 	}
 	return {
-		from: block.inner.rawFrom[edit.from] ?? -1,
+		from,
 		to: block.inner.rawTo[edit.to] ?? -1,
 		replacement,
 	};

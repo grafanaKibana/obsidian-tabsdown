@@ -205,11 +205,21 @@ async function saveOpenModal(): Promise<void> {
 	await flush();
 }
 
+function setOpenModalValue(label: string, value: string): void {
+	const select = openModals[0]?.contentEl.querySelector<HTMLSelectElement>(
+		`select[aria-label="${label}"]`,
+	);
+	if (!select) throw new Error(`Expected ${label} setting`);
+	select.value = value;
+	select.dispatchEvent(new Event("change"));
+}
+
 test("writes through the sole editor with one replaceRange and never the vault", async () => {
 	const source = "tab: One\nA\ntab: Two\nB";
 	const text = `~~~tabsdown\n${source}\n~~~`;
 	const { plugin, editors, process } = writablePlugin(text, 1);
 	await openWritableModal(plugin, source);
+	setOpenModalValue("Density", "compact");
 	await saveOpenModal();
 	expect(editors[0]?.replaceRange).toHaveBeenCalledOnce();
 	expect(process).not.toHaveBeenCalled();
@@ -232,7 +242,7 @@ test("persists Reading View settings through Vault.process instead of its hidden
 
 	expect(editors[0]?.replaceRange).not.toHaveBeenCalled();
 	expect(process).toHaveBeenCalledOnce();
-	expect(await cachedRead()).toMatch(/config: block-id=[^,]+, density=compact/);
+	expect(await cachedRead()).toContain("config: density=compact");
 });
 
 test("writes the exact CRLF nested callout range from LF processor source", async () => {
@@ -278,15 +288,13 @@ test("writes the exact CRLF nested callout range from LF processor source", asyn
 	expect(blocks).toHaveLength(2);
 	openContextMenu(blocks[1]!);
 	await menuItems[menuItems.length - 1]?.callback?.(new MouseEvent("click"));
-	vi.spyOn(window.crypto, "randomUUID").mockReturnValue(
-		"550e8400-e29b-41d4-a716-446655440000",
-	);
+	setOpenModalValue("Density", "compact");
 	await saveOpenModal();
 
 	expect(process).not.toHaveBeenCalled();
 	expect(editors[0]?.replaceRange).toHaveBeenCalledOnce();
 	expect(editors[0]?.replaceRange).toHaveBeenCalledWith(
-		`config: block-id=550e8400-e29b-41d4-a716-446655440000\r\n> `,
+		"config: density=compact\r\n> ",
 		{ line: 5, ch: 2 },
 		{ line: 5, ch: 2 },
 	);
@@ -338,14 +346,12 @@ test("edits the first identical nested block after a structural marker in a stat
 	expect(blocks).toHaveLength(3);
 	openContextMenu(blocks[1]!);
 	await menuItems[menuItems.length - 1]?.callback?.(new MouseEvent("click"));
-	vi.spyOn(window.crypto, "randomUUID").mockReturnValue(
-		"550e8400-e29b-41d4-a716-446655440000",
-	);
+	setOpenModalValue("Density", "compact");
 	await saveOpenModal();
 
 	expect(editors[0]?.replaceRange).toHaveBeenCalledOnce();
 	expect(editors[0]?.replaceRange).toHaveBeenCalledWith(
-		"config: block-id=550e8400-e29b-41d4-a716-446655440000\n",
+		"config: density=compact\n",
 		{ line: 8, ch: 0 },
 		{ line: 8, ch: 0 },
 	);
@@ -396,14 +402,12 @@ test("edits the second identical nested block after a structural tab inside a st
 	expect(blocks).toHaveLength(3);
 	openContextMenu(blocks[2]!);
 	await menuItems[menuItems.length - 1]?.callback?.(new MouseEvent("click"));
-	vi.spyOn(window.crypto, "randomUUID").mockReturnValue(
-		"550e8400-e29b-41d4-a716-446655440000",
-	);
+	setOpenModalValue("Density", "compact");
 	await saveOpenModal();
 
 	expect(editors[0]?.replaceRange).toHaveBeenCalledOnce();
 	expect(editors[0]?.replaceRange).toHaveBeenCalledWith(
-		"config: block-id=550e8400-e29b-41d4-a716-446655440000\n",
+		"config: density=compact\n",
 		{ line: 12, ch: 0 },
 		{ line: 12, ch: 0 },
 	);
@@ -445,14 +449,12 @@ test.each([
 		await flush();
 		openContextMenu(renderedBlocks(container)[triggerIndex]!);
 		await menuItems[menuItems.length - 1]?.callback?.(new MouseEvent("click"));
-		vi.spyOn(window.crypto, "randomUUID").mockReturnValue(
-			"550e8400-e29b-41d4-a716-446655440000",
-		);
+		setOpenModalValue("Density", "compact");
 		await saveOpenModal();
 
 		expect(editors[0]?.replaceRange).toHaveBeenCalledOnce();
 		expect(editors[0]?.replaceRange).toHaveBeenCalledWith(
-			"config: block-id=550e8400-e29b-41d4-a716-446655440000\n",
+			"config: density=compact\n",
 			{ line, ch: 0 },
 			{ line, ch: 0 },
 		);
@@ -563,6 +565,7 @@ test("cannot cancel after a Vault.process transform has started committing", asy
 	const save = buttons.find(
 		(button) => button.textContent === "Save",
 	)!;
+	setOpenModalValue("Density", "compact");
 	save.click();
 	await Promise.resolve();
 

@@ -269,7 +269,7 @@ export default class TabsdownPlugin extends Plugin {
 					: editors.length === 1 ? editors[0] : undefined;
 				const text = owner?.getValue() ?? await this.app.vault.cachedRead(file);
 				assertAvailable();
-				const snapshot = captureBlock(text, locator, source, options.blockId);
+				const snapshot = captureBlock(text, locator, source);
 				return async (nextOptions) => {
 					assertAvailable();
 					this.assertCurrentFile(file);
@@ -277,12 +277,10 @@ export default class TabsdownPlugin extends Plugin {
 					if (currentEditors.length > 1) {
 						throw new Error("More than one editor owns this note. Close the extra editor and retry.");
 					}
-					const blockId = options.blockId ?? trigger.ownerDocument.defaultView!.crypto.randomUUID();
-					const config = { ...nextOptions, blockId };
 					const editor = currentEditors[0];
 					if (editor) {
 						const current = editor.getValue();
-						const edit = rewriteBlock(current, snapshot, config);
+						const edit = rewriteBlock(current, snapshot, nextOptions);
 						assertAvailable();
 						editor.replaceRange(
 							edit.replacement,
@@ -297,7 +295,7 @@ export default class TabsdownPlugin extends Plugin {
 						if (this.markdownEditors(file).length > 0) {
 							throw new Error("An editor opened this note. Retry the save there.");
 						}
-						const edit = rewriteBlock(current, snapshot, config);
+						const edit = rewriteBlock(current, snapshot, nextOptions);
 						return applySourceEdit(current, edit);
 					});
 				};

@@ -260,9 +260,6 @@ export function parseTabs(source: string): TabsParseResult {
 				}
 				keyed.add(parsed.key);
 				switch (parsed.key) {
-					case "block-id":
-						options.blockId = parsed.value;
-						break;
 					case "density":
 						options.density = parsed.value as TabsdownConfig["density"];
 						break;
