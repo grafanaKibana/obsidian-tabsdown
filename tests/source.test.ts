@@ -78,6 +78,18 @@ describe("guarded authored block rewrites", () => {
 		);
 	});
 
+	test("rewrites a block inside an Obsidian footnote continuation", () => {
+		const text = `[^1]:\n    ~~~tabsdown\n    ${inner.trimEnd().replaceAll("\n", "\n    ")}\n    ~~~`;
+		const snapshot = captureBlock(text, { lineStart: 1, nestedOffsets: [] }, inner);
+
+		expect(save(text, snapshot)).toBe(
+			text.replace(
+				"    ~~~tabsdown\n",
+				"    ~~~tabsdown\n    config: density=compact\n",
+			),
+		);
+	});
+
 	test("does not treat four-space top-level indented code as a block", () => {
 		const text = `    ~~~tabsdown\n    ${inner.trimEnd().replaceAll("\n", "\n    ")}\n    ~~~`;
 		expect(() => captureBlock(text, { lineStart: 0, nestedOffsets: [] }, inner))
@@ -717,6 +729,20 @@ describe("guarded authored block rewrites", () => {
 
 		expect(nestedBlockCandidates(source, 0)).toEqual([
 			{ offset: source.indexOf(quoted), source: inner },
+		]);
+	});
+
+	test("preserves an unprefixed lazy continuation of a quoted paragraph", () => {
+		const block = `~~~tabsdown\n${inner}~~~`;
+		const source = [
+			"tab: Owner",
+			"> paragraph",
+			"<span>",
+			block,
+		].join("\n");
+
+		expect(nestedBlockCandidates(source, 0)).toEqual([
+			{ offset: source.indexOf(block), source: inner },
 		]);
 	});
 

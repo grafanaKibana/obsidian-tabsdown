@@ -47,6 +47,7 @@ interface SourceRange {
 }
 
 const listMarker = /^( {0,3})([-+*]|\d{1,9}[.)])([ \t]+)/;
+const footnoteMarker = /^( {0,3})\[\^[^\]\n]+\]:(?:[ \t]+|$)/;
 const htmlBlockTag = /^(?: {0,3})<\/?(?:address|article|aside|base|basefont|blockquote|body|caption|center|col|colgroup|dd|details|dialog|dir|div|dl|dt|fieldset|figcaption|figure|footer|form|frame|frameset|h[1-6]|head|header|hr|html|iframe|legend|li|link|main|menu|menuitem|nav|noframes|ol|optgroup|option|p|param|search|section|summary|table|tbody|td|tfoot|th|thead|title|tr|track|ul)(?:[ \t/>]|$)/i;
 const htmlTagName = /[A-Za-z][A-Za-z0-9-]*/y;
 const htmlAttribute = /[ \t]+[A-Za-z_:][A-Za-z0-9_.:-]*(?:[ \t]*=[ \t]*(?:[^ "'=<>`]+|'[^']*'|"[^"]*"))?/y;
@@ -573,6 +574,7 @@ function directBlocks(view: SourceView): FenceBlock[] {
 		const unquoted = rawContent.slice(prefix.length);
 		const indents = listIndents.get(prefix.depth) ?? [];
 		let markerMatch = listMarker.exec(unquoted);
+		const footnoteMatch = markerMatch ? null : footnoteMarker.exec(unquoted);
 		let containerIndent = 0;
 		let containerLength = 0;
 		let virtualIndent = 0;
@@ -596,6 +598,13 @@ function directBlocks(view: SourceView): FenceBlock[] {
 			containerIndent = item.indent;
 			if (indents[indents.length - 1] !== containerIndent) indents.push(containerIndent);
 			listIndents.set(prefix.depth, indents);
+		} else if (footnoteMatch) {
+			const markerIndent = footnoteMatch[1]!.length;
+			while ((indents[indents.length - 1] ?? -1) > markerIndent) indents.pop();
+			containerLength = footnoteMatch[0].length;
+			containerIndent = markerIndent + 4;
+			if (indents[indents.length - 1] !== containerIndent) indents.push(containerIndent);
+			listIndents.set(prefix.depth, indents);
 		} else {
 			const leading = indentation(unquoted).columns;
 			while ((indents[indents.length - 1] ?? -1) > leading) indents.pop();
@@ -608,7 +617,7 @@ function directBlocks(view: SourceView): FenceBlock[] {
 		let depth = prefix.depth;
 		let insertionPrefix = rawContent.slice(0, prefix.length) + " ".repeat(containerIndent);
 		let content = " ".repeat(virtualIndent) + unquoted.slice(containerLength);
-		let hadMarker = markerMatch !== null;
+		let hadMarker = markerMatch !== null || footnoteMatch !== null;
 		let allowNestedList = hadMarker;
 		while (true) {
 			const nestedQuote = quotePrefix(content);
@@ -635,7 +644,13 @@ function directBlocks(view: SourceView): FenceBlock[] {
 			listIndents.set(depth, nestedIndents);
 		}
 		const container = `${depth}:${containerIndent}`;
-		if (hadMarker || container !== paragraphContainer) {
+		const paragraphInterrupted = interruptsParagraph(content, previousParagraphLine);
+		const paragraphDepth = Number.parseInt(paragraphContainer, 10);
+		const lazyContinuation = paragraphOpen && !hadMarker && content.trim() !== "" &&
+			container !== paragraphContainer &&
+			depth < paragraphDepth &&
+			!paragraphInterrupted;
+		if (hadMarker || (container !== paragraphContainer && !lazyContinuation)) {
 			paragraphOpen = false;
 			previousParagraphLine = "";
 			linkReferenceLines = undefined;
@@ -653,7 +668,6 @@ function directBlocks(view: SourceView): FenceBlock[] {
 			inlineCodeRun = 0;
 			continue;
 		}
-		const paragraphInterrupted = interruptsParagraph(content, previousParagraphLine);
 		if (linkReferenceTitleCloser) {
 			if (paragraphInterrupted) {
 				linkReferenceTitleCloser = undefined;
