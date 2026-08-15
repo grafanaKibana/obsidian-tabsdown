@@ -14,7 +14,7 @@ Tabsdown turns ordinary Markdown into theme-native tabs in Obsidian. Tabs can co
 
 ## Syntax
 
-Start each tab with a column-zero `tab: <label>` marker. A block needs at least two non-empty, unique labels. Add optional block settings on a column-zero `config: <values>` line before the first tab, or right-click the block in Reading View or Live Preview and select **Configure block…**.
+Start each tab with a column-zero `tab: <label>` marker. A block needs at least two non-empty, unique labels. Add optional block settings on a column-zero `config: <values>` line before the first tab, or right-click the block in Reading View or Live Preview and choose directly from the Position, Overflow, Density, Personality, Palette, and Alignment submenus.
 
 The context-menu action is available only when the rendered block has a writable backing Markdown file.
 
@@ -47,7 +47,7 @@ console.log("Hello Tabsdown");
 ~~~
 ````
 
-`top`, `left`, `right`, and `bottom` place the tab list; `one` keeps it on one scrollable line and `multi` wraps labels. Keyed overrides are `density=default|compact`, `personality=button|underline|separator|rail`, `palette=primary|secondary`, and `alignment=start|center|equal-width`. The example is the canonical form saved by the menu. Cancel does not edit Markdown; if the note changed while the settings dialog was open, Save stops without overwriting it.
+`top`, `left`, `right`, and `bottom` place the tab list; `one` keeps it on one scrollable line and `multi` wraps labels. Keyed overrides are `density=default|compact`, `personality=button|underline|separator|rail`, `palette=primary|secondary`, and `alignment=start|center|equal-width`. The example is the canonical form saved by the menu. Choices update Markdown immediately and stop without overwriting when the rendered block no longer matches the note.
 
 Omitted values inherit in this order: explicit block override, automatic Compact density at a container width of 28rem or less, position Style Settings, global Style Settings, then the built-in fallback. Explicit Default or Compact density stays authoritative at every width. The first tab starts active. Empty tab bodies are valid. To render a literal marker-looking line, escape it as `\tab:`.
 

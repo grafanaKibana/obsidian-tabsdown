@@ -132,18 +132,29 @@ export const menuShowAtMouseEventMock = vi.fn();
 export const menuShowAtPositionMock = vi.fn();
 class MenuItem {
 	title = "";
+	checked: boolean | null = null;
+	submenu?: Menu;
 	callback?: (event: MouseEvent | KeyboardEvent) => unknown;
+	constructor(readonly parent?: MenuItem) {}
 	setTitle(title: string): this { this.title = title; return this; }
+	setChecked(checked: boolean | null): this { this.checked = checked; return this; }
+	setSubmenu(): Menu {
+		this.submenu = new Menu(this);
+		return this.submenu;
+	}
 	onClick(callback: (event: MouseEvent | KeyboardEvent) => unknown): this {
 		this.callback = callback;
 		return this;
 	}
 }
 export class Menu extends Component {
+	readonly items: MenuItem[] = [];
+	constructor(private readonly parentItem?: MenuItem) { super(); }
 	setParentElement(_element: HTMLElement): this { return this; }
 	addItem(callback: (item: MenuItem) => unknown): this {
-		const item = new MenuItem();
+		const item = new MenuItem(this.parentItem);
 		callback(item);
+		this.items.push(item);
 		menuItems.push(item);
 		return this;
 	}
@@ -153,81 +164,6 @@ export class Menu extends Component {
 	}
 	showAtPosition(position: unknown, doc?: Document): this {
 		menuShowAtPositionMock(position, doc);
-		return this;
-	}
-}
-
-export const openModals: Modal[] = [];
-export class Modal {
-	containerEl = document.createElement("div");
-	modalEl = document.createElement("div");
-	titleEl = document.createElement("h2");
-	contentEl = document.createElement("div");
-	private readonly onKeyDown = (event: KeyboardEvent): void => {
-		if (event.key === "Escape") this.close();
-	};
-	constructor(public app: unknown) {
-		this.containerEl.append(this.titleEl, this.contentEl);
-	}
-	setTitle(title: string): this { this.titleEl.textContent = title; return this; }
-	open(): void {
-		document.addEventListener("keydown", this.onKeyDown);
-		document.body.append(this.containerEl);
-		openModals.push(this);
-		this.onOpen();
-	}
-	close(): void {
-		document.removeEventListener("keydown", this.onKeyDown);
-		this.containerEl.remove();
-		this.onClose();
-	}
-	onOpen(): void {}
-	onClose(): void {}
-}
-
-class DropdownComponent {
-	selectEl = document.createElement("select");
-	addOption(value: string, display: string): this {
-		this.selectEl.add(new Option(display, value));
-		return this;
-	}
-	setValue(value: string): this { this.selectEl.value = value; return this; }
-	onChange(callback: (value: string) => unknown): this {
-		this.selectEl.addEventListener("change", () => callback(this.selectEl.value));
-		return this;
-	}
-}
-
-class ButtonComponent {
-	buttonEl = document.createElement("button");
-	setButtonText(text: string): this { this.buttonEl.textContent = text; return this; }
-	setCta(): this { return this; }
-	setDisabled(disabled: boolean): this { this.buttonEl.disabled = disabled; return this; }
-	onClick(callback: (event: MouseEvent) => unknown): this {
-		this.buttonEl.addEventListener("click", (event) => void callback(event));
-		return this;
-	}
-}
-
-export class Setting {
-	settingEl = document.createElement("div");
-	nameEl = document.createElement("div");
-	controlEl = document.createElement("div");
-	constructor(container: HTMLElement) {
-		this.settingEl.append(this.nameEl, this.controlEl);
-		container.append(this.settingEl);
-	}
-	setName(name: string): this { this.nameEl.textContent = name; return this; }
-	addDropdown(callback: (dropdown: DropdownComponent) => unknown): this {
-		const dropdown = new DropdownComponent();
-		callback(dropdown);
-		this.controlEl.append(dropdown.selectEl);
-		return this;
-	}
-	addButton(callback: (button: ButtonComponent) => unknown): this {
-		const button = new ButtonComponent();
-		callback(button);
-		this.controlEl.append(button.buttonEl);
 		return this;
 	}
 }

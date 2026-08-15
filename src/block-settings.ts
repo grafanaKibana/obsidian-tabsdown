@@ -1,4 +1,4 @@
-import { App, Menu, Modal, Notice, Setting } from "obsidian";
+import { Menu, type MenuItem, Notice } from "obsidian";
 import type { TabsdownConfig } from "./config";
 
 export type SaveBlockSettings = (options: TabsdownConfig) => Promise<void>;
@@ -30,76 +30,26 @@ const fields = [
 	]],
 ] as const;
 
-export class BlockSettingsModal extends Modal {
-	private pending = false;
-	private closed = false;
-	private committed = false;
+interface MenuItemWithSubmenu extends MenuItem {
+	setSubmenu(): Menu;
+}
 
-	constructor(
-		app: App,
-		private readonly initial: TabsdownConfig,
-		private readonly save: SaveBlockSettings,
-		private readonly trigger: HTMLElement,
-		private readonly cancel: () => void,
-	) {
-		super(app);
-	}
-
-	onOpen(): void {
-		this.setTitle("Tabsdown block settings");
-		const values: TabsdownConfig = { ...this.initial };
-		for (const [label, key, options] of fields) {
-			new Setting(this.contentEl).setName(label).addDropdown((dropdown) => {
-				for (const [value, name] of options) dropdown.addOption(value, name);
-				dropdown.setValue(values[key] ?? "");
-				dropdown.selectEl.setAttribute("aria-label", label);
-				dropdown.onChange((value) => {
-					if (value === "") delete values[key];
-					else Object.assign(values, { [key]: value });
-				});
-			});
-		}
-
-		const actions = new Setting(this.contentEl);
-		let cancelButton!: HTMLButtonElement;
-		actions.addButton((button) => {
-			cancelButton = button.buttonEl;
-			button.setButtonText("Cancel").onClick(() => this.close());
-		});
-		actions.addButton((button) => {
-			button.setButtonText("Save").setCta().onClick(async () => {
-				if (this.pending) return;
-				this.pending = true;
-				cancelButton.disabled = true;
-				button.setDisabled(true);
-				try {
-					await this.save(values);
-					this.committed = true;
-					if (!this.closed) super.close();
-				} catch (error) {
-					new Notice(error instanceof Error ? error.message : String(error));
-					this.pending = false;
-					cancelButton.disabled = false;
-					button.setDisabled(false);
-				}
-			});
-		});
-	}
-
-	close(): void {
-		if (!this.pending && !this.closed) super.close();
-	}
-
-	onClose(): void {
-		this.closed = true;
-		if (!this.committed) this.cancel();
-		this.contentEl.empty();
-		if (this.trigger.isConnected) this.trigger.focus();
-	}
+function restoreScroll(
+	parent: HTMLElement,
+	doc: Document,
+): () => void {
+	const scroller = parent.closest<HTMLElement>(".cm-scroller, .markdown-preview-view")
+		?? doc.scrollingElement;
+	const top = scroller?.scrollTop ?? 0;
+	const left = scroller?.scrollLeft ?? 0;
+	return () => {
+		if (!scroller) return;
+		scroller.scrollTop = top;
+		scroller.scrollLeft = left;
+	};
 }
 
 export function addBlockSettingsContextMenu(
-	app: App,
 	parent: HTMLElement,
 	options: TabsdownConfig,
 	open: (
@@ -109,8 +59,8 @@ export function addBlockSettingsContextMenu(
 	available: () => boolean,
 	register: (element: HTMLElement, type: "contextmenu", callback: EventListener) => void,
 	ownMenu: (menu: Menu) => void,
-	ownModal: (modal: BlockSettingsModal) => void,
 ): void {
+	let pending = false;
 	register(parent, "contextmenu", (event) => {
 		if (!(event instanceof MouseEvent)) return;
 		const target = event.target instanceof Element
@@ -120,27 +70,42 @@ export function addBlockSettingsContextMenu(
 		event.preventDefault();
 		event.stopPropagation();
 		const trigger = event.target instanceof HTMLElement ? event.target : parent;
-		const menu = new Menu()
-			.setParentElement(parent)
-			.addItem((item) => item.setTitle("Configure block…").onClick(async () => {
-				try {
-					let cancelled = false;
-					const modalAvailable = (): boolean => available() && !cancelled;
-					const save = await open(trigger, modalAvailable);
-					if (!available()) throw new Error("This Tabsdown block is no longer available.");
-					const modal = new BlockSettingsModal(
-						app,
-						options,
-						save,
-						trigger,
-						() => { cancelled = true; },
-					);
-					ownModal(modal);
-					modal.open();
-				} catch (error) {
-					new Notice(error instanceof Error ? error.message : String(error));
+		const menu = new Menu().setParentElement(parent);
+		for (const [label, key, values] of fields) {
+			menu.addItem((item) => {
+				item.setTitle(label);
+				const submenu = (item as MenuItemWithSubmenu).setSubmenu();
+				for (const [value, title] of values) {
+					submenu.addItem((choice) => {
+						choice.setTitle(title);
+						choice.setChecked((options[key] ?? "") === value);
+						choice.onClick(async () => {
+							if (pending || (options[key] ?? "") === value) return;
+							pending = true;
+							const restore = restoreScroll(parent, trigger.ownerDocument);
+							try {
+								const save = await open(trigger, available);
+								if (!available()) {
+									throw new Error("This Tabsdown block is no longer available.");
+								}
+								const next = { ...options };
+								if (value === "") delete next[key];
+								else Object.assign(next, { [key]: value });
+								await save(next);
+								if (value === "") delete options[key];
+								else Object.assign(options, { [key]: value });
+							} catch (error) {
+								new Notice(error instanceof Error ? error.message : String(error));
+							} finally {
+								restore();
+								trigger.ownerDocument.defaultView?.requestAnimationFrame(restore);
+								pending = false;
+							}
+						});
+					});
 				}
-			}));
+			});
+		}
 		ownMenu(menu);
 		if (event.clientX !== 0 || event.clientY !== 0) {
 			menu.showAtMouseEvent(event);

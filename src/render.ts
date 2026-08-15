@@ -175,20 +175,18 @@ export class TabBlockRenderChild extends MarkdownRenderChild {
 		const available = () => !this.disposed;
 		if (this.editing) {
 			addBlockSettingsContextMenu(
-					this.app,
 					this.containerEl,
 					this.options,
-					async (trigger, modalAvailable) => {
-						const save = await this.editing!.open(trigger, modalAvailable);
+					async (trigger, menuAvailable) => {
+						const save = await this.editing!.open(trigger, menuAvailable);
 						return async (options) => {
-							if (!modalAvailable()) throw new Error("This Tabsdown block is no longer available.");
+							if (!menuAvailable()) throw new Error("This Tabsdown block is no longer available.");
 							await save(options);
 						};
 					},
 					available,
 					(element, type, callback) => this.registerDomEvent(element, type, callback),
 					(menu) => { this.addChild(menu); },
-					(modal) => { this.register(() => modal.close()); },
 				);
 		}
 		this.containerEl.append(tabList, panels);

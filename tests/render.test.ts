@@ -11,7 +11,7 @@ import {
 } from "../src/render";
 import type { SaveBlockSettings } from "../src/block-settings";
 import type { TabDefinition } from "../src/parser";
-import { menuItems, openModals, renderMock, setIcon } from "./obsidian.mock";
+import { menuItems, renderMock, setIcon } from "./obsidian.mock";
 import { stubPanelHeights, stubResizeObserver } from "./panel-size";
 
 const tabs = [
@@ -50,6 +50,12 @@ function openContextMenu(element: HTMLElement, clientX = 10, clientY = 10): void
 		clientX,
 		clientY,
 	}));
+}
+
+function menuChoice(field: string, title: string): (typeof menuItems)[number] {
+	const choice = menuItems.find((item) => item.parent?.title === field && item.title === title);
+	if (!choice) throw new Error(`Expected ${field} > ${title}`);
+	return choice;
 }
 
 function readStyles(): string {
@@ -128,13 +134,16 @@ beforeEach(() => {
 afterEach(() => {
 	document.body.replaceChildren();
 	menuItems.splice(0);
-	openModals.splice(0);
 });
 
-test("opens block settings from the native context menu without a visible control", async () => {
+test("shows every block setting as a checked native submenu and saves a choice", async () => {
+	const scroller = document.body.appendChild(document.createElement("div"));
+	scroller.className = "markdown-preview-view";
 	const container = document.createElement("div");
-	document.body.append(container);
-	const save = vi.fn(async () => {});
+	scroller.append(container);
+	scroller.scrollTop = 480;
+	const save = vi.fn(async () => { scroller.scrollTop = 0; });
+	const open = vi.fn(async () => save);
 	const child = new TabBlockRenderChild(
 		{} as App,
 		container,
@@ -143,7 +152,7 @@ test("opens block settings from the native context menu without a visible contro
 		[],
 		() => 0,
 		{ density: "compact", layout: "multi" },
-		{ open: vi.fn(async () => save), registerPanel: vi.fn() },
+		{ open, registerPanel: vi.fn() },
 	);
 	child.load();
 
@@ -154,25 +163,20 @@ test("opens block settings from the native context menu without a visible contro
 
 	const trigger = container.querySelector<HTMLButtonElement>('[role="tab"]')!;
 	openContextMenu(trigger);
-	expect(menuItems.map((item) => item.title)).toEqual(["Configure block…"]);
-	await menuItems[0]?.callback?.(new MouseEvent("click"));
-	const modal = openModals[0];
-	expect(modal?.titleEl.textContent).toBe("Tabsdown block settings");
-	expect(
-		Array.from(modal?.contentEl.querySelectorAll("select") ?? [], (select) =>
-			select.getAttribute("aria-label"),
-		),
-	).toEqual(["Position", "Overflow", "Density", "Personality", "Palette", "Alignment"]);
-	expect(
-		Array.from(modal?.contentEl.querySelectorAll("select") ?? [], (select) => select.value),
-	).toEqual(["", "multi", "compact", "", "", ""]);
+	expect(menuItems.filter((item) => !item.parent).map((item) => item.title)).toEqual([
+		"Position", "Overflow", "Density", "Personality", "Palette", "Alignment",
+	]);
+	expect(menuChoice("Overflow", "Wrap — multiple rows").checked).toBe(true);
+	expect(menuChoice("Density", "Compact").checked).toBe(true);
+	expect(menuChoice("Personality", "Inherit position / global Personality").checked).toBe(true);
 
-	modal?.contentEl.querySelectorAll<HTMLButtonElement>("button")[0]?.click();
-	expect(save).not.toHaveBeenCalled();
-	expect(document.activeElement).toBe(trigger);
+	await menuChoice("Personality", "Rail").callback?.(new MouseEvent("click"));
+	expect(open).toHaveBeenCalledOnce();
+	expect(save).toHaveBeenCalledWith({ density: "compact", layout: "multi", personality: "rail" });
+	expect(scroller.scrollTop).toBe(480);
 });
 
-test("disables Save while pending and closes only after success", async () => {
+test("ignores repeated choices while a settings save is pending", async () => {
 	let finish: (() => void) | undefined;
 	const pending = new Promise<void>((resolve) => { finish = resolve; });
 	const save = vi.fn(() => pending);
@@ -183,84 +187,18 @@ test("disables Save while pending and closes only after success", async () => {
 	).load();
 	const trigger = container.querySelector<HTMLButtonElement>('[role="tab"]')!;
 	openContextMenu(trigger);
-	await menuItems[0]?.callback?.(new MouseEvent("click"));
-	const modal = openModals[0]!;
-	const saveButton = Array.from(modal.contentEl.querySelectorAll("button")).find(
-		(button) => button.textContent === "Save",
-	)!;
-	const cancelButton = Array.from(modal.contentEl.querySelectorAll("button")).find(
-		(button) => button.textContent === "Cancel",
-	)!;
-	saveButton.click();
-	saveButton.click();
+	const choice = menuChoice("Density", "Compact");
+	const first = choice.callback?.(new MouseEvent("click"));
+	await choice.callback?.(new MouseEvent("click"));
+	await Promise.resolve();
 	expect(save).toHaveBeenCalledOnce();
-	expect(saveButton.disabled).toBe(true);
-	expect(cancelButton.disabled).toBe(true);
-	expect(modal.containerEl.isConnected).toBe(true);
 	finish?.();
-	await new Promise((resolve) => window.setTimeout(resolve, 0));
-	expect(modal.containerEl.isConnected).toBe(false);
-	expect(document.activeElement).toBe(trigger);
+	await first;
 });
-
-test.each(["Cancel", "Escape", "direct close"])(
-	"%s cannot close a pending settings save",
-	async (close) => {
-		let finish: (() => void) | undefined;
-		const pending = new Promise<void>((resolve) => { finish = resolve; });
-		const container = document.body.appendChild(document.createElement("div"));
-		new TabBlockRenderChild(
-			{} as App, container, "Note.md", tabs, [], () => 0, {},
-			{
-				open: vi.fn(async () => async () => {
-					await pending;
-				}),
-				registerPanel: vi.fn(),
-			},
-		).load();
-		openContextMenu(container.querySelector<HTMLButtonElement>('[role="tab"]')!);
-		await menuItems[0]?.callback?.(new MouseEvent("click"));
-		const modal = openModals[0]!;
-		Array.from(modal.contentEl.querySelectorAll("button")).find(
-			(button) => button.textContent === "Save",
-		)?.click();
-		if (close === "Cancel") {
-			Array.from(modal.contentEl.querySelectorAll("button")).find(
-				(button) => button.textContent === "Cancel",
-			)?.click();
-		} else if (close === "Escape") {
-			document.dispatchEvent(new KeyboardEvent("keydown", { key: "Escape" }));
-		} else {
-			modal.close();
-		}
-		expect(modal.containerEl.isConnected).toBe(true);
-		finish?.();
-		await new Promise((resolve) => window.setTimeout(resolve, 0));
-		expect(modal.containerEl.isConnected).toBe(false);
-	},
-);
 
 test("does not save after the rendered block unloads", async () => {
+	let finishOpen: ((save: SaveBlockSettings) => void) | undefined;
 	const save = vi.fn(async () => {});
-	const container = document.body.appendChild(document.createElement("div"));
-	const child = new TabBlockRenderChild(
-		{} as App, container, "Note.md", tabs, [], () => 0, {},
-		{ open: vi.fn(async () => save), registerPanel: vi.fn() },
-	);
-	child.load();
-	openContextMenu(container.querySelector<HTMLButtonElement>('[role="tab"]')!);
-	await menuItems[0]?.callback?.(new MouseEvent("click"));
-	child.unload();
-	const modal = openModals[0]!;
-	Array.from(modal.contentEl.querySelectorAll("button")).find(
-		(button) => button.textContent === "Save",
-	)?.click();
-	await Promise.resolve();
-	expect(save).not.toHaveBeenCalled();
-});
-
-test("does not open a modal after the rendered block unloads during open", async () => {
-	let finishOpen: ((save: () => Promise<void>) => void) | undefined;
 	const container = document.body.appendChild(document.createElement("div"));
 	const child = new TabBlockRenderChild(
 		{} as App, container, "Note.md", tabs, [], () => 0, {},
@@ -271,12 +209,27 @@ test("does not open a modal after the rendered block unloads during open", async
 	);
 	child.load();
 	openContextMenu(container.querySelector<HTMLButtonElement>('[role="tab"]')!);
-	const opening = menuItems[0]?.callback?.(new MouseEvent("click"));
+	const selection = menuChoice("Density", "Compact").callback?.(new MouseEvent("click"));
 	child.unload();
-	finishOpen?.(async () => {});
-	await opening;
+	finishOpen?.(save);
+	await selection;
+	expect(save).not.toHaveBeenCalled();
+});
 
-	expect(openModals).toHaveLength(0);
+test("does nothing when the checked choice is selected", async () => {
+	const save = vi.fn(async () => {});
+	const open = vi.fn(async () => save);
+	const container = document.body.appendChild(document.createElement("div"));
+	new TabBlockRenderChild(
+		{} as App, container, "Note.md", tabs, [], () => 0, {},
+		{ open, registerPanel: vi.fn() },
+	).load();
+	openContextMenu(container.querySelector<HTMLButtonElement>('[role="tab"]')!);
+	await menuChoice("Density", "Automatic / inherit global Size").callback?.(
+		new MouseEvent("click"),
+	);
+	expect(open).not.toHaveBeenCalled();
+	expect(save).not.toHaveBeenCalled();
 });
 
 describe("tab interaction", () => {

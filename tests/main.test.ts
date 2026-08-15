@@ -8,7 +8,6 @@ import {
 	menuShowAtMouseEventMock,
 	menuShowAtPositionMock,
 	noticeMock,
-	openModals,
 	processorRegistrationMock,
 	renderMock,
 } from "./obsidian.mock";
@@ -94,6 +93,17 @@ function openContextMenu(element: HTMLElement, clientX = 10, clientY = 10): void
 	}));
 }
 
+function menuChoice(field: string, title: string): (typeof menuItems)[number] {
+	const choice = menuItems.find((item) => item.parent?.title === field && item.title === title);
+	if (!choice) throw new Error(`Expected ${field} > ${title}`);
+	return choice;
+}
+
+async function selectMenuChoice(field = "Density", title = "Compact"): Promise<void> {
+	await menuChoice(field, title).callback?.(new MouseEvent("click"));
+	await flush();
+}
+
 function renderedBlocks(container: HTMLElement): HTMLElement[] {
 	const nested: HTMLElement[] = [];
 	container.querySelectorAll<HTMLElement>(".tabsdown").forEach((block) => nested.push(block));
@@ -109,7 +119,6 @@ beforeEach(() => {
 	menuItems.splice(0);
 	menuShowAtMouseEventMock.mockReset();
 	menuShowAtPositionMock.mockReset();
-	openModals.splice(0);
 	noticeMock.mockReset();
 });
 
@@ -172,7 +181,7 @@ function writablePlugin(initial: string, editorCount: number): {
 	};
 }
 
-async function openWritableModal(
+async function openWritableMenu(
 	plugin: TabsdownPlugin,
 	source: string,
 	beforeOpen?: (children: Array<{ load(): void; unload(): void }>) => void,
@@ -192,35 +201,15 @@ async function openWritableModal(
 	});
 	openContextMenu(container);
 	beforeOpen?.(children);
-	await menuItems[0]?.callback?.(new MouseEvent("click"));
 	return children;
-}
-
-async function saveOpenModal(): Promise<void> {
-	const modal = openModals[0];
-	const save = Array.from(modal?.contentEl.querySelectorAll("button") ?? []).find(
-		(button) => button.textContent === "Save",
-	);
-	save?.click();
-	await flush();
-}
-
-function setOpenModalValue(label: string, value: string): void {
-	const select = openModals[0]?.contentEl.querySelector<HTMLSelectElement>(
-		`select[aria-label="${label}"]`,
-	);
-	if (!select) throw new Error(`Expected ${label} setting`);
-	select.value = value;
-	select.dispatchEvent(new Event("change"));
 }
 
 test("writes through the sole editor with one replaceRange and never the vault", async () => {
 	const source = "tab: One\nA\ntab: Two\nB";
 	const text = `~~~tabsdown\n${source}\n~~~`;
 	const { plugin, editors, process } = writablePlugin(text, 1);
-	await openWritableModal(plugin, source);
-	setOpenModalValue("Density", "compact");
-	await saveOpenModal();
+	await openWritableMenu(plugin, source);
+	await selectMenuChoice();
 	expect(editors[0]?.replaceRange).toHaveBeenCalledOnce();
 	expect(process).not.toHaveBeenCalled();
 });
@@ -231,14 +220,8 @@ test("persists Reading View settings through Vault.process instead of its hidden
 	const { cachedRead, plugin, editors, process, views } = writablePlugin(text, 1);
 	Object.assign(views[0]!, { getMode: () => "preview" });
 
-	await openWritableModal(plugin, source);
-	const density = openModals[0]?.contentEl.querySelector<HTMLSelectElement>(
-		'select[aria-label="Density"]',
-	);
-	if (!density) throw new Error("Expected Density setting");
-	density.value = "compact";
-	density.dispatchEvent(new Event("change"));
-	await saveOpenModal();
+	await openWritableMenu(plugin, source);
+	await selectMenuChoice();
 
 	expect(editors[0]?.replaceRange).not.toHaveBeenCalled();
 	expect(process).toHaveBeenCalledOnce();
@@ -287,9 +270,7 @@ test("writes the exact CRLF nested callout range from LF processor source", asyn
 	const blocks = renderedBlocks(container);
 	expect(blocks).toHaveLength(2);
 	openContextMenu(blocks[1]!);
-	await menuItems[menuItems.length - 1]?.callback?.(new MouseEvent("click"));
-	setOpenModalValue("Density", "compact");
-	await saveOpenModal();
+	await selectMenuChoice();
 
 	expect(process).not.toHaveBeenCalled();
 	expect(editors[0]?.replaceRange).toHaveBeenCalledOnce();
@@ -345,9 +326,7 @@ test("edits the first identical nested block after a structural marker in a stat
 	const blocks = renderedBlocks(container);
 	expect(blocks).toHaveLength(3);
 	openContextMenu(blocks[1]!);
-	await menuItems[menuItems.length - 1]?.callback?.(new MouseEvent("click"));
-	setOpenModalValue("Density", "compact");
-	await saveOpenModal();
+	await selectMenuChoice();
 
 	expect(editors[0]?.replaceRange).toHaveBeenCalledOnce();
 	expect(editors[0]?.replaceRange).toHaveBeenCalledWith(
@@ -401,9 +380,7 @@ test("edits the second identical nested block after a structural tab inside a st
 	const blocks = renderedBlocks(container);
 	expect(blocks).toHaveLength(3);
 	openContextMenu(blocks[2]!);
-	await menuItems[menuItems.length - 1]?.callback?.(new MouseEvent("click"));
-	setOpenModalValue("Density", "compact");
-	await saveOpenModal();
+	await selectMenuChoice();
 
 	expect(editors[0]?.replaceRange).toHaveBeenCalledOnce();
 	expect(editors[0]?.replaceRange).toHaveBeenCalledWith(
@@ -448,9 +425,7 @@ test.each([
 		});
 		await flush();
 		openContextMenu(renderedBlocks(container)[triggerIndex]!);
-		await menuItems[menuItems.length - 1]?.callback?.(new MouseEvent("click"));
-		setOpenModalValue("Density", "compact");
-		await saveOpenModal();
+		await selectMenuChoice();
 
 		expect(editors[0]?.replaceRange).toHaveBeenCalledOnce();
 		expect(editors[0]?.replaceRange).toHaveBeenCalledWith(
@@ -465,20 +440,19 @@ test("fails closed when distinct same-file editors exist", async () => {
 	const source = "tab: One\nA\ntab: Two\nB\n";
 	const text = `~~~tabsdown\n${source}~~~`;
 	const { plugin, editors, process } = writablePlugin(text, 2);
-	await openWritableModal(plugin, source);
-	await saveOpenModal();
+	await openWritableMenu(plugin, source);
+	await selectMenuChoice();
 	expect(editors.every((editor) => editor.replaceRange.mock.calls.length === 0)).toBe(true);
 	expect(process).not.toHaveBeenCalled();
 	expect(noticeMock).toHaveBeenCalledWith(expect.stringContaining("More than one editor"));
-	expect(openModals[0]?.containerEl.isConnected).toBe(true);
 });
 
 test("uses one atomic Vault.process transform only when no editor owns the file", async () => {
 	const source = "tab: One\nA\ntab: Two\nB\n";
 	const text = `~~~tabsdown\n${source}~~~`;
 	const { plugin, process } = writablePlugin(text, 0);
-	await openWritableModal(plugin, source);
-	await saveOpenModal();
+	await openWritableMenu(plugin, source);
+	await selectMenuChoice();
 	expect(process).toHaveBeenCalledOnce();
 	expect(process.mock.calls[0]?.[1]).toEqual(expect.any(Function));
 });
@@ -489,14 +463,13 @@ test("does not open settings after the block unloads during cachedRead", async (
 	const { cachedRead, plugin } = writablePlugin(text, 0);
 	let finishRead: ((value: string) => void) | undefined;
 	cachedRead.mockImplementationOnce(() => new Promise((resolve) => { finishRead = resolve; }));
-	let children: Array<{ unload(): void }> = [];
-	const opening = openWritableModal(plugin, source, (loaded) => { children = loaded; });
+	const children = await openWritableMenu(plugin, source);
+	const opening = selectMenuChoice();
 	await Promise.resolve();
 	children[0]?.unload();
 	finishRead?.(text);
 	await opening;
 
-	expect(openModals).toHaveLength(0);
 	expect(noticeMock).toHaveBeenCalledWith(expect.stringContaining("no longer available"));
 });
 
@@ -504,12 +477,12 @@ test("does not replace editor text after the block unloads during save", async (
 	const source = "tab: One\nA\ntab: Two\nB\n";
 	const text = `~~~tabsdown\n${source}~~~`;
 	const { editors, plugin } = writablePlugin(text, 1);
-	const children = await openWritableModal(plugin, source);
+	const children = await openWritableMenu(plugin, source);
 	editors[0]?.getValue.mockImplementationOnce(() => {
 		children[0]?.unload();
 		return text;
 	});
-	await saveOpenModal();
+	await selectMenuChoice();
 
 	expect(editors[0]?.replaceRange).not.toHaveBeenCalled();
 	expect(noticeMock).toHaveBeenCalledWith(expect.stringContaining("no longer available"));
@@ -532,21 +505,18 @@ test("does not mutate in a Vault.process transform after the block unloads", asy
 			}
 		};
 	}));
-	const children = await openWritableModal(plugin, source);
-	const save = Array.from(openModals[0]?.contentEl.querySelectorAll("button") ?? []).find(
-		(button) => button.textContent === "Save",
-	);
-	save?.click();
+	const children = await openWritableMenu(plugin, source);
+	const saving = selectMenuChoice();
 	await Promise.resolve();
 	children[0]?.unload();
 	runTransform?.();
-	await flush();
+	await saving;
 
 	expect(transformed).toBe(false);
 	expect(noticeMock).toHaveBeenCalledWith(expect.stringContaining("no longer available"));
 });
 
-test("cannot cancel after a Vault.process transform has started committing", async () => {
+test("does not start a second Vault.process while a settings save is pending", async () => {
 	const source = "tab: One\nA\ntab: Two\nB\n";
 	const text = `~~~tabsdown\n${source}~~~`;
 	const { plugin, process } = writablePlugin(text, 0);
@@ -558,31 +528,19 @@ test("cannot cancel after a Vault.process transform has started committing", asy
 		transformed = transform(text);
 		return new Promise((resolve) => { finishProcess = resolve; });
 	});
-	await openWritableModal(plugin, source);
-	const modal = openModals[0]!;
-	const buttons = Array.from(modal.contentEl.querySelectorAll("button"));
-	const cancel = buttons.find((button) => button.textContent === "Cancel")!;
-	const save = buttons.find(
-		(button) => button.textContent === "Save",
-	)!;
-	setOpenModalValue("Density", "compact");
-	save.click();
-	await Promise.resolve();
+	await openWritableMenu(plugin, source);
+	const choice = menuChoice("Density", "Compact");
+	const saving = choice.callback?.(new MouseEvent("click"));
+	await flush();
+	await choice.callback?.(new MouseEvent("click"));
 
 	expect(transformed).not.toBe(text);
 	expect(process).toHaveBeenCalledOnce();
 	expect(transformCalls).toHaveBeenCalledOnce();
-	expect(cancel.disabled).toBe(true);
-	expect(save.disabled).toBe(true);
-	cancel.click();
-	document.dispatchEvent(new KeyboardEvent("keydown", { key: "Escape" }));
-	modal.close();
-	expect(modal.containerEl.isConnected).toBe(true);
 
 	finishProcess?.(transformed);
-	await flush();
+	await saving;
 
-	expect(modal.containerEl.isConnected).toBe(false);
 	expect(process).toHaveBeenCalledOnce();
 	expect(transformCalls).toHaveBeenCalledOnce();
 });
@@ -597,9 +555,10 @@ test("keeps the captured file owner across renames before open and save", async 
 		files.set(path, file);
 	};
 
-	await openWritableModal(plugin, source, () => rename("Renamed.md"));
+	await openWritableMenu(plugin, source, () => rename("Renamed.md"));
+	const saving = selectMenuChoice();
 	rename("Renamed again.md");
-	await saveOpenModal();
+	await saving;
 
 	expect(editors[0]?.replaceRange).toHaveBeenCalledOnce();
 	expect(process).not.toHaveBeenCalled();
@@ -610,11 +569,11 @@ test("fails closed when the rendered path is reused by another file", async () =
 	const text = `~~~tabsdown\n${source}~~~`;
 	const { file, files, plugin } = writablePlugin(text, 0);
 
-	await openWritableModal(plugin, source, () => {
+	await openWritableMenu(plugin, source, () => {
 		files.set(file.path, new TFile(file.path));
 	});
+	await selectMenuChoice();
 
-	expect(openModals).toHaveLength(0);
 	expect(noticeMock).toHaveBeenCalledWith(expect.stringContaining("deleted or replaced"));
 });
 
@@ -622,13 +581,13 @@ test("fails closed when the captured file is deleted before save", async () => {
 	const source = "tab: One\nA\ntab: Two\nB\n";
 	const text = `~~~tabsdown\n${source}~~~`;
 	const { file, files, plugin, process } = writablePlugin(text, 0);
-	await openWritableModal(plugin, source);
+	await openWritableMenu(plugin, source);
+	const saving = selectMenuChoice();
 	files.delete(file.path);
-	await saveOpenModal();
+	await saving;
 
 	expect(process).not.toHaveBeenCalled();
 	expect(noticeMock).toHaveBeenCalledWith(expect.stringContaining("deleted or replaced"));
-	expect(openModals[0]?.containerEl.isConnected).toBe(true);
 });
 
 test("aborts the vault transform when an editor opens while process is pending", async () => {
@@ -642,8 +601,8 @@ test("aborts the vault transform when an editor opens while process is pending",
 		views.push(view);
 		return transform(text);
 	});
-	await openWritableModal(plugin, source);
-	await saveOpenModal();
+	await openWritableMenu(plugin, source);
+	await selectMenuChoice();
 
 	expect(process).toHaveBeenCalledOnce();
 	expect(editor.replaceRange).not.toHaveBeenCalled();
@@ -655,20 +614,14 @@ test("allows retry after Vault.process fails", async () => {
 	const text = `~~~tabsdown\n${source}~~~`;
 	const { plugin, process } = writablePlugin(text, 0);
 	process.mockRejectedValueOnce(new Error("disk busy"));
-	await openWritableModal(plugin, source);
+	await openWritableMenu(plugin, source);
 
-	await saveOpenModal();
+	const choice = menuChoice("Density", "Compact");
+	await choice.callback?.(new MouseEvent("click"));
 	expect(noticeMock).toHaveBeenCalledWith("disk busy");
-	expect(openModals[0]?.containerEl.isConnected).toBe(true);
-	expect(
-		Array.from(openModals[0]?.contentEl.querySelectorAll("button") ?? []).every(
-			(button) => !button.disabled,
-		),
-	).toBe(true);
-	await saveOpenModal();
+	await choice.callback?.(new MouseEvent("click"));
 
 	expect(process).toHaveBeenCalledTimes(2);
-	expect(openModals[0]?.containerEl.isConnected).toBe(false);
 });
 
 test("writes through a sole inactive editor", async () => {
@@ -676,8 +629,8 @@ test("writes through a sole inactive editor", async () => {
 	const text = `~~~tabsdown\n${source}~~~`;
 	const { app, plugin, editors, process } = writablePlugin(text, 1);
 	vi.spyOn(app.workspace, "getActiveViewOfType").mockReturnValue(null);
-	await openWritableModal(plugin, source);
-	await saveOpenModal();
+	await openWritableMenu(plugin, source);
+	await selectMenuChoice();
 
 	expect(editors[0]?.replaceRange).toHaveBeenCalledOnce();
 	expect(process).not.toHaveBeenCalled();
