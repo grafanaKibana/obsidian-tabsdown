@@ -730,6 +730,27 @@ describe("animation and teardown", () => {
 		}
 	});
 
+	test("ignores a delayed floor timer after its panels are detached", () => {
+		vi.useFakeTimers({ toFake: ["setTimeout", "clearTimeout"] });
+		const panelsEl = document.createElement("div");
+		const panelElement = panel("Ready");
+		panelElement.className = "tabsdown__panel";
+		panelsEl.append(panelElement);
+		document.body.append(panelsEl);
+		const tracker = trackPanelHeight(panelsEl);
+		const getComputedStyle = Reflect.get(window, "getComputedStyle");
+		try {
+			tracker.switched(40);
+			panelsEl.remove();
+			Reflect.set(window, "getComputedStyle", undefined);
+
+			expect(() => vi.advanceTimersByTime(2500)).not.toThrow();
+		} finally {
+			Reflect.set(window, "getComputedStyle", getComputedStyle);
+			tracker.destroy();
+		}
+	});
+
 	test("measures the visible panel margin box", () => {
 		const resize = stubResizeObserver();
 		try {

@@ -17,6 +17,12 @@ Object.defineProperty(Node.prototype, "createEl", {
 		return element;
 	},
 });
+Object.defineProperty(HTMLElement.prototype, "empty", {
+	configurable: true,
+	value(this: HTMLElement): void {
+		this.replaceChildren();
+	},
+});
 
 type RenderFunction = (
 	app: unknown,
@@ -103,7 +109,71 @@ export const setIcon = vi.fn((element: HTMLElement, name: string) => {
 	element.append(icon);
 });
 
-export class MarkdownView {}
+export class MarkdownView {
+	constructor(
+		public editor?: unknown,
+		public file?: { path: string },
+	) {}
+}
+
+export class TFile {
+	constructor(public path: string) {}
+}
+
+export const noticeMock = vi.fn();
+export class Notice {
+	constructor(message: string) {
+		noticeMock(message);
+	}
+}
+
+export const menuItems: MenuItem[] = [];
+export const menus: Menu[] = [];
+export const menuShowAtMouseEventMock = vi.fn();
+export const menuShowAtPositionMock = vi.fn();
+export class MenuItem {
+	title = "";
+	checked: boolean | null = null;
+	submenu?: Menu;
+	callback?: (event: MouseEvent | KeyboardEvent) => unknown;
+	constructor(readonly parent?: MenuItem) {}
+	setTitle(title: string): this { this.title = title; return this; }
+	setChecked(checked: boolean | null): this { this.checked = checked; return this; }
+	setSubmenu(): Menu {
+		this.submenu = new Menu(this);
+		return this.submenu;
+	}
+	onClick(callback: (event: MouseEvent | KeyboardEvent) => unknown): this {
+		this.callback = callback;
+		return this;
+	}
+}
+export class Menu extends Component {
+	readonly items: MenuItem[] = [];
+	private readonly hideCallbacks: Array<() => unknown> = [];
+	constructor(private readonly parentItem?: MenuItem) { super(); menus.push(this); }
+	setParentElement(_element: HTMLElement): this { return this; }
+	addItem(callback: (item: MenuItem) => unknown): this {
+		const item = new MenuItem(this.parentItem);
+		callback(item);
+		this.items.push(item);
+		menuItems.push(item);
+		return this;
+	}
+	showAtMouseEvent(event: MouseEvent): this {
+		menuShowAtMouseEventMock(event);
+		return this;
+	}
+	showAtPosition(position: unknown, doc?: Document): this {
+		menuShowAtPositionMock(position, doc);
+		return this;
+	}
+	onHide(callback: () => unknown): void { this.hideCallbacks.push(callback); }
+	hide(): this { this.close(); return this; }
+	close(): void {
+		for (const callback of this.hideCallbacks.splice(0)) callback();
+	}
+}
 
 export class Plugin extends Component {
 	constructor(public readonly app: unknown) {

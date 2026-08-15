@@ -3,6 +3,7 @@ import {
 	Component,
 	MarkdownRenderChild,
 	MarkdownRenderer,
+	Menu,
 	setIcon,
 } from "obsidian";
 import { renderLabel } from "./label";
@@ -12,7 +13,9 @@ import {
 	type TabConfiguration,
 	type TabDefinition,
 	type TabsDiagnostic,
+	type TabsdownConfig,
 } from "./parser";
+import { addBlockSettingsContextMenu, type SaveBlockSettings } from "./block-settings";
 import {
 	trackSeparators,
 	type SeparatorTracker,
@@ -25,6 +28,11 @@ interface PanelState {
 	generation?: number;
 	epoch: number;
 	status: "unrendered" | "rendering" | "rendered" | "error";
+}
+
+export interface BlockEditing {
+	open(trigger: HTMLElement, available: () => boolean): Promise<SaveBlockSettings>;
+	registerPanel(element: HTMLElement, tabIndex: number): void;
 }
 
 let nextBlockId = 0;
@@ -64,6 +72,7 @@ export class TabBlockRenderChild extends MarkdownRenderChild {
 	private readonly blockId = `tabsdown-${++nextBlockId}`;
 	private readonly buttons: HTMLButtonElement[] = [];
 	private readonly panels: PanelState[] = [];
+	private readonly menus = new Set<Menu>();
 	private panelsEl?: HTMLElement;
 	private height?: PanelHeightTracker;
 	private separators?: SeparatorTracker;
@@ -78,6 +87,8 @@ export class TabBlockRenderChild extends MarkdownRenderChild {
 		private readonly tabs: readonly TabDefinition[],
 		private readonly configuration: readonly TabConfiguration[],
 		private readonly getGeneration: () => number,
+		private readonly options: TabsdownConfig = {},
+		private readonly editing?: BlockEditing,
 	) {
 		super(containerEl);
 	}
@@ -91,6 +102,10 @@ export class TabBlockRenderChild extends MarkdownRenderChild {
 		}
 		for (const configuration of this.resolveConfiguration()) {
 			this.containerEl.classList.add(`tabsdown--${configuration}`);
+		}
+		for (const key of ["density", "personality", "palette", "alignment"] as const) {
+			const value = this.options[key];
+			if (value) this.containerEl.classList.add(`tabsdown--${key}-${value}`);
 		}
 
 		const tabList = createElement(
@@ -159,6 +174,26 @@ export class TabBlockRenderChild extends MarkdownRenderChild {
 			});
 		});
 
+		const available = () => !this.disposed;
+		if (this.editing) {
+			addBlockSettingsContextMenu(
+					this.containerEl,
+					this.options,
+					async (trigger, menuAvailable) => {
+						const save = await this.editing!.open(trigger, menuAvailable);
+						return async (options) => {
+							if (!menuAvailable()) throw new Error("This Tabsdown block is no longer available.");
+							await save(options);
+						};
+					},
+					available,
+					(element, type, callback) => this.registerDomEvent(element, type, callback),
+					(menu) => {
+						this.menus.add(menu);
+						menu.onHide(() => this.menus.delete(menu));
+					},
+				);
+		}
 		this.containerEl.append(tabList, panels);
 		this.separators = trackSeparators(tabList, this.buttons);
 		this.updateState();
@@ -195,6 +230,8 @@ export class TabBlockRenderChild extends MarkdownRenderChild {
 
 	onunload(): void {
 		this.disposed = true;
+		for (const menu of this.menus) menu.close();
+		this.menus.clear();
 		this.height?.destroy();
 		this.separators?.destroy();
 		for (const panel of this.panels) {
@@ -296,6 +333,7 @@ export class TabBlockRenderChild extends MarkdownRenderChild {
 		const epoch = ++state.epoch;
 		const component = this.addChild(new Component());
 		const attemptEl = createElement(state.panelEl, "div", "tabsdown__content");
+		this.editing?.registerPanel(attemptEl, index);
 		state.panelEl.replaceChildren(attemptEl);
 		state.component = component;
 		state.attemptEl = attemptEl;

@@ -128,10 +128,11 @@ describe("parseTabs", () => {
 
 	test("parses a leading config marker and keeps it out of the tabs", () => {
 		expect(
-			parseTabs("config: top, multi\n\ntab: Python\ntab: JavaScript"),
+			parseTabs("config: position=top, layout=multi\n\ntab: Python\ntab: JavaScript"),
 		).toEqual({
 			ok: true,
 			configuration: ["top", "multi"],
+			options: { position: "top", layout: "multi" },
 			tabs: [
 				{ label: "Python", body: "" },
 				{ label: "JavaScript", body: "" },
@@ -139,7 +140,7 @@ describe("parseTabs", () => {
 		});
 	});
 
-	test("merges repeated config markers in source order", () => {
+	test("accepts released bare position and layout tokens", () => {
 		expect(parseTabs("config: left\nconfig: multi\ntab: One\ntab: Two")).toEqual({
 			ok: true,
 			configuration: ["left", "multi"],
@@ -150,11 +151,99 @@ describe("parseTabs", () => {
 		});
 	});
 
+	test("parses every keyed axis", () => {
+		expect(parseTabs([
+			"config: position=left, layout=multi",
+			"config: density=compact, personality=rail, palette=secondary, alignment=equal-width",
+			"tab: One",
+			"tab: Two",
+		].join("\n"))).toMatchObject({
+			ok: true,
+			configuration: ["left", "multi"],
+			options: {
+				position: "left",
+				layout: "multi",
+				density: "compact",
+				personality: "rail",
+				palette: "secondary",
+				alignment: "equal-width",
+			},
+		});
+	});
+
+	test.each([
+		"position=top",
+		"position=left",
+		"position=right",
+		"position=bottom",
+		"layout=one",
+		"layout=multi",
+		"density=default",
+		"density=compact",
+		"personality=button",
+		"personality=underline",
+		"personality=separator",
+		"personality=rail",
+		"palette=primary",
+		"palette=secondary",
+		"alignment=start",
+		"alignment=center",
+		"alignment=equal-width",
+	])("parses keyed value %s", (value) => {
+		expect(parseTabs(`config: ${value}\ntab: One\ntab: Two`).ok).toBe(true);
+	});
+
+	test.each([
+		"block-id=550e8400-e29b-41d4-a716-446655440000",
+		"block-id=550E8400-e29b-41d4-a716-446655440000",
+		"block-id=not-a-uuid",
+		"position=sideways",
+		"layout=columns",
+		"density=comfortable",
+		"overflow=multi",
+		"density=compact=dense",
+		"density compact",
+		"=compact",
+		"density=",
+	])("rejects invalid keyed value %s", (value) => {
+		const result = parseTabs(`config: ${value}\ntab: One\ntab: Two`);
+		expect(result.ok).toBe(false);
+		if (!result.ok) expect(result.diagnostic.code).toBe("invalid-config");
+	});
+
+	test.each([
+		"config: density=compact\nconfig: density=default",
+		"config: position=left\nconfig: position=right",
+	])("rejects duplicate keyed axes across config markers", (config) => {
+		const result = parseTabs(
+			`${config}\ntab: One\ntab: Two`,
+		);
+		expect(result.ok).toBe(false);
+		if (!result.ok) {
+			expect(result.diagnostic).toMatchObject({ code: "invalid-config", line: 2 });
+		}
+	});
+
+	test("keeps nested keyed configuration out of the parent options", () => {
+		const result = parseTabs([
+			"config: density=default",
+			"tab: One",
+			"````tabsdown",
+			"config: density=compact",
+			"tab: Inner one",
+			"tab: Inner two",
+			"````",
+			"tab: Two",
+		].join("\n"));
+		expect(result.ok).toBe(true);
+		if (result.ok) expect(result.options).toEqual({ density: "default" });
+	});
+
 	test("keeps a config marker after the first tab as body content", () => {
-		expect(parseTabs("tab: One\nconfig: left\ntab: Two")).toEqual({
+		expect(parseTabs("tab: One\nconfig: position=left\ntab: Two")).toEqual({
 			ok: true,
 			tabs: [
-				{ label: "One", body: "config: left\n" },
+				{ label: "One", body: "config: position=left\n" },
 				{ label: "Two", body: "" },
 			],
 		});

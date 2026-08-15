@@ -12,7 +12,7 @@ const notes = [...new Map(matches.map((file) => [file.basename, file])).values()
 if (notes.length < 2) {
 	tR += `> [!warning] Found ${notes.length} note(s) under "${folder}". A tabsdown block needs at least two tabs.`;
 } else {
-	tR += "````tabsdown\nconfig: left, multi\n\n";
+	tR += "````tabsdown\nconfig: position=left, layout=multi\n\n";
 	tR += notes
 		.map((file) => `tab: icon:file-text ${file.basename}\n\n![[${file.path}]]\n`)
 		.join("\n");

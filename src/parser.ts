@@ -1,3 +1,12 @@
+import {
+	parseConfigToken,
+	type KeyedConfigName,
+	type TabConfiguration,
+	type TabsdownConfig,
+} from "./config";
+
+export type { TabConfiguration, TabsdownConfig } from "./config";
+
 export interface ParsedTab {
 	label: string;
 	body: string;
@@ -10,8 +19,6 @@ export interface InlineLabelToken {
 	type: "text" | "strong" | "emphasis" | "delete" | "code";
 	text: string;
 }
-
-export type TabConfiguration = "top" | "left" | "right" | "bottom" | "one" | "multi";
 
 export type TabsDiagnosticCode =
 	| "content-before-first-tab"
@@ -29,22 +36,35 @@ export interface TabsDiagnostic {
 }
 
 export type TabsParseResult =
-	| { ok: true; tabs: ParsedTab[]; configuration?: TabConfiguration[] }
+	| {
+			ok: true;
+			tabs: ParsedTab[];
+			configuration?: TabConfiguration[];
+			options?: TabsdownConfig;
+	  }
 	| { ok: false; diagnostic: TabsDiagnostic };
 
 const markerPrefix = "tab:";
 const configurationPrefix = "config:";
 const iconToken = /^icon:(\S+)\s*/;
-const configurationValues = new Set<TabConfiguration>([
-	"top",
-	"left",
-	"right",
-	"bottom",
-	"one",
-	"multi",
-]);
 const backtickFence = /^ {0,3}(`{3,})([^`]*)$/;
 const tildeFence = /^ {0,3}(~{3,})(.*)$/;
+
+export function parseFenceLine(
+	line: string,
+): { run: string; info: string; indent: number } | undefined {
+	const match = backtickFence.exec(line) ?? tildeFence.exec(line);
+	if (!match) return undefined;
+	return {
+		run: match[1]!,
+		info: match[2]!,
+		indent: line.length - match[1]!.length - match[2]!.length,
+	};
+}
+
+export function isTabsdownFence(info: string): boolean {
+	return /^[ \t]*tabsdown(?:[ \t]|$)/.test(info);
+}
 
 const inlineDelimiters = ["**", "~~", "`", "*"] as const;
 const inlineTokenTypes = {
@@ -163,6 +183,8 @@ export function inlineLabelText(tokens: readonly InlineLabelToken[]): string {
 export function parseTabs(source: string): TabsParseResult {
 	const tabs: ParsedTab[] = [];
 	const configuration: TabConfiguration[] = [];
+	const options: TabsdownConfig = {};
+	const keyed = new Set<KeyedConfigName>();
 	const labels = new Set<string>();
 	const lines = source.split("\n");
 	let current: ParsedTab | undefined;
@@ -186,9 +208,9 @@ export function parseTabs(source: string): TabsParseResult {
 		const ending = hasNewline ? (hasCarriageReturn ? "\r\n" : "\n") : "";
 		const lineNumber = index + 1;
 
-		const fenceMatch = backtickFence.exec(line) ?? tildeFence.exec(line);
-		const fenceRun = fenceMatch?.[1];
-		const fenceInfo = fenceMatch?.[2] ?? "";
+		const fenceMatch = parseFenceLine(line);
+		const fenceRun = fenceMatch?.run;
+		const fenceInfo = fenceMatch?.info ?? "";
 
 		if (openFence) {
 			if (fenceRun?.startsWith(openFence) && /^[ \t]*$/.test(fenceInfo)) {
@@ -200,7 +222,7 @@ export function parseTabs(source: string): TabsParseResult {
 			// A nested block owns its own markers. CommonMark already forces the
 			// outer fence to be the longer one, so the close above cannot be stolen
 			// by an inner fence.
-			nested = /^[ \t]*([^ \t]*)/.exec(fenceInfo)?.[1] === "tabsdown";
+			nested = isTabsdownFence(fenceInfo);
 			nestedLine = lineNumber;
 		}
 
@@ -217,14 +239,48 @@ export function parseTabs(source: string): TabsParseResult {
 				);
 			}
 			for (const value of values) {
-				if (!configurationValues.has(value as TabConfiguration)) {
+				const parsed = parseConfigToken(value);
+				if (parsed.kind === "invalid") {
 					return fail(
 						"invalid-config",
 						`Unknown configuration value "${value}".`,
 						lineNumber,
 					);
 				}
-				configuration.push(value as TabConfiguration);
+				if (parsed.kind === "bare") {
+					configuration.push(parsed.value);
+					continue;
+				}
+				if (keyed.has(parsed.key)) {
+					return fail(
+						"invalid-config",
+						`Duplicate configuration key "${parsed.key}".`,
+						lineNumber,
+					);
+				}
+				keyed.add(parsed.key);
+				switch (parsed.key) {
+					case "position":
+						options.position = parsed.value as TabsdownConfig["position"];
+						configuration.push(parsed.value as TabConfiguration);
+						break;
+					case "layout":
+						options.layout = parsed.value as TabsdownConfig["layout"];
+						configuration.push(parsed.value as TabConfiguration);
+						break;
+					case "density":
+						options.density = parsed.value as TabsdownConfig["density"];
+						break;
+					case "personality":
+						options.personality = parsed.value as TabsdownConfig["personality"];
+						break;
+					case "palette":
+						options.palette = parsed.value as TabsdownConfig["palette"];
+						break;
+					case "alignment":
+						options.alignment = parsed.value as TabsdownConfig["alignment"];
+						break;
+				}
 			}
 			continue;
 		}
@@ -294,5 +350,6 @@ export function parseTabs(source: string): TabsParseResult {
 		ok: true,
 		tabs,
 		...(configuration.length > 0 ? { configuration } : {}),
+		...(Object.keys(options).length > 0 ? { options } : {}),
 	};
 }

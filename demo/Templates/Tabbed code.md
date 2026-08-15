@@ -13,7 +13,7 @@ const languages = [
 if (languages.length < 2) {
 	tR += `> [!warning] Got ${languages.length} unique language(s). A tabsdown block needs at least two.`;
 } else {
-	tR += "````tabsdown\nconfig: top, one\n\n";
+	tR += "````tabsdown\nconfig: position=top, layout=one\n\n";
 	tR += languages
 		.map(
 			(language) =>

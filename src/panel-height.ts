@@ -42,6 +42,7 @@ export function trackPanelHeight(
 	let target = 0;
 	let minimum = 0;
 	let transitioning = false;
+	let wasConnected = false;
 	// Until the first switch the box is left on its own height, so a block still
 	// rendering when its note opens grows the way any other content does. Pinning
 	// that early would fix the box before anything is watching it.
@@ -154,6 +155,8 @@ export function trackPanelHeight(
 
 	const apply = (): void => {
 		if (!tracking) return;
+		if (panelsEl.isConnected) wasConnected = true;
+		else if (wasConnected) return;
 		const panel = visiblePanel();
 		// The floor outlives the switch only while content is still on its way, so
 		// a panel that is merely shorter than the last one shrinks straight away.
