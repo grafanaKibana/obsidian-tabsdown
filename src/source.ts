@@ -59,6 +59,7 @@ const thematicBreak = /^ {0,3}(?:(?:\*[ \t]*){3,}|(?:_[ \t]*){3,}|(?:-[ \t]*){3,
 const tableDelimiter = /^ {0,3}\|?[ \t]*:?-+:?[ \t]*(?:\|[ \t]*:?-+:?[ \t]*)*\|?[ \t]*$/;
 const linkLabel = String.raw`\[(?:\\[\s\S]|[^\]\\])+\]:`;
 const frontmatterFence = /^---[ \t]*$/;
+const displayMathFence = /^ {0,3}\$\$[ \t]*$/;
 
 export class SourceConflictError extends Error {}
 
@@ -409,6 +410,16 @@ function indentationAcross(
 	return current >= columns ? { excess: current - columns, length } : undefined;
 }
 
+function quotePrefixAfterIndent(
+	line: string,
+	indent: number,
+): { depth: number; length: number } {
+	const base = indentationAcross(line, indent);
+	if (!base) return { depth: 0, length: 0 };
+	const quote = quotePrefix(line.slice(base.length));
+	return { depth: quote.depth, length: base.length + quote.length };
+}
+
 function structuralIndentationLength(
 	line: string,
 	required: number,
@@ -433,9 +444,9 @@ function leavesContainer(
 	line: string,
 	depth: number,
 	containerIndent: number,
-	maxQuoteIndent = 3,
+	quoteIndent = 0,
 ): boolean {
-	const prefix = quotePrefix(line, maxQuoteIndent);
+	const prefix = quotePrefixAfterIndent(line, quoteIndent);
 	const content = line.slice(prefix.length);
 	return prefix.depth < depth || (
 		prefix.depth === depth &&
@@ -563,17 +574,33 @@ function directBlocks(view: SourceView): FenceBlock[] {
 	let linkReferenceLines: string[] | undefined;
 	let linkReferenceCanTakeTitle = false;
 	let linkReferenceTitleCloser: string | undefined;
+	let mathContainer: { depth: number; indent: number } | undefined;
 	for (let index = 0; index < sourceLines.length; index += 1) {
 		const line = sourceLines[index];
 		if (!line) continue;
 		const rawContent = view.text.slice(line.start, line.contentEnd);
+		if (mathContainer) {
+			const mathQuote = quotePrefix(rawContent, 3, mathContainer.depth);
+			const mathUnquoted = rawContent.slice(mathQuote.length);
+			const mathIndent = indentationAcross(mathUnquoted, mathContainer.indent);
+			if (
+				mathQuote.depth === mathContainer.depth &&
+				(mathUnquoted.trim() === "" || mathIndent)
+			) {
+				if (mathIndent && displayMathFence.test(
+					" ".repeat(mathIndent.excess) + mathUnquoted.slice(mathIndent.length),
+				)) mathContainer = undefined;
+				continue;
+			}
+			mathContainer = undefined;
+		}
 		const prefix = quotePrefix(rawContent);
 		for (const depth of listIndents.keys()) {
 			if (depth > prefix.depth) listIndents.delete(depth);
 		}
 		const unquoted = rawContent.slice(prefix.length);
 		const indents = listIndents.get(prefix.depth) ?? [];
-		let markerMatch = listMarker.exec(unquoted);
+		let markerMatch = thematicBreak.test(unquoted) ? null : listMarker.exec(unquoted);
 		const footnoteMatch = markerMatch ? null : footnoteMarker.exec(unquoted);
 		let containerIndent = 0;
 		let containerLength = 0;
@@ -620,6 +647,7 @@ function directBlocks(view: SourceView): FenceBlock[] {
 			virtualIndent = prefix.excess;
 		}
 		let depth = prefix.depth;
+		let quoteIndent = 0;
 		let insertionPrefix = rawContent.slice(0, prefix.length) + " ".repeat(containerIndent);
 		let content = " ".repeat(virtualIndent) + unquoted.slice(containerLength);
 		let hadMarker = markerMatch !== null || footnoteMatch !== null;
@@ -627,6 +655,7 @@ function directBlocks(view: SourceView): FenceBlock[] {
 		while (true) {
 			const nestedQuote = quotePrefix(content);
 			if (nestedQuote.depth > 0) {
+				if (prefix.depth === 0 && depth === 0) quoteIndent = containerIndent;
 				depth += nestedQuote.depth;
 				insertionPrefix += content.slice(0, nestedQuote.length);
 				content = content.slice(nestedQuote.length);
@@ -635,7 +664,7 @@ function directBlocks(view: SourceView): FenceBlock[] {
 				continue;
 			}
 			if (!allowNestedList) break;
-			const nestedMarker = listMarker.exec(content);
+			const nestedMarker = thematicBreak.test(content) ? null : listMarker.exec(content);
 			if (!nestedMarker) break;
 			const item = listItemPrefix(nestedMarker);
 			containerIndent += item.indent;
@@ -672,6 +701,15 @@ function directBlocks(view: SourceView): FenceBlock[] {
 			linkReferenceCanTakeTitle = false;
 			linkReferenceTitleCloser = undefined;
 			inlineCodeRun = 0;
+			continue;
+		}
+		if (!commentOpen && inlineCodeRun === 0 && displayMathFence.test(content)) {
+			mathContainer = { depth, indent: containerIndent };
+			paragraphOpen = false;
+			previousParagraphLine = "";
+			linkReferenceLines = undefined;
+			linkReferenceCanTakeTitle = false;
+			linkReferenceTitleCloser = undefined;
 			continue;
 		}
 		if (linkReferenceTitleCloser) {
@@ -832,12 +870,12 @@ function directBlocks(view: SourceView): FenceBlock[] {
 			const close = sourceLines[candidate];
 			if (!close) continue;
 			const closeContent = view.text.slice(close.start, close.contentEnd);
-			const closePrefix = quotePrefix(closeContent, Number.POSITIVE_INFINITY);
+			const closePrefix = quotePrefixAfterIndent(closeContent, quoteIndent);
 			if (leavesContainer(
 				closeContent,
 				depth,
 				containerIndent,
-				Number.POSITIVE_INFINITY,
+				quoteIndent,
 			)) {
 				containerEndIndex = candidate;
 				break;

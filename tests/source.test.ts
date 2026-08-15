@@ -486,6 +486,15 @@ describe("guarded authored block rewrites", () => {
 		]);
 	});
 
+	test("ignores fences inside Obsidian display math", () => {
+		const block = `~~~tabsdown\n${inner}~~~`;
+		const source = ["tab: Owner", "$$", block, "$$", block].join("\n");
+
+		expect(nestedBlockCandidates(source, 0)).toEqual([
+			{ offset: source.lastIndexOf(block), source: inner },
+		]);
+	});
+
 	test("ignores fences inside raw HTML blocks without suppressing inline HTML", () => {
 		const block = `~~~tabsdown\n${inner}~~~`;
 		const source = [
@@ -609,6 +618,15 @@ describe("guarded authored block rewrites", () => {
 		},
 	);
 
+	test("ends an unclosed quote before an over-indented marker", () => {
+		const text = `> ~~~tabsdown\n> ${inner.trimEnd().replaceAll("\n", "\n> ")}\n    > outside`;
+		const snapshot = captureBlock(text, { lineStart: 0, nestedOffsets: [] }, inner);
+
+		expect(save(text, snapshot)).toBe(
+			text.replace("> tab: One", "> config: density=compact\n> tab: One"),
+		);
+	});
+
 	test.each([
 		["paragraph"],
 		["paragraph", "[ref]: /url"],
@@ -711,6 +729,16 @@ describe("guarded authored block rewrites", () => {
 			"",
 			block,
 		].join("\n");
+
+		expect(nestedBlockCandidates(source, 0)).toEqual([
+			{ offset: source.lastIndexOf(block), source: inner },
+		]);
+	});
+
+	test("does not treat a thematic break as a list marker", () => {
+		const block = `~~~tabsdown\n${inner}~~~`;
+		const indented = block.replaceAll(/^/gm, "    ");
+		const source = ["tab: Owner", "* * *", indented, "", block].join("\n");
 
 		expect(nestedBlockCandidates(source, 0)).toEqual([
 			{ offset: source.lastIndexOf(block), source: inner },
