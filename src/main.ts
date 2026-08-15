@@ -118,7 +118,7 @@ export default class TabsdownPlugin extends Plugin {
 				panel = panel.parentElement;
 			}
 			let locatorRef: LocatorRef | undefined;
-			if (parentScope) {
+			if (parentScope && !renderedSection) {
 				locatorRef = { parent: parentScope.locatorRef };
 				parentScope.registrations.push({ element, source, locatorRef });
 				bindNestedLocators(parentScope);

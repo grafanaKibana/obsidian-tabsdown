@@ -332,6 +332,52 @@ test("edits a transcluded block through its own source file", async () => {
 	expect(saved).toContain("config: density=compact");
 });
 
+test("edits a same-file transcluded block through its own rendered section", async () => {
+	const outerSource = "tab: Outer\n![[#Embedded]]\ntab: Last\nDone\n";
+	const embeddedSource = "tab: Embedded one\nA\ntab: Embedded two\nB\n";
+	const text = [
+		"~~~tabsdown",
+		outerSource.trimEnd(),
+		"~~~",
+		"# Embedded",
+		"~~~tabsdown",
+		embeddedSource.trimEnd(),
+		"~~~",
+	].join("\n");
+	const { editors, plugin, process } = writablePlugin(text, 1);
+	plugin.onload();
+	const handler = processorRegistrationMock.mock.calls[0]?.[1];
+	if (!handler) throw new Error("Expected processor");
+	renderMock.mockImplementation(async (_app, markdown, element) => {
+		element.textContent = markdown;
+		if (!markdown.includes("![[#Embedded]]")) return;
+		const embedded = element.appendChild(document.createElement("div"));
+		void handler(embeddedSource, embedded, {
+			sourcePath: "Note.md",
+			addChild: (child: { load(): void }) => child.load(),
+			getSectionInfo: () => ({ lineStart: 7, lineEnd: 12, text: embeddedSource }),
+		});
+	});
+	const container = document.body.appendChild(document.createElement("div"));
+	void handler(outerSource, container, {
+		sourcePath: "Note.md",
+		addChild: (child: { load(): void }) => child.load(),
+		getSectionInfo: () => ({ lineStart: 0, lineEnd: 5, text: outerSource }),
+	});
+	await flush();
+
+	openContextMenu(renderedBlocks(container)[1]!);
+	await selectMenuChoice();
+
+	expect(process).not.toHaveBeenCalled();
+	expect(editors[0]?.replaceRange).toHaveBeenCalledOnce();
+	expect(editors[0]?.replaceRange).toHaveBeenCalledWith(
+		"config: density=compact\n",
+		{ line: 8, ch: 0 },
+		{ line: 8, ch: 0 },
+	);
+});
+
 test("edits the first identical nested block after a structural marker in a static fence", async () => {
 	const inner = "tab: One\nA\ntab: Two\nB\n";
 	const block = `~~~tabsdown\n${inner}~~~`;

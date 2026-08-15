@@ -745,6 +745,24 @@ describe("guarded authored block rewrites", () => {
 		]);
 	});
 
+	test("ends a list container after two consecutive blank lines", () => {
+		const block = `~~~tabsdown\n${inner}~~~`;
+		const indented = block.replaceAll(/^/gm, "    ");
+		const source = [
+			"tab: Owner",
+			"- Item",
+			"",
+			"",
+			indented,
+			"",
+			block,
+		].join("\n");
+
+		expect(nestedBlockCandidates(source, 0)).toEqual([
+			{ offset: source.lastIndexOf(block), source: inner },
+		]);
+	});
+
 	test("parses a child marker after its parent continuation indentation", () => {
 		const block = `~~~tabsdown\n${inner}~~~`;
 		const nested = block.replaceAll(/^/gm, "        ");

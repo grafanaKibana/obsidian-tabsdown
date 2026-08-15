@@ -579,6 +579,7 @@ function directBlocks(view: SourceView): FenceBlock[] {
 	let linkReferenceCanTakeTitle = false;
 	let linkReferenceTitleCloser: string | undefined;
 	let mathContainer: { depth: number; indent: number } | undefined;
+	let previousBlankDepth: number | undefined;
 	for (let index = 0; index < sourceLines.length; index += 1) {
 		const line = sourceLines[index];
 		if (!line) continue;
@@ -603,6 +604,11 @@ function directBlocks(view: SourceView): FenceBlock[] {
 			if (depth > prefix.depth) listIndents.delete(depth);
 		}
 		const unquoted = rawContent.slice(prefix.length);
+		const blankDepth = unquoted.trim() === "" ? prefix.depth : undefined;
+		if (blankDepth !== undefined && blankDepth === previousBlankDepth) {
+			listIndents.delete(blankDepth);
+		}
+		previousBlankDepth = blankDepth;
 		const indents = listIndents.get(prefix.depth) ?? [];
 		let markerMatch = thematicBreak.test(unquoted) ? null : listMarker.exec(unquoted);
 		const footnoteMatch = markerMatch ? null : footnoteMarker.exec(unquoted);
