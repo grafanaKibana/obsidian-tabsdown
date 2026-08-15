@@ -17,7 +17,7 @@ describe("serializeConfig", () => {
 			layout: "multi",
 			position: "left",
 		})).toBe(
-			"config: left, multi, density=compact, personality=rail, palette=secondary, alignment=center",
+			"config: position=left, layout=multi, density=compact, personality=rail, palette=secondary, alignment=center",
 		);
 	});
 
@@ -35,18 +35,18 @@ describe("configEdit", () => {
 		);
 	});
 
-	test("consolidates repeated leading config lines and preserves the remainder", () => {
+	test("migrates repeated legacy config lines and preserves the remainder", () => {
 		const source = "config: left\n\nconfig: multi\n\ntab: One\ntab: Two\n";
 		const edit = configEdit(source, { position: "right" });
 		expect(source.slice(0, edit.from) + edit.replacement + source.slice(edit.to)).toBe(
-			"config: right\n\ntab: One\ntab: Two\n",
+			"config: position=right\n\ntab: One\ntab: Two\n",
 		);
 	});
 
 	test("does not invent or remove a terminal newline", () => {
 		for (const source of [
-			"config: left\ntab: One\ntab: Two",
-			"config: left\ntab: One\ntab: Two\n",
+			"config: position=left\ntab: One\ntab: Two",
+			"config: position=left\ntab: One\ntab: Two\n",
 		]) {
 			const edit = configEdit(source, {});
 			const rewritten = source.slice(0, edit.from) + edit.replacement + source.slice(edit.to);

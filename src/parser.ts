@@ -260,6 +260,14 @@ export function parseTabs(source: string): TabsParseResult {
 				}
 				keyed.add(parsed.key);
 				switch (parsed.key) {
+					case "position":
+						options.position = parsed.value as TabsdownConfig["position"];
+						configuration.push(parsed.value as TabConfiguration);
+						break;
+					case "layout":
+						options.layout = parsed.value as TabsdownConfig["layout"];
+						configuration.push(parsed.value as TabConfiguration);
+						break;
 					case "density":
 						options.density = parsed.value as TabsdownConfig["density"];
 						break;

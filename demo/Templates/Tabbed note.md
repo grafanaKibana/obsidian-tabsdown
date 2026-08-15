@@ -30,7 +30,7 @@ if (layout === null) return;
 if (labels.length < 2) {
 	tR += `> [!warning] Got ${labels.length} unique label(s). A tabsdown block needs at least two.`;
 } else {
-	tR += "````tabsdown\n" + `config: ${position}, ${layout}\n\n`;
+	tR += "````tabsdown\n" + `config: position=${position}, layout=${layout}\n\n`;
 	tR += labels.map((label) => `tab: ${label}\n\n`).join("\n");
 	tR += "````";
 }

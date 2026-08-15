@@ -209,8 +209,9 @@ test("writes through the sole editor with one replaceRange and never the vault",
 	const text = `~~~tabsdown\n${source}\n~~~`;
 	const { plugin, editors, process } = writablePlugin(text, 1);
 	await openWritableMenu(plugin, source);
-	await selectMenuChoice();
+	await selectMenuChoice("Position", "Left");
 	expect(editors[0]?.replaceRange).toHaveBeenCalledOnce();
+	expect(editors[0]?.replaceRange.mock.calls[0]?.[0]).toBe("config: position=left\n");
 	expect(process).not.toHaveBeenCalled();
 });
 

@@ -11,12 +11,12 @@ place: "[[Lisbon]]"
 Long weekend, no car. One fixed thing each day and enough empty time to change our minds.
 
 ````tabsdown
-config: top, one
+config: position=top, layout=one
 
 tab: icon:calendar-days Days
 
 ```tabsdown
-config: left
+config: position=left
 
 tab: Thu 17 (Day 0)
 ### Arrive and stay nearby
@@ -101,7 +101,7 @@ tab: icon:map-pinned Places
 These are possibilities, not an itinerary.
 
 ```tabsdown
-config: top, multi
+config: position=top, layout=multi
 
 tab: Food
 

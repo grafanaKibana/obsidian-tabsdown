@@ -31,7 +31,7 @@ Reuse the Positions, Icons, and Labels sections below while changing settings; n
 ## 1. Positions
 
 ```tabsdown
-config: top
+config: position=top, layout=multi, density=compact, personality=button, palette=primary, alignment=center
 
 tab: Installation notes
 1. Copy the plugin files into `.obsidian/plugins/tabsdown/`.
@@ -41,7 +41,7 @@ tab: Installation notes
 > [!tip] Quick check
 > The selected tab should remain visible after reopening the note.
 tab: Configuration reference
-Use `config: top`, `left`, `right`, or `bottom` to place the tab list. Add `one` for a scrollable row or `multi` to allow wrapping.
+Use `position=top|left|right|bottom` to place the tab list and `layout=one|multi` for a scrollable row or wrapping.
 tab: Migration from version one
 - [x] Rename legacy fences to `tabsdown`
 - [x] Keep every `tab:` marker at column zero
@@ -49,7 +49,7 @@ tab: Migration from version one
 ```
 
 ```tabsdown
-config: left
+config: position=left
 
 tab: Installation notes
 ### Local development
@@ -64,7 +64,7 @@ Check that `main.js`, `manifest.json`, and `styles.css` were copied together. A 
 ```
 
 ```tabsdown
-config: right
+config: position=right
 
 tab: Installation notes
 Install the release assets together, then restart Obsidian so the plugin registry and stylesheet refresh at the same time.
@@ -77,7 +77,7 @@ Compare the plugin folder against the release checksums, then disable and re-ena
 ```
 
 ```tabsdown
-config: bottom
+config: position=bottom
 
 tab: Installation notes
 For a vault-wide install, distribute the three release assets and document the minimum supported Obsidian version for collaborators.
@@ -90,7 +90,7 @@ Finish by checking desktop and mobile themes, long labels, and any tab panels th
 ## 2. Overflow: one vs multi
 
 ```tabsdown
-config: one
+config: layout=one
 
 tab: Authentication and sessions
 Access tokens expire after 15 minutes; refresh tokens rotate after every successful renewal.
@@ -107,7 +107,7 @@ Enable for staff, then 5%, 25%, and 100% of workspaces with error-rate gates bet
 ```
 
 ```tabsdown
-config: multi
+config: layout=multi
 
 tab: Authentication and sessions
 Access tokens expire after 15 minutes; refresh tokens rotate after every successful renewal.
@@ -123,25 +123,23 @@ tab: Feature flag rollout plan
 Enable for staff, then 5%, 25%, and 100% of workspaces with error-rate gates between stages.
 ```
 
-## 3. Config precedence
+## 3. Config order and whitespace
 
-Later position and layout values win: expect `bottom` + `multi`.
+Position and layout use the same keyed form as every other setting: expect `bottom` + `multi`.
 
 ```tabsdown
-config: top, one
-config: left
-config: bottom, multi
+config: position=bottom, layout=multi
 
 tab: Resolved position and layout
-This list should render below the panel and wrap when needed. The final value for each configuration axis wins.
+This list should render below the panel and wrap when needed.
 tab: Second panel
-Use this panel to confirm that duplicate `config:` lines do not leak into rendered content.
+Use this panel to confirm that the `config:` line does not leak into rendered content.
 ```
 
 Single line, reversed order, whitespace around values.
 
 ```tabsdown
-config:  multi ,  right
+config:  layout=multi ,  position=right
 
 tab: Resolved position and layout
 This block should place its list on the right and allow multiple rows when the available inline space is exhausted.
@@ -349,14 +347,14 @@ tab: Escaped marker
 The escaped line remains part of this panel's documentation.
 
 tab: Config-looking body
-config: top
+config: position=top
 The line above is a configuration example in the body, not block configuration, because it follows a tab marker.
 ```
 
 ## 8. Tilde fences
 
 ~~~tabsdown
-config: left
+config: position=left
 
 tab: Tilde-fenced block
 Use tilde fences when the panel needs to demonstrate an inner backtick code block.
@@ -369,21 +367,21 @@ Both fence styles should render the same accessible tab interaction.
 Four levels. Each level keeps its own config and active tab.
 
 ``````tabsdown
-config: top, multi
+config: position=top, layout=multi
 
 tab: Release planning workspace
 
 The parent panel summarizes the release while the nested blocks keep workstream details close to the decision that needs them.
 
 `````tabsdown
-config: left
+config: position=left
 
 tab: Engineering workstreams
 
 Owners use the inner tabs to switch between rollout details without leaving the release note.
 
 ````tabsdown
-config: bottom
+config: position=bottom
 
 tab: API rollout
 Ship the read path first, monitor error budgets, then enable writes for staff workspaces.
@@ -462,7 +460,7 @@ Flat is the default; Card is available through Style Settings when a bordered ne
 Twenty tabs, `one` layout.
 
 ```tabsdown
-config: one
+config: layout=one
 
 tab: 01 Overview
 Release goal, audience, and the user-visible outcome.
@@ -624,10 +622,10 @@ Disable the flag and restore the previous stylesheet.
 `invalid-config` — unknown value
 
 ```tabsdown
-config: sideways
+config: position=sideways
 
 tab: Deployment
-The requested `sideways` placement is not supported.
+The requested `position=sideways` placement is not supported.
 tab: Recovery
 Choose top, bottom, left, or right instead.
 ```
@@ -663,7 +661,7 @@ Config after the first tab is body text, not config, so this renders `top`/`one`
 ```tabsdown
 tab: Current behavior
 The block keeps its default top position.
-config: bottom
+config: position=bottom
 tab: Migration note
-The `config: bottom` line above is rendered as body text instead of moving the list.
+The `config: position=bottom` line above is rendered as body text instead of moving the list.
 ```

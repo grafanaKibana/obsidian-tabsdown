@@ -15,11 +15,7 @@ export interface TabsdownConfig {
 	alignment?: TabAlignment;
 }
 
-export type KeyedConfigName =
-	| "density"
-	| "personality"
-	| "palette"
-	| "alignment";
+export type KeyedConfigName = keyof TabsdownConfig;
 
 export type ParsedConfigToken =
 	| { kind: "bare"; value: TabConfiguration }
@@ -35,6 +31,8 @@ const bareValues = new Set<TabConfiguration>([
 	"multi",
 ]);
 const keyedValues: Record<KeyedConfigName, ReadonlySet<string>> = {
+	position: new Set(["top", "left", "right", "bottom"]),
+	layout: new Set(["one", "multi"]),
 	density: new Set(["default", "compact"]),
 	personality: new Set(["button", "underline", "separator", "rail"]),
 	palette: new Set(["primary", "secondary"]),
@@ -59,8 +57,8 @@ export function parseConfigToken(token: string): ParsedConfigToken {
 
 export function serializeConfig(config: TabsdownConfig): string {
 	const values = [
-		config.position,
-		config.layout,
+		config.position && `position=${config.position}`,
+		config.layout && `layout=${config.layout}`,
 		config.density && `density=${config.density}`,
 		config.personality && `personality=${config.personality}`,
 		config.palette && `palette=${config.palette}`,

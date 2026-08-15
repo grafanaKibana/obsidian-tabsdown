@@ -54,8 +54,8 @@ describe("guarded authored block rewrites", () => {
 	});
 
 	test("consolidates quoted config lines without changing surrounding bytes", () => {
-		const source = `> ~~~tabsdown\n> config: left\n>\n> config: multi\n>\n> tab: One\n> tab: Two\n> ~~~`;
-		const normalized = "config: left\n\nconfig: multi\n\ntab: One\ntab: Two\n";
+		const source = `> ~~~tabsdown\n> config: position=left\n>\n> config: layout=multi\n>\n> tab: One\n> tab: Two\n> ~~~`;
+		const normalized = "config: position=left\n\nconfig: layout=multi\n\ntab: One\ntab: Two\n";
 		const snapshot = captureBlock(source, { lineStart: 0, nestedOffsets: [] }, normalized);
 		expect(save(source, snapshot)).toBe(
 			"> ~~~tabsdown\n> config: density=compact\n>\n> tab: One\n> tab: Two\n> ~~~",
@@ -63,8 +63,8 @@ describe("guarded authored block rewrites", () => {
 	});
 
 	test("consolidates CRLF quoted config from LF processor source", () => {
-		const source = `> ~~~tabsdown\r\n> config: left\r\n>\r\n> config: multi\r\n>\r\n> tab: One\r\n> tab: Two\r\n> ~~~`;
-		const normalized = "config: left\n\nconfig: multi\n\ntab: One\ntab: Two\n";
+		const source = `> ~~~tabsdown\r\n> config: position=left\r\n>\r\n> config: layout=multi\r\n>\r\n> tab: One\r\n> tab: Two\r\n> ~~~`;
+		const normalized = "config: position=left\n\nconfig: layout=multi\n\ntab: One\ntab: Two\n";
 		const snapshot = captureBlock(source, { lineStart: 0, nestedOffsets: [] }, normalized);
 		expect(save(source, snapshot)).toBe(
 			"> ~~~tabsdown\r\n> config: density=compact\r\n>\r\n> tab: One\r\n> tab: Two\r\n> ~~~",
@@ -74,13 +74,13 @@ describe("guarded authored block rewrites", () => {
 	test.each(["\n", "\r\n"])("removes quoted config when every field inherits with %j", (newline) => {
 		const source = [
 			"> ~~~tabsdown",
-			"> config: left, density=compact",
+			"> config: position=left, density=compact",
 			">",
 			"> tab: One",
 			"> tab: Two",
 			"> ~~~",
 		].join(newline);
-		const rendered = "config: left, density=compact\n\ntab: One\ntab: Two\n";
+		const rendered = "config: position=left, density=compact\n\ntab: One\ntab: Two\n";
 		const snapshot = captureBlock(source, { lineStart: 0, nestedOffsets: [] }, rendered);
 		const result = applySourceEdit(source, rewriteBlock(source, snapshot, {}));
 		expect(result).toBe([
@@ -98,14 +98,14 @@ describe("guarded authored block rewrites", () => {
 			const source = [
 				"  > ~~~tabsdown",
 				">\t",
-				" >\tconfig: left",
+				" >\tconfig: position=left",
 				"   > ",
-				"> config: multi",
+				"> config: layout=multi",
 				" >\ttab: One",
 				"  > tab: Two",
 				"> ~~~",
 			].join(newline);
-			const normalized = "\nconfig: left\n\nconfig: multi\ntab: One\ntab: Two\n";
+			const normalized = "\nconfig: position=left\n\nconfig: layout=multi\ntab: One\ntab: Two\n";
 			const snapshot = captureBlock(source, { lineStart: 0, nestedOffsets: [] }, normalized);
 			expect(save(source, snapshot)).toBe([
 				"  > ~~~tabsdown",
@@ -221,7 +221,7 @@ describe("guarded authored block rewrites", () => {
 		"rewrites existing config through CommonMark indentation $indentation",
 		({ indentation, newline, quote, nested }) => {
 			const prefix = quote + " ".repeat(indentation);
-			const configured = `config: left\n\nconfig: multi\n\n${inner}`;
+			const configured = `config: position=left\n\nconfig: layout=multi\n\n${inner}`;
 			const block = [
 				`${prefix}~~~tabsdown`,
 				...configured.trimEnd().split("\n").map((line) => prefix + line),
@@ -350,7 +350,7 @@ describe("guarded authored block rewrites", () => {
 		["line endings", (text: string) => text.replaceAll("\r\n", "\n")],
 		["quote spacing", (text: string) => text.replace("\r\n> tab: One", "\r\n>\ttab: One")],
 	])("rejects raw-only note drift in %s", (_name, drift) => {
-		const configured = `config: left\n${inner}`;
+		const configured = `config: position=left\n${inner}`;
 		const block = `> ~~~tabsdown\r\n> ${configured.slice(0, -1).replaceAll("\n", "\r\n> ")}\r\n> ~~~`;
 		const snapshot = captureBlock(block, { lineStart: 0, nestedOffsets: [] }, configured);
 		const changed = drift(block);
