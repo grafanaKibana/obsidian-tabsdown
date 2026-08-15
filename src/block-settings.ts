@@ -3,6 +3,9 @@ import type { TabsdownConfig } from "./config";
 
 export type SaveBlockSettings = (options: TabsdownConfig) => Promise<void>;
 
+export const INTERACTIVE_SELECTOR =
+	'a, audio, button, iframe, input, label, select, summary, textarea, video, [contenteditable]:not([contenteditable="false"]), [tabindex]:not([tabindex="-1"]), [role="button"], [role="checkbox"], [role="link"], [role="menuitem"], [role="switch"]';
+
 const fields = [
 	["Position", "position", [
 		["", "Inherit (Top)"], ["top", "Top"], ["bottom", "Bottom"],
@@ -62,14 +65,16 @@ export function addBlockSettingsContextMenu(
 ): void {
 	let pending = false;
 	register(parent, "contextmenu", (event) => {
-		if (!(event instanceof MouseEvent)) return;
-		const target = event.target instanceof Element
-			? event.target.closest<HTMLElement>(".tabsdown")
-			: null;
-		if (target !== parent) return;
+		const view = parent.ownerDocument.defaultView;
+		if (!view || !(event instanceof view.MouseEvent)) return;
+		const eventTarget = event.target instanceof view.Element ? event.target : null;
+		if (!eventTarget || eventTarget.closest(".tabsdown") !== parent) return;
+		const interactive = eventTarget.closest(INTERACTIVE_SELECTOR);
+		const panel = eventTarget.closest(".tabsdown__panel");
+		if (interactive && panel?.closest(".tabsdown") === parent) return;
 		event.preventDefault();
 		event.stopPropagation();
-		const trigger = event.target instanceof HTMLElement ? event.target : parent;
+		const trigger = eventTarget.closest<HTMLElement>("button, .tabsdown") ?? parent;
 		const menu = new Menu().setParentElement(parent);
 		for (const [label, key, values] of fields) {
 			menu.addItem((item) => {

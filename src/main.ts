@@ -7,6 +7,7 @@ import {
 	TFile,
 } from "obsidian";
 import type { TabsdownConfig } from "./config";
+import { INTERACTIVE_SELECTOR } from "./block-settings";
 import { parseTabs } from "./parser";
 import {
 	TabBlockRenderChild,
@@ -17,6 +18,7 @@ import {
 	applySourceEdit,
 	captureBlock,
 	nestedBlockCandidates,
+	renderedSourceKey,
 	rewriteBlock,
 	type BlockLocator,
 } from "./source";
@@ -24,11 +26,9 @@ import { mountTabs, type MountTabsOptions, type TabsController } from "./tabs";
 
 export type { MountTabsOptions, TabSpec, TabsController } from "./tabs";
 
-const INTERACTIVE_SELECTOR =
-	'a, audio, button, iframe, input, label, select, summary, textarea, video, [contenteditable]:not([contenteditable="false"]), [tabindex]:not([tabindex="-1"]), [role="button"], [role="checkbox"], [role="link"], [role="menuitem"], [role="switch"]';
-
 interface PanelScope {
 	element: HTMLElement;
+	file: TFile;
 	locatorRef: LocatorRef;
 	source: string;
 	tabIndex: number;
@@ -54,9 +54,13 @@ function resolveLocatorRef(ref: LocatorRef): BlockLocator | undefined {
 
 function bindNestedLocators(scope: PanelScope): void {
 	for (const registration of scope.registrations) registration.locatorRef.offset = undefined;
-	for (const source of new Set(scope.registrations.map((item) => item.source))) {
-		const candidates = scope.candidates.filter((item) => item.source === source);
-		const registrations = scope.registrations.filter((item) => item.source === source);
+	for (const source of new Set(scope.registrations.map((item) => renderedSourceKey(item.source)))) {
+		const candidates = scope.candidates.filter(
+			(item) => renderedSourceKey(item.source) === source,
+		);
+		const registrations = scope.registrations.filter(
+			(item) => renderedSourceKey(item.source) === source,
+		);
 		if (
 			registrations.length !== candidates.length ||
 			registrations.some((item) => !scope.element.contains(item.element))
@@ -101,10 +105,12 @@ export default class TabsdownPlugin extends Plugin {
 
 		this.registerMarkdownCodeBlockProcessor("tabsdown", (source, element, context) => {
 			const renderedSection = context.getSectionInfo(element);
+			const file = this.app.vault.getAbstractFileByPath(context.sourcePath);
 			let panel = element.parentElement;
 			let parentScope: PanelScope | undefined;
 			while (panel && !parentScope) {
-				parentScope = panelScopes.get(panel);
+				const candidate = panelScopes.get(panel);
+				if (candidate?.file === file) parentScope = candidate;
 				panel = panel.parentElement;
 			}
 			let locatorRef: LocatorRef | undefined;
@@ -118,7 +124,8 @@ export default class TabsdownPlugin extends Plugin {
 			const addRenderChild = (child: MarkdownRenderChild): void => {
 				child.registerDomEvent(element, "click", (event) => {
 					const target = event.target;
-					if (event.defaultPrevented || !(target instanceof Element)) {
+					const domView = element.ownerDocument.defaultView;
+					if (event.defaultPrevented || !domView || !(target instanceof domView.Element)) {
 						return;
 					}
 
@@ -167,7 +174,6 @@ export default class TabsdownPlugin extends Plugin {
 				}
 			}
 
-			const file = this.app.vault.getAbstractFileByPath(context.sourcePath);
 			const active = this.app.workspace.getActiveViewOfType(MarkdownView);
 			const origin = active?.file === file ? active.editor : undefined;
 			const editing = locatorRef && file instanceof TFile
@@ -249,6 +255,7 @@ export default class TabsdownPlugin extends Plugin {
 			registerPanel: (element, tabIndex) => {
 				panelScopes.set(element, {
 					element,
+					file,
 					locatorRef,
 					source,
 					tabIndex,

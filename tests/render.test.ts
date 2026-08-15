@@ -9,9 +9,17 @@ import {
 	TabBlockRenderChild,
 	renderTabsDiagnostic,
 } from "../src/render";
-import type { SaveBlockSettings } from "../src/block-settings";
+import {
+	addBlockSettingsContextMenu,
+	type SaveBlockSettings,
+} from "../src/block-settings";
 import type { TabDefinition } from "../src/parser";
-import { menuItems, renderMock, setIcon } from "./obsidian.mock";
+import {
+	menuItems,
+	menuShowAtMouseEventMock,
+	renderMock,
+	setIcon,
+} from "./obsidian.mock";
 import { stubPanelHeights, stubResizeObserver } from "./panel-size";
 
 const tabs = [
@@ -121,6 +129,7 @@ function classSelectorCount(selector: string): number {
 
 beforeEach(() => {
 	renderMock.mockReset();
+	menuShowAtMouseEventMock.mockReset();
 	renderMock.mockImplementation(async (_app, markdown, element) => {
 		element.textContent = markdown;
 	});
@@ -174,6 +183,59 @@ test("shows every block setting as a checked native submenu and saves a choice",
 	expect(open).toHaveBeenCalledOnce();
 	expect(save).toHaveBeenCalledWith({ density: "compact", layout: "multi", personality: "rail" });
 	expect(scroller.scrollTop).toBe(480);
+});
+
+test("opens settings from the rendered block's DOM realm", () => {
+	const frame = document.body.appendChild(document.createElement("iframe"));
+	const frameWindow = frame.contentWindow;
+	const frameDocument = frame.contentDocument;
+	if (!frameWindow || !frameDocument) throw new Error("Expected iframe document");
+	const parent = frameDocument.body.appendChild(frameDocument.createElement("div"));
+	parent.className = "tabsdown";
+	addBlockSettingsContextMenu(
+		parent,
+		{},
+		async () => async () => {},
+		() => true,
+		(element, type, callback) => element.addEventListener(type, callback),
+		vi.fn(),
+	);
+	const RealmMouseEvent = (frameWindow as unknown as { MouseEvent: typeof MouseEvent })
+		.MouseEvent;
+
+	parent.dispatchEvent(new RealmMouseEvent("contextmenu", {
+		bubbles: true,
+		cancelable: true,
+		clientX: 10,
+		clientY: 10,
+	}));
+
+	expect(menuShowAtMouseEventMock).toHaveBeenCalledOnce();
+});
+
+test("preserves context menus on interactive panel content", () => {
+	const parent = document.body.appendChild(document.createElement("div"));
+	parent.className = "tabsdown";
+	const panel = parent.appendChild(document.createElement("div"));
+	panel.className = "tabsdown__panel";
+	const link = panel.appendChild(document.createElement("a"));
+	const bubbled = vi.fn();
+	document.body.addEventListener("contextmenu", bubbled, { once: true });
+	addBlockSettingsContextMenu(
+		parent,
+		{},
+		async () => async () => {},
+		() => true,
+		(element, type, callback) => element.addEventListener(type, callback),
+		vi.fn(),
+	);
+	const event = new MouseEvent("contextmenu", { bubbles: true, cancelable: true });
+
+	link.dispatchEvent(event);
+
+	expect(event.defaultPrevented).toBe(false);
+	expect(bubbled).toHaveBeenCalledOnce();
+	expect(menuShowAtMouseEventMock).not.toHaveBeenCalled();
 });
 
 test("ignores repeated choices while a settings save is pending", async () => {

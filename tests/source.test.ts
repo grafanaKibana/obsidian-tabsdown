@@ -14,6 +14,89 @@ function save(text: string, snapshot: ReturnType<typeof captureBlock>): string {
 }
 
 describe("guarded authored block rewrites", () => {
+	test.each([
+		{
+			name: "a list marker",
+			text: `- ~~~tabsdown\n  ${inner.trimEnd().replaceAll("\n", "\n  ")}\n  ~~~`,
+			lineStart: 0,
+			prefix: "  ",
+		},
+		{
+			name: "four-space list continuation indentation",
+			text: `- Parent\n    ~~~tabsdown\n    ${inner.trimEnd().replaceAll("\n", "\n    ")}\n    ~~~`,
+			lineStart: 1,
+			prefix: "    ",
+		},
+	] as const)("rewrites a block authored with $name", ({ text, lineStart, prefix }) => {
+		const snapshot = captureBlock(text, { lineStart, nestedOffsets: [] }, inner);
+		expect(save(text, snapshot)).toBe(
+			text.replace(
+				text.split("\n")[lineStart] + "\n",
+				`${text.split("\n")[lineStart]}\n${prefix}config: density=compact\n`,
+			),
+		);
+	});
+
+	test("inserts config into an empty list-contained block", () => {
+		const text = "- ~~~tabsdown\n  ~~~";
+		const snapshot = captureBlock(text, { lineStart: 0, nestedOffsets: [] }, "");
+		expect(save(text, snapshot)).toBe(
+			"- ~~~tabsdown\n  config: density=compact\n  ~~~",
+		);
+	});
+
+	test("replaces existing config inside a list without changing its prefix", () => {
+		const configured = `config: position=left\n${inner}`;
+		const text = `- ~~~tabsdown\n  ${configured.trimEnd().replaceAll("\n", "\n  ")}\n  ~~~`;
+		const snapshot = captureBlock(text, { lineStart: 0, nestedOffsets: [] }, configured);
+		expect(save(text, snapshot)).toBe(
+			text.replace("  config: position=left", "  config: density=compact"),
+		);
+	});
+
+	test("preserves quote and CRLF prefixes inside a list", () => {
+		const text = `> - ~~~tabsdown\r\n>   ${inner.trimEnd().replaceAll("\n", "\r\n>   ")}\r\n>   ~~~`;
+		const snapshot = captureBlock(text, { lineStart: 0, nestedOffsets: [] }, inner);
+		expect(save(text, snapshot)).toBe(
+			text.replace("> - ~~~tabsdown\r\n", "> - ~~~tabsdown\r\n>   config: density=compact\r\n"),
+		);
+	});
+
+	test("preserves tab-indented list continuation bytes", () => {
+		const text = `-\t~~~tabsdown\n\t${inner.trimEnd().replaceAll("\n", "\n\t")}\n\t~~~`;
+		const snapshot = captureBlock(text, { lineStart: 0, nestedOffsets: [] }, inner);
+		expect(save(text, snapshot)).toBe(
+			text.replace("-\t~~~tabsdown\n", "-\t~~~tabsdown\n\tconfig: density=compact\n"),
+		);
+	});
+
+	test("maps a continuation tab across list and fence indentation", () => {
+		const text = `- Parent\n\t~~~tabsdown\n\t${inner.trimEnd().replaceAll("\n", "\n\t")}\n\t~~~`;
+		const snapshot = captureBlock(text, { lineStart: 1, nestedOffsets: [] }, inner);
+		expect(save(text, snapshot)).toBe(
+			text.replace("\t~~~tabsdown\n", "\t~~~tabsdown\n\tconfig: density=compact\n"),
+		);
+	});
+
+	test("does not treat four-space top-level indented code as a block", () => {
+		const text = `    ~~~tabsdown\n    ${inner.trimEnd().replaceAll("\n", "\n    ")}\n    ~~~`;
+		expect(() => captureBlock(text, { lineStart: 0, nestedOffsets: [] }, inner))
+			.toThrow(SourceConflictError);
+	});
+
+	test.each([
+		{ newline: "\n", rendered: inner },
+		{ newline: "\n", rendered: inner.slice(0, -1) },
+		{ newline: "\r\n", rendered: inner },
+	] as const)("treats EOF as the close of an unclosed block with $newline bytes", ({ newline, rendered }) => {
+		const body = rendered.replaceAll("\n", newline);
+		const text = `~~~tabsdown${newline}${body}`;
+		const snapshot = captureBlock(text, { lineStart: 0, nestedOffsets: [] }, rendered);
+		expect(save(text, snapshot)).toBe(
+			`~~~tabsdown${newline}config: density=compact${newline}${body}`,
+		);
+	});
+
 	test("accepts processor source without the fence boundary newline", () => {
 		const text = `~~~tabsdown\n${inner}~~~`;
 		const rendered = inner.slice(0, -1);
@@ -305,6 +388,119 @@ describe("guarded authored block rewrites", () => {
 		expect(nestedBlockCandidates(`tab: Owner\n${shortClose}\ntab: Last`, 0)).toEqual([
 			{ offset: 11, source: `${inner}\`\`\`\n` },
 		]);
+	});
+
+	test("ignores commented fences and stops at an unclosed static fence", () => {
+		const block = `~~~tabsdown\n${inner}~~~`;
+		const source = [
+			"tab: Owner",
+			"<!--",
+			block,
+			"-->",
+			block,
+			"```text",
+			block,
+		].join("\n");
+
+		expect(nestedBlockCandidates(source, 0)).toEqual([
+			{ offset: source.indexOf(block, source.indexOf(block) + 1), source: inner },
+		]);
+	});
+
+	test("ignores fences inside raw HTML blocks without suppressing inline HTML", () => {
+		const block = `~~~tabsdown\n${inner}~~~`;
+		const source = [
+			"tab: Owner",
+			"<pre>",
+			block,
+			"</pre>",
+			"<div>",
+			block,
+			"",
+			"<span>",
+			block,
+			"",
+			"Text with <span>inline HTML</span>.",
+			block,
+		].join("\n");
+
+		expect(nestedBlockCandidates(source, 0)).toEqual([
+			{ offset: source.lastIndexOf(block), source: inner },
+		]);
+	});
+
+	test.each([
+		{ html: "<!--", prefix: "> " },
+		{ html: "<div>", prefix: "> " },
+		{ html: "<div>", prefix: "- " },
+	])(
+		"stops an unclosed $html HTML block at the end of its Markdown container",
+		({ html, prefix }) => {
+			const block = `~~~tabsdown\n${inner}~~~`;
+			const text = `${prefix}${html}\n${block}`;
+			const snapshot = captureBlock(text, { lineStart: 1, nestedOffsets: [] }, inner);
+			expect(save(text, snapshot)).toBe(
+				text.replace(block, `~~~tabsdown\nconfig: density=compact\n${inner}~~~`),
+			);
+		},
+	);
+
+	test("does not let a complete HTML tag interrupt a paragraph", () => {
+		const block = `~~~tabsdown\n${inner}~~~`;
+		const source = [
+			"tab: Owner",
+			"paragraph",
+			"<span>",
+			block,
+		].join("\n");
+
+		expect(nestedBlockCandidates(source, 0)).toEqual([
+			{ offset: source.indexOf(block), source: inner },
+		]);
+	});
+
+	test.each([
+		{ boundary: ["# Heading"] },
+		{ boundary: ["---"] },
+		{ boundary: ["Heading", "---"] },
+		{ boundary: ["    indented code"] },
+	])("recognizes type-7 HTML after the $boundary block boundary", ({ boundary }) => {
+		const block = `~~~tabsdown\n${inner}~~~`;
+		const source = [
+			"tab: Owner",
+			...boundary,
+			"<span>",
+			block,
+			"",
+			block,
+		].join("\n");
+
+		expect(nestedBlockCandidates(source, 0)).toEqual([
+			{ offset: source.lastIndexOf(block), source: inner },
+		]);
+	});
+
+	test("does not start type-7 HTML inside a quoted paragraph", () => {
+		const quoted = `> ~~~tabsdown\n> ${inner.trimEnd().replaceAll("\n", "\n> ")}\n> ~~~`;
+		const source = [
+			"tab: Owner",
+			"> paragraph",
+			"> <span>",
+			quoted,
+		].join("\n");
+
+		expect(nestedBlockCandidates(source, 0)).toEqual([
+			{ offset: source.indexOf(quoted), source: inner },
+		]);
+	});
+
+	test("removes at most one optional boundary newline", () => {
+		const text = `~~~tabsdown\n${inner}\n~~~`;
+		expect(() => captureBlock(
+			text,
+			{ lineStart: 0, nestedOffsets: [] },
+			inner.slice(0, -1),
+		)).toThrow(SourceConflictError);
 	});
 
 	test("resolves the exact sibling after a parser-structural tab inside a static fence", () => {

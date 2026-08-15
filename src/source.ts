@@ -46,6 +46,13 @@ interface SourceRange {
 	to: number;
 }
 
+const listMarker = /^( {0,3})([-+*]|\d{1,9}[.)])([ \t]+)/;
+const htmlBlockTag = /^(?: {0,3})<\/?(?:address|article|aside|base|basefont|blockquote|body|caption|center|col|colgroup|dd|details|dialog|dir|div|dl|dt|fieldset|figcaption|figure|footer|form|frame|frameset|h[1-6]|head|header|hr|html|iframe|legend|li|link|main|menu|menuitem|nav|noframes|ol|optgroup|option|p|param|search|section|summary|table|tbody|td|tfoot|th|thead|title|tr|track|ul)(?:[ \t/>]|$)/i;
+const htmlCompleteTag = /^ {0,3}(?:<\/[A-Za-z][A-Za-z0-9-]*[ \t]*>|<[A-Za-z][A-Za-z0-9-]*(?:[ \t]+[A-Za-z_:][A-Za-z0-9_.:-]*(?:[ \t]*=[ \t]*(?:[^ "'=<>`]+|'[^']*'|"[^"]*"))?)*[ \t]*\/?>)[ \t]*$/;
+const atxHeading = /^ {0,3}#{1,6}(?:[ \t]+|$)/;
+const setextHeading = /^ {0,3}(?:=+|-+)[ \t]*$/;
+const thematicBreak = /^ {0,3}(?:(?:\*[ \t]*){3,}|(?:_[ \t]*){3,}|(?:-[ \t]*){3,})$/;
+
 export class SourceConflictError extends Error {}
 
 function createSourceView(source: string, rawOffset = 0): SourceView {
@@ -87,6 +94,63 @@ function quotePrefix(line: string): { depth: number; length: number } {
 	return { depth, length: offset };
 }
 
+function indentation(line: string, initialColumn = 0): { columns: number; length: number } {
+	let column = initialColumn;
+	let length = 0;
+	while (length < line.length) {
+		if (line[length] === " ") column += 1;
+		else if (line[length] === "\t") column += 4 - (column % 4);
+		else break;
+		length += 1;
+	}
+	return { columns: column - initialColumn, length };
+}
+
+function indentationAcross(
+	line: string,
+	columns: number,
+): { excess: number; length: number } | undefined {
+	let current = 0;
+	let length = 0;
+	while (length < line.length && current < columns) {
+		if (line[length] === " ") current += 1;
+		else if (line[length] === "\t") current += 4 - (current % 4);
+		else break;
+		length += 1;
+	}
+	return current >= columns ? { excess: current - columns, length } : undefined;
+}
+
+function structuralIndentationLength(
+	line: string,
+	required: number,
+	optional: number,
+): number | undefined {
+	const prefix = indentationAcross(line, required);
+	if (!prefix || prefix.excess > optional) return undefined;
+	let current = required + prefix.excess;
+	let length = prefix.length;
+	while (length < line.length && current < required + optional) {
+		const next = line[length] === " "
+			? current + 1
+			: line[length] === "\t" ? current + 4 - (current % 4) : current;
+		if (next === current || next > required + optional) break;
+		current = next;
+		length += 1;
+	}
+	return length;
+}
+
+function leavesContainer(line: string, depth: number, containerIndent: number): boolean {
+	const prefix = quotePrefix(line);
+	const content = line.slice(prefix.length);
+	return prefix.depth < depth || (
+		prefix.depth === depth &&
+		content.trim() !== "" &&
+		indentation(content).columns < containerIndent
+	);
+}
+
 function appendSlice(target: SourceView, source: SourceView, from: number, to: number): void {
 	if (target.rawFrom.length === 0) {
 		target.rawFrom.push(source.rawFrom[from] ?? 0);
@@ -118,7 +182,8 @@ function bodyView(
 	from: number,
 	to: number,
 	depth: number,
-	indentation: number,
+	containerIndent: number,
+	fenceIndent: number,
 ): SourceView | undefined {
 	if (from === to) {
 		return {
@@ -139,36 +204,167 @@ function bodyView(
 			prefixLength = marker + 1;
 			if (content[prefixLength] === " " || content[prefixLength] === "\t") prefixLength += 1;
 		}
-		let removed = 0;
-		while (removed < indentation && content[prefixLength + removed] === " ") removed += 1;
-		prefixLength += removed;
+		const unquoted = content.slice(prefixLength);
+		const indentationLength = structuralIndentationLength(
+			unquoted,
+			containerIndent,
+			fenceIndent,
+		);
+		if (indentationLength === undefined) {
+			if (unquoted.trim() !== "") return undefined;
+			prefixLength += indentation(unquoted).length;
+		} else {
+			prefixLength += indentationLength;
+		}
 		appendSlice(result, view, line.start + prefixLength, line.end);
 	}
 	return result;
 }
 
+function htmlBlockEnd(
+	source: string,
+	sourceLines: SourceLine[],
+	index: number,
+	content: string,
+	depth: number,
+	containerIndent: number,
+	allowCompleteTag: boolean,
+): number | undefined {
+	let terminator: string | undefined;
+	const rawTag = /^ {0,3}<(script|pre|style|textarea)(?:[ \t>]|$)/i.exec(content)?.[1];
+	if (/^ {0,3}<!--/.test(content)) terminator = "-->";
+	else if (/^ {0,3}<\?/.test(content)) terminator = "?>";
+	else if (/^ {0,3}<!\[CDATA\[/.test(content)) terminator = "]]>";
+	else if (/^ {0,3}<![A-Z]/.test(content)) terminator = ">";
+	else if (rawTag) terminator = `</${rawTag.toLowerCase()}`;
+	if (terminator) {
+		for (let candidate = index; candidate < sourceLines.length; candidate += 1) {
+			const line = sourceLines[candidate];
+			if (!line) continue;
+			const value = source.slice(line.start, line.contentEnd).toLowerCase();
+			if (candidate > index && leavesContainer(value, depth, containerIndent)) {
+				return candidate - 1;
+			}
+			if (value.includes(terminator.toLowerCase())) return candidate;
+		}
+		return sourceLines.length - 1;
+	}
+	if (
+		!htmlBlockTag.test(content) &&
+		!(allowCompleteTag && htmlCompleteTag.test(content))
+	) return undefined;
+	for (let candidate = index + 1; candidate < sourceLines.length; candidate += 1) {
+		const line = sourceLines[candidate];
+		if (!line) continue;
+		const value = source.slice(line.start, line.contentEnd);
+		const prefix = quotePrefix(value);
+		if (leavesContainer(value, depth, containerIndent)) return candidate - 1;
+		if (value.slice(prefix.length).trim() === "") return candidate;
+	}
+	return sourceLines.length - 1;
+}
+
 function directBlocks(view: SourceView): FenceBlock[] {
 	const sourceLines = lines(view.text);
 	const result: FenceBlock[] = [];
+	const listIndents = new Map<number, number[]>();
+	let paragraphContainer = "";
+	let paragraphOpen = false;
 	for (let index = 0; index < sourceLines.length; index += 1) {
 		const line = sourceLines[index];
 		if (!line) continue;
 		const rawContent = view.text.slice(line.start, line.contentEnd);
 		const prefix = quotePrefix(rawContent);
-		const match = parseFenceLine(rawContent.slice(prefix.length));
-		if (!match) continue;
+		for (const depth of listIndents.keys()) {
+			if (depth > prefix.depth) listIndents.delete(depth);
+		}
+		const unquoted = rawContent.slice(prefix.length);
+		const indents = listIndents.get(prefix.depth) ?? [];
+		const markerMatch = listMarker.exec(unquoted);
+		let containerIndent = 0;
+		let containerLength = 0;
+		let virtualIndent = 0;
+		if (markerMatch) {
+			const markerIndent = markerMatch[1]!.length;
+			while ((indents[indents.length - 1] ?? -1) > markerIndent) indents.pop();
+			const markerEndLength = markerMatch[0].length - markerMatch[3]!.length;
+			const markerEndColumn = markerIndent + markerMatch[2]!.length;
+			const padding = indentation(markerMatch[3]!, markerEndColumn);
+			const paddingLength = padding.columns > 4 ? 1 : padding.length;
+			containerLength = markerEndLength + paddingLength;
+			containerIndent = markerEndColumn + indentation(
+				markerMatch[3]!.slice(0, paddingLength),
+				markerEndColumn,
+			).columns;
+			if (indents[indents.length - 1] !== containerIndent) indents.push(containerIndent);
+			listIndents.set(prefix.depth, indents);
+		} else {
+			const leading = indentation(unquoted).columns;
+			while ((indents[indents.length - 1] ?? -1) > leading) indents.pop();
+			containerIndent = indents[indents.length - 1] ?? 0;
+			const prefix = indentationAcross(unquoted, containerIndent);
+			if (!prefix) continue;
+			containerLength = prefix.length;
+			virtualIndent = prefix.excess;
+		}
+		const container = `${prefix.depth}:${containerIndent}`;
+		if (markerMatch || container !== paragraphContainer) paragraphOpen = false;
+		paragraphContainer = container;
+		const content = " ".repeat(virtualIndent) + unquoted.slice(containerLength);
+		if (content.trim() === "") {
+			paragraphOpen = false;
+			continue;
+		}
+		const htmlEnd = htmlBlockEnd(
+			view.text,
+			sourceLines,
+			index,
+			content,
+			prefix.depth,
+			containerIndent,
+			!paragraphOpen,
+		);
+		if (htmlEnd !== undefined) {
+			index = htmlEnd;
+			paragraphOpen = false;
+			continue;
+		}
+		const match = parseFenceLine(content);
+		if (!match) {
+			if (paragraphOpen) {
+				if (setextHeading.test(content)) paragraphOpen = false;
+			} else {
+				paragraphOpen = !(
+					atxHeading.test(content) ||
+					thematicBreak.test(content) ||
+					/^(?: {4}|\t)/.test(content)
+				);
+			}
+			continue;
+		}
 		const fence = match.run;
 		const marker = fence[0]!;
 		const info = match.info;
 
 		let closeIndex = -1;
+		let containerEndIndex = sourceLines.length;
 		for (let candidate = index + 1; candidate < sourceLines.length; candidate += 1) {
 			const close = sourceLines[candidate];
 			if (!close) continue;
 			const closeContent = view.text.slice(close.start, close.contentEnd);
 			const closePrefix = quotePrefix(closeContent);
+			if (leavesContainer(closeContent, prefix.depth, containerIndent)) {
+				containerEndIndex = candidate;
+				break;
+			}
 			if (closePrefix.depth !== prefix.depth) continue;
-			const closeMatch = parseFenceLine(closeContent.slice(closePrefix.length));
+			const continuation = closeContent.slice(closePrefix.length);
+			const continuationPrefix = indentationAcross(continuation, containerIndent);
+			if (!continuationPrefix) continue;
+			const closeMatch = parseFenceLine(
+				" ".repeat(continuationPrefix.excess) +
+				continuation.slice(continuationPrefix.length),
+			);
 			if (
 				closeMatch?.run[0] === marker &&
 				closeMatch.run.length >= fence.length &&
@@ -178,22 +374,39 @@ function directBlocks(view: SourceView): FenceBlock[] {
 				break;
 			}
 		}
-		if (closeIndex < 0) continue;
-		const close = sourceLines[closeIndex];
-		if (!close) continue;
-		const inner = bodyView(view, line.end, close.start, prefix.depth, match.indent);
+		const close = closeIndex < 0 ? undefined : sourceLines[closeIndex];
+		const innerEnd = close?.start ?? sourceLines[containerEndIndex]?.start ?? view.text.length;
+		if (!close && !isTabsdownFence(info)) {
+			if (containerEndIndex >= sourceLines.length) break;
+			index = containerEndIndex - 1;
+			paragraphOpen = false;
+			continue;
+		}
+		const inner = bodyView(
+			view,
+			line.end,
+			innerEnd,
+			prefix.depth,
+			containerIndent,
+			match.indent,
+		);
 		if (inner && isTabsdownFence(info)) {
 			result.push({
 				open: line.start,
 				inner,
 				innerRawFrom: view.rawTo[line.end] ?? -1,
-				innerRawTo: view.rawTo[close.start] ?? -1,
-				closeEnd: close.end,
-				prefix: rawContent.slice(0, prefix.length + match.indent),
-				innerHasLine: line.end < close.start,
+				innerRawTo: view.rawTo[innerEnd] ?? -1,
+				closeEnd: close?.end ?? innerEnd,
+				prefix: rawContent.slice(0, prefix.length) + " ".repeat(
+					containerIndent + match.indent,
+				),
+				innerHasLine: line.end < innerEnd,
 			});
 		}
-		index = closeIndex;
+		if (closeIndex >= 0) index = closeIndex;
+		else if (containerEndIndex < sourceLines.length) index = containerEndIndex - 1;
+		else break;
+		paragraphOpen = false;
 	}
 	return result;
 }
@@ -259,10 +472,12 @@ function resolveLocator(source: string, locator: BlockLocator): FenceBlock {
 	return block;
 }
 
+export function renderedSourceKey(source: string): string {
+	return source.endsWith("\n") ? source.slice(0, -1) : source;
+}
+
 function matchesRenderedSource(authored: string, rendered: string): boolean {
-	return authored === rendered || (
-		authored.endsWith("\n") && authored.slice(0, -1) === rendered
-	);
+	return renderedSourceKey(authored) === renderedSourceKey(rendered);
 }
 
 export function captureBlock(

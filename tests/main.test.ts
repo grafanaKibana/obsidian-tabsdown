@@ -229,7 +229,7 @@ test("persists Reading View settings through Vault.process instead of its hidden
 	expect(await cachedRead()).toContain("config: density=compact");
 });
 
-test("writes the exact CRLF nested callout range from LF processor source", async () => {
+test("writes the exact CRLF nested callout range when the processor omits its boundary newline", async () => {
 	const inner = "tab: Card surface\nUse a bordered surface.\ntab: Flat tabs\nUse tabs directly.\n";
 	const source = [
 		"tab: Architecture decision",
@@ -255,7 +255,7 @@ test("writes the exact CRLF nested callout range from LF processor source", asyn
 		element.textContent = markdown;
 		if (!markdown.includes("> ````tabsdown")) return;
 		const nested = element.appendChild(document.createElement("div"));
-		void handler(inner, nested, {
+		void handler(inner.slice(0, -1), nested, {
 			sourcePath: "Note.md",
 			addChild: (child: { load(): void }) => child.load(),
 			getSectionInfo: () => null,
@@ -280,6 +280,50 @@ test("writes the exact CRLF nested callout range from LF processor source", asyn
 		{ line: 5, ch: 2 },
 		{ line: 5, ch: 2 },
 	);
+});
+
+test("edits a transcluded block through its own source file", async () => {
+	const outerSource = "tab: Outer\n![[Embedded.md]]\ntab: Last\nDone\n";
+	const outerText = `~~~tabsdown\n${outerSource}~~~`;
+	const embeddedSource = "tab: Embedded one\nA\ntab: Embedded two\nB\n";
+	const embeddedText = `~~~tabsdown\n${embeddedSource}~~~`;
+	const { cachedRead, editors, files, plugin, process } = writablePlugin(outerText, 1);
+	const embeddedFile = new TFile("Embedded.md");
+	files.set(embeddedFile.path, embeddedFile);
+	let saved = embeddedText;
+	cachedRead.mockResolvedValue(embeddedText);
+	process.mockImplementationOnce(async (file, transform) => {
+		expect(file).toBe(embeddedFile);
+		saved = transform(embeddedText);
+		return saved;
+	});
+	plugin.onload();
+	const handler = processorRegistrationMock.mock.calls[0]?.[1];
+	if (!handler) throw new Error("Expected processor");
+	renderMock.mockImplementation(async (_app, markdown, element) => {
+		element.textContent = markdown;
+		if (!markdown.includes("![[Embedded.md]]")) return;
+		const embedded = element.appendChild(document.createElement("div"));
+		void handler(embeddedSource, embedded, {
+			sourcePath: "Embedded.md",
+			addChild: (child: { load(): void }) => child.load(),
+			getSectionInfo: () => ({ lineStart: 0, lineEnd: 5, text: embeddedSource }),
+		});
+	});
+	const container = document.body.appendChild(document.createElement("div"));
+	void handler(outerSource, container, {
+		sourcePath: "Note.md",
+		addChild: (child: { load(): void }) => child.load(),
+		getSectionInfo: () => ({ lineStart: 0, lineEnd: 5, text: outerSource }),
+	});
+	await flush();
+
+	openContextMenu(renderedBlocks(container)[1]!);
+	await selectMenuChoice();
+
+	expect(process).toHaveBeenCalledOnce();
+	expect(editors[0]?.replaceRange).not.toHaveBeenCalled();
+	expect(saved).toContain("config: density=compact");
 });
 
 test("edits the first identical nested block after a structural marker in a static fence", async () => {
