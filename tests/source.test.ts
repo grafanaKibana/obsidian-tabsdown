@@ -459,6 +459,24 @@ describe("guarded authored block rewrites", () => {
 		]);
 	});
 
+	test.each(["2. item", "2) item"])(
+		"keeps a non-1 ordered marker inside its paragraph: %s",
+		(marker) => {
+			const block = `~~~tabsdown\n${inner}~~~`;
+			const source = [
+				"tab: Owner",
+				"paragraph",
+				marker,
+				"<span>",
+				block,
+			].join("\n");
+
+			expect(nestedBlockCandidates(source, 0)).toEqual([
+				{ offset: source.indexOf(block), source: inner },
+			]);
+		},
+	);
+
 	test("rejects a long malformed complete HTML tag without backtracking", () => {
 		const block = `~~~tabsdown\n${inner}~~~`;
 		const malformed = `<span ${"!\t\t:=".repeat(500)}>`;
@@ -471,6 +489,7 @@ describe("guarded authored block rewrites", () => {
 
 	test.each([
 		{ boundary: ["# Heading"] },
+		{ boundary: ["paragraph", "1. item"] },
 		{ boundary: ["paragraph", "# Heading"] },
 		{ boundary: ["paragraph", "***"] },
 		{ boundary: ["paragraph", "___"] },

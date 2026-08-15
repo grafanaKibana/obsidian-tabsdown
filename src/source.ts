@@ -307,13 +307,23 @@ function directBlocks(view: SourceView): FenceBlock[] {
 		}
 		const unquoted = rawContent.slice(prefix.length);
 		const indents = listIndents.get(prefix.depth) ?? [];
-		const markerMatch = listMarker.exec(unquoted);
+		let markerMatch = listMarker.exec(unquoted);
 		let containerIndent = 0;
 		let containerLength = 0;
 		let virtualIndent = 0;
 		if (markerMatch) {
 			const markerIndent = markerMatch[1]!.length;
 			while ((indents[indents.length - 1] ?? -1) > markerIndent) indents.pop();
+			const sameParagraph = paragraphOpen && paragraphContainer ===
+				`${prefix.depth}:${indents[indents.length - 1] ?? 0}`;
+			if (
+				sameParagraph &&
+				/^\d/.test(markerMatch[2]!) &&
+				Number.parseInt(markerMatch[2]!, 10) !== 1
+			) markerMatch = null;
+		}
+		if (markerMatch) {
+			const markerIndent = markerMatch[1]!.length;
 			const markerEndLength = markerMatch[0].length - markerMatch[3]!.length;
 			const markerEndColumn = markerIndent + markerMatch[2]!.length;
 			const padding = indentation(markerMatch[3]!, markerEndColumn);
