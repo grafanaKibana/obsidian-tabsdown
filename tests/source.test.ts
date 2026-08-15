@@ -459,6 +459,16 @@ describe("guarded authored block rewrites", () => {
 		]);
 	});
 
+	test("rejects a long malformed complete HTML tag without backtracking", () => {
+		const block = `~~~tabsdown\n${inner}~~~`;
+		const malformed = `<span ${"!\t\t:=".repeat(500)}>`;
+		const source = ["tab: Owner", malformed, block].join("\n");
+
+		expect(nestedBlockCandidates(source, 0)).toEqual([
+			{ offset: source.indexOf(block), source: inner },
+		]);
+	});
+
 	test.each([
 		{ boundary: ["# Heading"] },
 		{ boundary: ["---"] },

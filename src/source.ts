@@ -48,12 +48,39 @@ interface SourceRange {
 
 const listMarker = /^( {0,3})([-+*]|\d{1,9}[.)])([ \t]+)/;
 const htmlBlockTag = /^(?: {0,3})<\/?(?:address|article|aside|base|basefont|blockquote|body|caption|center|col|colgroup|dd|details|dialog|dir|div|dl|dt|fieldset|figcaption|figure|footer|form|frame|frameset|h[1-6]|head|header|hr|html|iframe|legend|li|link|main|menu|menuitem|nav|noframes|ol|optgroup|option|p|param|search|section|summary|table|tbody|td|tfoot|th|thead|title|tr|track|ul)(?:[ \t/>]|$)/i;
-const htmlCompleteTag = /^ {0,3}(?:<\/[A-Za-z][A-Za-z0-9-]*[ \t]*>|<[A-Za-z][A-Za-z0-9-]*(?:[ \t]+[A-Za-z_:][A-Za-z0-9_.:-]*(?:[ \t]*=[ \t]*(?:[^ "'=<>`]+|'[^']*'|"[^"]*"))?)*[ \t]*\/?>)[ \t]*$/;
+const htmlTagName = /[A-Za-z][A-Za-z0-9-]*/y;
+const htmlAttribute = /[ \t]+[A-Za-z_:][A-Za-z0-9_.:-]*(?:[ \t]*=[ \t]*(?:[^ "'=<>`]+|'[^']*'|"[^"]*"))?/y;
+const htmlClosingTagTail = /[ \t]*>[ \t]*$/y;
+const htmlTagClose = /[ \t]*\/?>[ \t]*$/y;
 const atxHeading = /^ {0,3}#{1,6}(?:[ \t]+|$)/;
 const setextHeading = /^ {0,3}(?:=+|-+)[ \t]*$/;
 const thematicBreak = /^ {0,3}(?:(?:\*[ \t]*){3,}|(?:_[ \t]*){3,}|(?:-[ \t]*){3,})$/;
 
 export class SourceConflictError extends Error {}
+
+function isCompleteHtmlTag(line: string): boolean {
+	const leading = /^ {0,3}/.exec(line)?.[0].length ?? 0;
+	let index = leading;
+	if (line[index] !== "<") return false;
+	index += 1;
+	if (line[index] === "/") index += 1;
+	htmlTagName.lastIndex = index;
+	const name = htmlTagName.exec(line);
+	if (!name) return false;
+	index = htmlTagName.lastIndex;
+	if (line[leading + 1] === "/") {
+		htmlClosingTagTail.lastIndex = index;
+		return htmlClosingTagTail.test(line);
+	}
+	while (index < line.length) {
+		htmlTagClose.lastIndex = index;
+		if (htmlTagClose.test(line)) return true;
+		htmlAttribute.lastIndex = index;
+		if (!htmlAttribute.test(line)) return false;
+		index = htmlAttribute.lastIndex;
+	}
+	return false;
+}
 
 function createSourceView(source: string, rawOffset = 0): SourceView {
 	const view: SourceView = { text: "", rawFrom: [rawOffset], rawTo: [rawOffset] };
@@ -251,7 +278,7 @@ function htmlBlockEnd(
 	}
 	if (
 		!htmlBlockTag.test(content) &&
-		!(allowCompleteTag && htmlCompleteTag.test(content))
+		!(allowCompleteTag && isCompleteHtmlTag(content))
 	) return undefined;
 	for (let candidate = index + 1; candidate < sourceLines.length; candidate += 1) {
 		const line = sourceLines[candidate];
