@@ -87,12 +87,16 @@ function positionAt(source: string, offset: number): EditorPosition {
 
 export default class TabsdownPlugin extends Plugin {
 	private freshnessGeneration = 0;
+	private readonly fileGenerations = new WeakMap<TFile, number>();
 	private readonly mountedTabs = new Set<TabsController>();
 
 	onload(): void {
 		const panelScopes = new WeakMap<HTMLElement, PanelScope>();
-		const markContentStale = (): void => {
+		const markContentStale = (file?: unknown): void => {
 			this.freshnessGeneration += 1;
+			if (file instanceof TFile) {
+				this.fileGenerations.set(file, (this.fileGenerations.get(file) ?? 0) + 1);
+			}
 		};
 
 		this.registerEvent(this.app.vault.on("create", markContentStale));
@@ -267,6 +271,7 @@ export default class TabsdownPlugin extends Plugin {
 				const assertAvailable = (): void => {
 					if (!available()) throw new Error("This Tabsdown block is no longer available.");
 				};
+				const generation = this.fileGenerations.get(file) ?? 0;
 				const locator = resolveLocatorRef(locatorRef);
 				if (!locator) throw new Error("This nested Tabsdown block could not be identified.");
 				this.assertCurrentFile(file);
@@ -276,6 +281,9 @@ export default class TabsdownPlugin extends Plugin {
 					: editors.length === 1 ? editors[0] : undefined;
 				const text = owner?.getValue() ?? await this.app.vault.cachedRead(file);
 				assertAvailable();
+				if ((this.fileGenerations.get(file) ?? 0) !== generation) {
+					throw new Error("The note changed. Reopen the block settings.");
+				}
 				const snapshot = captureBlock(text, locator, source);
 				return async (nextOptions) => {
 					assertAvailable();

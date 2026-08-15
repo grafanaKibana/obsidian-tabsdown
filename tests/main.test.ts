@@ -14,7 +14,7 @@ import {
 
 interface CapturedEvent {
 	name: string;
-	callback: () => void;
+	callback: (file?: TFile) => void;
 }
 
 const STYLE_SETTINGS_FIXTURE =
@@ -32,7 +32,7 @@ function createPlugin(): {
 	plugin: TabsdownPlugin;
 } {
 	const events: CapturedEvent[] = [];
-	const on = (name: string, callback: () => void): object => {
+	const on = (name: string, callback: (file?: TFile) => void): object => {
 		events.push({ name, callback });
 		return {};
 	};
@@ -132,6 +132,7 @@ function writablePlugin(initial: string, editorCount: number): {
 	process: ReturnType<typeof vi.fn<
 		(file: TFile, transform: (text: string) => string) => Promise<string>
 	>>;
+	events: CapturedEvent[];
 	views: MarkdownView[];
 } {
 	const file = new TFile("Note.md");
@@ -151,7 +152,11 @@ function writablePlugin(initial: string, editorCount: number): {
 		return vaultText;
 	});
 	const cachedRead = vi.fn(async () => vaultText);
-	const on = vi.fn(() => ({}));
+	const events: CapturedEvent[] = [];
+	const on = vi.fn((name: string, callback: (file?: TFile) => void) => {
+		events.push({ name, callback });
+		return {};
+	});
 	const app = {
 		vault: {
 			on,
@@ -176,6 +181,7 @@ function writablePlugin(initial: string, editorCount: number): {
 		}),
 		editors,
 		cachedRead,
+		events,
 		process,
 		views,
 	};
@@ -531,6 +537,50 @@ test("does not replace editor text after the block unloads during save", async (
 
 	expect(editors[0]?.replaceRange).not.toHaveBeenCalled();
 	expect(noticeMock).toHaveBeenCalledWith(expect.stringContaining("no longer available"));
+});
+
+test("rejects note changes made after the settings menu opens", async () => {
+	const source = "tab: One\nA\ntab: Two\nB\n";
+	const text = `~~~tabsdown\n${source}~~~\ntrailer`;
+	const { editors, plugin } = writablePlugin(text, 1);
+	await openWritableMenu(plugin, source);
+	editors[0]?.getValue.mockReturnValue(`${text}\nchanged`);
+	await selectMenuChoice();
+
+	expect(editors[0]?.replaceRange).not.toHaveBeenCalled();
+	expect(noticeMock).toHaveBeenCalledWith(expect.stringContaining("note changed"));
+});
+
+test("rejects a change to the note while Reading View prepares its snapshot", async () => {
+	const source = "tab: One\nA\ntab: Two\nB\n";
+	const text = `~~~tabsdown\n${source}~~~`;
+	const { cachedRead, events, file, plugin, process } = writablePlugin(text, 0);
+	let finishRead: ((value: string) => void) | undefined;
+	cachedRead.mockImplementationOnce(() => new Promise((resolve) => { finishRead = resolve; }));
+	await openWritableMenu(plugin, source);
+	const saving = selectMenuChoice();
+	events.find((event) => event.name === "modify")?.callback(file);
+	finishRead?.(text);
+	await saving;
+
+	expect(process).not.toHaveBeenCalled();
+	expect(noticeMock).toHaveBeenCalledWith(expect.stringContaining("note changed"));
+});
+
+test("ignores unrelated note changes while Reading View prepares its snapshot", async () => {
+	const source = "tab: One\nA\ntab: Two\nB\n";
+	const text = `~~~tabsdown\n${source}~~~`;
+	const { cachedRead, events, plugin, process } = writablePlugin(text, 0);
+	let finishRead: ((value: string) => void) | undefined;
+	cachedRead.mockImplementationOnce(() => new Promise((resolve) => { finishRead = resolve; }));
+	await openWritableMenu(plugin, source);
+	const saving = selectMenuChoice();
+	events.find((event) => event.name === "modify")?.callback(new TFile("Other.md"));
+	finishRead?.(text);
+	await saving;
+
+	expect(process).toHaveBeenCalledOnce();
+	expect(noticeMock).not.toHaveBeenCalled();
 });
 
 test("does not mutate in a Vault.process transform after the block unloads", async () => {

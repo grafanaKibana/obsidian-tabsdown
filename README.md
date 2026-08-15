@@ -49,7 +49,7 @@ console.log("Hello Tabsdown");
 
 `position=top|left|right|bottom` places the tab list and `layout=one|multi` keeps labels on one scrollable line or allows wrapping. Other overrides are `density=default|compact`, `personality=button|underline|separator|rail`, `palette=primary|secondary`, and `alignment=start|center|equal-width`. The example is the canonical form saved by the menu. Choices update Markdown immediately and stop without overwriting when the rendered block no longer matches the note.
 
-Omitted values inherit in this order: explicit block override, automatic Compact density at a container width of 28rem or less, position Style Settings, global Style Settings, then the built-in fallback. Explicit Default or Compact density stays authoritative at every width. The first tab starts active. Empty tab bodies are valid. To render a literal marker-looking line, escape it as `\tab:`.
+Omitted values inherit in this order: explicit block override, automatic Compact density on mobile or at a container width of 28rem or less, position Style Settings, global Style Settings, then the built-in fallback. Explicit Default or Compact density stays authoritative on every device and width. The first tab starts active. Empty tab bodies are valid. To render a literal marker-looking line, escape it as `\tab:`.
 
 ### Icons
 

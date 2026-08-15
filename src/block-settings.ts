@@ -75,28 +75,35 @@ export function addBlockSettingsContextMenu(
 		event.preventDefault();
 		event.stopPropagation();
 		const trigger = eventTarget.closest<HTMLElement>("button, .tabsdown") ?? parent;
+		const prepared = open(trigger, available).then(
+			(save) => ({ save }),
+			(error: unknown) => ({ error }),
+		);
 		const menu = new Menu().setParentElement(parent);
 		for (const [label, key, values] of fields) {
 			menu.addItem((item) => {
-				item.setTitle(label);
-				const submenu = (item as MenuItemWithSubmenu).setSubmenu();
-				for (const [value, title] of values) {
-					submenu.addItem((choice) => {
-						choice.setTitle(title);
+				const addChoice = (
+					choice: MenuItem,
+					value: string,
+					title: string,
+					prefix = "",
+				): void => {
+						choice.setTitle(`${prefix}${title}`);
 						choice.setChecked((options[key] ?? "") === value);
 						choice.onClick(async () => {
 							if (pending || (options[key] ?? "") === value) return;
 							pending = true;
 							const restore = restoreScroll(parent, trigger.ownerDocument);
 							try {
-								const save = await open(trigger, available);
+								const result = await prepared;
+								if ("error" in result) throw result.error;
 								if (!available()) {
 									throw new Error("This Tabsdown block is no longer available.");
 								}
 								const next = { ...options };
 								if (value === "") delete next[key];
 								else Object.assign(next, { [key]: value });
-								await save(next);
+								await result.save(next);
 								if (value === "") delete options[key];
 								else Object.assign(options, { [key]: value });
 							} catch (error) {
@@ -107,7 +114,25 @@ export function addBlockSettingsContextMenu(
 								pending = false;
 							}
 						});
-					});
+				};
+				const setSubmenu = (item as Partial<MenuItemWithSubmenu>).setSubmenu;
+				if (typeof setSubmenu === "function") {
+					item.setTitle(label);
+					const submenu = setSubmenu.call(item);
+					for (const [value, title] of values) {
+						submenu.addItem((choice) => addChoice(choice, value, title));
+					}
+					return;
+				}
+				const [[value, title], ...remaining] = values;
+				addChoice(item, value, title, `${label}: `);
+				for (const [remainingValue, remainingTitle] of remaining) {
+					menu.addItem((choice) => addChoice(
+						choice,
+						remainingValue,
+						remainingTitle,
+						`${label}: `,
+					));
 				}
 			});
 		}

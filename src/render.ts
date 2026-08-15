@@ -3,6 +3,7 @@ import {
 	Component,
 	MarkdownRenderChild,
 	MarkdownRenderer,
+	Menu,
 	setIcon,
 } from "obsidian";
 import { renderLabel } from "./label";
@@ -71,6 +72,7 @@ export class TabBlockRenderChild extends MarkdownRenderChild {
 	private readonly blockId = `tabsdown-${++nextBlockId}`;
 	private readonly buttons: HTMLButtonElement[] = [];
 	private readonly panels: PanelState[] = [];
+	private readonly menus = new Set<Menu>();
 	private panelsEl?: HTMLElement;
 	private height?: PanelHeightTracker;
 	private separators?: SeparatorTracker;
@@ -186,7 +188,10 @@ export class TabBlockRenderChild extends MarkdownRenderChild {
 					},
 					available,
 					(element, type, callback) => this.registerDomEvent(element, type, callback),
-					(menu) => { this.addChild(menu); },
+					(menu) => {
+						this.menus.add(menu);
+						menu.onHide(() => this.menus.delete(menu));
+					},
 				);
 		}
 		this.containerEl.append(tabList, panels);
@@ -225,6 +230,8 @@ export class TabBlockRenderChild extends MarkdownRenderChild {
 
 	onunload(): void {
 		this.disposed = true;
+		for (const menu of this.menus) menu.close();
+		this.menus.clear();
 		this.height?.destroy();
 		this.separators?.destroy();
 		for (const panel of this.panels) {

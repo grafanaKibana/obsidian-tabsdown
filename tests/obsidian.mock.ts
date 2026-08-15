@@ -128,9 +128,10 @@ export class Notice {
 }
 
 export const menuItems: MenuItem[] = [];
+export const menus: Menu[] = [];
 export const menuShowAtMouseEventMock = vi.fn();
 export const menuShowAtPositionMock = vi.fn();
-class MenuItem {
+export class MenuItem {
 	title = "";
 	checked: boolean | null = null;
 	submenu?: Menu;
@@ -149,7 +150,8 @@ class MenuItem {
 }
 export class Menu extends Component {
 	readonly items: MenuItem[] = [];
-	constructor(private readonly parentItem?: MenuItem) { super(); }
+	private readonly hideCallbacks: Array<() => unknown> = [];
+	constructor(private readonly parentItem?: MenuItem) { super(); menus.push(this); }
 	setParentElement(_element: HTMLElement): this { return this; }
 	addItem(callback: (item: MenuItem) => unknown): this {
 		const item = new MenuItem(this.parentItem);
@@ -165,6 +167,11 @@ export class Menu extends Component {
 	showAtPosition(position: unknown, doc?: Document): this {
 		menuShowAtPositionMock(position, doc);
 		return this;
+	}
+	onHide(callback: () => unknown): void { this.hideCallbacks.push(callback); }
+	hide(): this { this.close(); return this; }
+	close(): void {
+		for (const callback of this.hideCallbacks.splice(0)) callback();
 	}
 }
 

@@ -106,6 +106,39 @@ describe("guarded authored block rewrites", () => {
 		},
 	);
 
+	test("preserves a blockquote nested inside a list item", () => {
+		const quoted = inner.trimEnd().replaceAll("\n", "\n  > ");
+		const text = `- > ~~~tabsdown\n  > ${quoted}\n  > ~~~`;
+		const snapshot = captureBlock(text, { lineStart: 0, nestedOffsets: [] }, inner);
+
+		expect(save(text, snapshot)).toBe(
+			text.replace("  > tab: One", "  > config: density=compact\n  > tab: One"),
+		);
+	});
+
+	test.each([
+		{
+			name: "nested lists",
+			text: `- - ~~~tabsdown\n    ${inner.trimEnd().replaceAll("\n", "\n    ")}\n    ~~~`,
+			prefix: "    ",
+		},
+		{
+			name: "alternating lists and blockquotes",
+			text: `- > - > ~~~tabsdown\n  >   > ${inner.trimEnd().replaceAll("\n", "\n  >   > ")}\n  >   > ~~~`,
+			prefix: "  >   > ",
+		},
+		{
+			name: "consecutive lists before a blockquote",
+			text: `- - > ~~~tabsdown\n    > ${inner.trimEnd().replaceAll("\n", "\n    > ")}\n    > ~~~`,
+			prefix: "    > ",
+		},
+	] as const)("preserves $name", ({ text, prefix }) => {
+		const snapshot = captureBlock(text, { lineStart: 0, nestedOffsets: [] }, inner);
+		expect(save(text, snapshot)).toBe(
+			text.replace(`${prefix}tab: One`, `${prefix}config: density=compact\n${prefix}tab: One`),
+		);
+	});
+
 	test.each([
 		{ newline: "\n", rendered: inner },
 		{ newline: "\n", rendered: inner.slice(0, -1) },
@@ -451,6 +484,91 @@ describe("guarded authored block rewrites", () => {
 		]);
 	});
 
+	test("requires a complete raw HTML closing tag", () => {
+		const block = `~~~tabsdown\n${inner}~~~`;
+		const source = [
+			"tab: Owner",
+			"<script>",
+			"</scripture>",
+			block,
+			"</script>",
+			block,
+		].join("\n");
+
+		expect(nestedBlockCandidates(source, 0)).toEqual([
+			{ offset: source.lastIndexOf(block), source: inner },
+		]);
+	});
+
+	test.each([
+		["%%", "%%"],
+		["Text %% hidden", "still hidden %%"],
+	])("ignores nested blocks inside Obsidian comments: %j", (open, close) => {
+		const block = `~~~tabsdown\n${inner}~~~`;
+		const source = ["tab: Owner", open, block, close, block].join("\n");
+
+		expect(nestedBlockCandidates(source, 0)).toEqual([
+			{ offset: source.lastIndexOf(block), source: inner },
+		]);
+	});
+
+	test.each(["%% hidden %%", "`%%`"])(
+		"does not carry a closed Obsidian comment from %j",
+		(marker) => {
+			const block = `~~~tabsdown\n${inner}~~~`;
+			const source = ["tab: Owner", marker, block].join("\n");
+
+			expect(nestedBlockCandidates(source, 0)).toEqual([
+				{ offset: source.indexOf(block), source: inner },
+			]);
+		},
+	);
+
+	test.each([
+		["an indented code block", ["    %%"]],
+		["a multiline code span", ["`literal", "%%", "code span`"]],
+		["a multiline code span with a delimiter row", ["`literal", "| --- |", "%%", "code span`"]],
+	] as const)("ignores comment markers inside %s", (_name, code) => {
+		const block = `~~~tabsdown\n${inner}~~~`;
+		const source = ["tab: Owner", ...code, block].join("\n");
+
+		expect(nestedBlockCandidates(source, 0)).toEqual([
+			{ offset: source.indexOf(block), source: inner },
+		]);
+	});
+
+	test("does not close an inline code span across a fenced block", () => {
+		const block = `~~~tabsdown\n${inner}~~~`;
+		const source = ["tab: Owner", "`literal", block, "`"].join("\n");
+
+		expect(nestedBlockCandidates(source, 0)).toEqual([
+			{ offset: source.indexOf(block), source: inner },
+		]);
+	});
+
+	test("does not continue a reference label across a fenced block", () => {
+		const block = `~~~tabsdown\n${inner}~~~`;
+		const source = ["tab: Owner", "[", block, "]: /url"].join("\n");
+
+		expect(nestedBlockCandidates(source, 0)).toEqual([
+			{ offset: source.indexOf(block), source: inner },
+		]);
+	});
+
+	test("scans a long unclosed reference title without swallowing a fence", () => {
+		const block = `~~~tabsdown\n${inner}~~~`;
+		const source = [
+			"tab: Owner",
+			"[ref]: /url \"unclosed",
+			...Array.from({ length: 8_000 }, () => "continuation"),
+			block,
+		].join("\n");
+
+		expect(nestedBlockCandidates(source, 0)).toEqual([
+			{ offset: source.indexOf(block), source: inner },
+		]);
+	});
+
 	test.each([
 		{ html: "<!--", prefix: "> " },
 		{ html: "<div>", prefix: "> " },
@@ -467,11 +585,21 @@ describe("guarded authored block rewrites", () => {
 		},
 	);
 
-	test("does not let a complete HTML tag interrupt a paragraph", () => {
+	test.each([
+		["paragraph"],
+		["paragraph", "[ref]: /url"],
+		["Header", "| --- |"],
+		["| One | Two |", "| --- |"],
+		["[ref]: <broken"],
+		["[ref]: /foo(bar"],
+		["[   ]: /url"],
+		["[a[b]: /url"],
+		["[ref]: /url", "    code", "\"title\""],
+	])("does not let a complete HTML tag interrupt %j", (...paragraph) => {
 		const block = `~~~tabsdown\n${inner}~~~`;
 		const source = [
 			"tab: Owner",
-			"paragraph",
+			...paragraph,
 			"<span>",
 			block,
 		].join("\n");
@@ -529,7 +657,21 @@ describe("guarded authored block rewrites", () => {
 
 	test.each([
 		{ boundary: ["# Heading"] },
+		{ boundary: ["[ref]: /url"] },
+		{ boundary: ["[ref]:/url"] },
+		{ boundary: ["[ref]: /foo(bar)"] },
+		{ boundary: ["[ref]: foo<bar"] },
+		{ boundary: ["[\\ ]: /url"] },
+		{ boundary: ["[a\\[b]: /url"] },
+		{ boundary: ["[ ]: /url"] },
+		{ boundary: ["[ref]:", "  /url"] },
+		{ boundary: ["[ref]: /url", "  \"title\""] },
+		{ boundary: ["[ref]: /url \"long", "title\""] },
+		{ boundary: ["[ref]: /url", "\"long", "title\""] },
+		{ boundary: ["[", "foo", "]: /url"] },
 		{ boundary: ["paragraph", "1. item"] },
+		{ boundary: ["| Header |", "| --- |"] },
+		{ boundary: ["| Header |", "| - |"] },
 		{ boundary: ["paragraph", "# Heading"] },
 		{ boundary: ["paragraph", "***"] },
 		{ boundary: ["paragraph", "___"] },
@@ -550,6 +692,18 @@ describe("guarded authored block rewrites", () => {
 		expect(nestedBlockCandidates(source, 0)).toEqual([
 			{ offset: source.lastIndexOf(block), source: inner },
 		]);
+	});
+
+	test("accepts a maximum-length reference label after three spaces", () => {
+		const block = `~~~tabsdown\n${inner}~~~`;
+		const source = [
+			"tab: Owner",
+			`   [${"x".repeat(999)}]: /url`,
+			"<span>",
+			block,
+		].join("\n");
+
+		expect(nestedBlockCandidates(source, 0)).toEqual([]);
 	});
 
 	test("does not start type-7 HTML inside a quoted paragraph", () => {

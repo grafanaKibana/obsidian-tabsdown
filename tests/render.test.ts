@@ -16,7 +16,9 @@ import {
 import type { TabDefinition } from "../src/parser";
 import {
 	menuItems,
+	menus,
 	menuShowAtMouseEventMock,
+	MenuItem,
 	renderMock,
 	setIcon,
 } from "./obsidian.mock";
@@ -143,6 +145,7 @@ beforeEach(() => {
 afterEach(() => {
 	document.body.replaceChildren();
 	menuItems.splice(0);
+	menus.splice(0);
 });
 
 test("shows every block setting as a checked native submenu and saves a choice", async () => {
@@ -183,6 +186,37 @@ test("shows every block setting as a checked native submenu and saves a choice",
 	expect(open).toHaveBeenCalledOnce();
 	expect(save).toHaveBeenCalledWith({ density: "compact", layout: "multi", personality: "rail" });
 	expect(scroller.scrollTop).toBe(480);
+});
+
+test("falls back to checked flat choices when submenus are unavailable", async () => {
+	const descriptor = Object.getOwnPropertyDescriptor(MenuItem.prototype, "setSubmenu");
+	Object.defineProperty(MenuItem.prototype, "setSubmenu", {
+		configurable: true,
+		value: undefined,
+	});
+	try {
+		const parent = document.body.appendChild(document.createElement("div"));
+		parent.className = "tabsdown";
+		const save = vi.fn(async () => {});
+		addBlockSettingsContextMenu(
+			parent,
+			{ density: "compact" },
+			async () => save,
+			() => true,
+			(element, type, callback) => element.addEventListener(type, callback),
+			vi.fn(),
+		);
+		openContextMenu(parent);
+
+		const compact = menuItems.find((item) => item.title === "Density: Compact");
+		expect(compact?.checked).toBe(true);
+		await menuItems.find((item) => item.title === "Position: Left")?.callback?.(
+			new MouseEvent("click"),
+		);
+		expect(save).toHaveBeenCalledWith({ density: "compact", position: "left" });
+	} finally {
+		if (descriptor) Object.defineProperty(MenuItem.prototype, "setSubmenu", descriptor);
+	}
 });
 
 test("opens settings from the rendered block's DOM realm", () => {
@@ -252,7 +286,7 @@ test("ignores repeated choices while a settings save is pending", async () => {
 	const choice = menuChoice("Density", "Compact");
 	const first = choice.callback?.(new MouseEvent("click"));
 	await choice.callback?.(new MouseEvent("click"));
-	await Promise.resolve();
+	await new Promise((resolve) => window.setTimeout(resolve, 0));
 	expect(save).toHaveBeenCalledOnce();
 	finish?.();
 	await first;
@@ -290,8 +324,34 @@ test("does nothing when the checked choice is selected", async () => {
 	await menuChoice("Density", "Automatic / inherit global Size").callback?.(
 		new MouseEvent("click"),
 	);
-	expect(open).not.toHaveBeenCalled();
+	expect(open).toHaveBeenCalledOnce();
 	expect(save).not.toHaveBeenCalled();
+});
+
+test("closes only menus that remain open when the block unloads", () => {
+	const container = document.body.appendChild(document.createElement("div"));
+	const child = new TabBlockRenderChild(
+		{} as App, container, "Note.md", tabs, [], () => 0, {},
+		{ open: vi.fn(async () => async () => {}), registerPanel: vi.fn() },
+	);
+	child.load();
+	const trigger = container.querySelector<HTMLButtonElement>('[role="tab"]')!;
+	openContextMenu(trigger);
+	const first = [...menus].reverse().find(
+		(menu) => menu.items.some((item) => !item.parent),
+	)!;
+	const firstClose = vi.spyOn(first, "close");
+	first.hide();
+
+	openContextMenu(trigger);
+	const second = [...menus].reverse().find(
+		(menu) => menu.items.some((item) => !item.parent),
+	)!;
+	const secondClose = vi.spyOn(second, "close");
+	child.unload();
+
+	expect(firstClose).toHaveBeenCalledOnce();
+	expect(secondClose).toHaveBeenCalledOnce();
 });
 
 describe("tab interaction", () => {
@@ -1548,6 +1608,13 @@ test("makes only unconfigured authored narrow blocks compact", () => {
 	expect(automatic).toContain("--tabsdown-tab-min-size: 32px");
 	expect(automatic).toContain("--tabsdown-tab-padding-block: 0.375rem");
 	expect(automatic).toContain("--tabsdown-horizontal-padding, 12px");
+	const mobile = matchingRuleBodies(
+		styles,
+		"body.is-mobile .tabsdown:not(.tabsdown--mounted):not(.tabsdown--density-default):not(.tabsdown--density-compact) > .tabsdown__tablist",
+	);
+	expect(mobile).toContain("--tabsdown-tab-min-size: 32px");
+	expect(mobile).toContain("--tabsdown-tab-padding-block: 0.375rem");
+	expect(mobile).toContain("--tabsdown-horizontal-padding, 12px");
 
 	const explicitDefault = matchingRuleBodies(
 		styles,
@@ -1562,7 +1629,7 @@ test("makes only unconfigured authored narrow blocks compact", () => {
 	expect(explicitCompact).toContain("--tabsdown-tab-min-size: 32px");
 	expect(explicitCompact).toContain("--tabsdown-horizontal-padding, 12px");
 	expect(styles.lastIndexOf(".tabsdown.tabsdown--density-default > .tabsdown__tablist")).toBeGreaterThan(
-		styles.lastIndexOf("@container (max-width: 28rem)"),
+		styles.lastIndexOf("body.is-mobile .tabsdown"),
 	);
 });
 

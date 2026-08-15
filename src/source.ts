@@ -55,6 +55,8 @@ const htmlTagClose = /[ \t]*\/?>[ \t]*$/y;
 const atxHeading = /^ {0,3}#{1,6}(?:[ \t]+|$)/;
 const setextHeading = /^ {0,3}(?:=+|-+)[ \t]*$/;
 const thematicBreak = /^ {0,3}(?:(?:\*[ \t]*){3,}|(?:_[ \t]*){3,}|(?:-[ \t]*){3,})$/;
+const tableDelimiter = /^ {0,3}\|?[ \t]*:?-+:?[ \t]*(?:\|[ \t]*:?-+:?[ \t]*)*\|?[ \t]*$/;
+const linkLabel = String.raw`\[(?:\\[\s\S]|[^\]\\])+\]:`;
 const frontmatterFence = /^---[ \t]*$/;
 
 export class SourceConflictError extends Error {}
@@ -81,6 +83,247 @@ function isCompleteHtmlTag(line: string): boolean {
 		index = htmlAttribute.lastIndex;
 	}
 	return false;
+}
+
+function tableColumnCount(line: string): number {
+	let pipes = 0;
+	let first = -1;
+	let last = -1;
+	for (let index = 0; index < line.length; index += 1) {
+		if (line[index] !== "|") continue;
+		let slashes = 0;
+		for (let cursor = index - 1; cursor >= 0 && line[cursor] === "\\"; cursor -= 1) {
+			slashes += 1;
+		}
+		if (slashes % 2 === 1) continue;
+		if (first < 0) first = index;
+		last = index;
+		pipes += 1;
+	}
+	const start = line.search(/\S/);
+	const end = line.search(/\s*$/) - 1;
+	return pipes + 1 - Number(first >= 0 && first === start) -
+		Number(last >= 0 && last === end);
+}
+
+type LinkReferenceStatus =
+	| "complete"
+	| "destination"
+	| "invalid"
+	| "possible"
+	| "title-double"
+	| "title-paren"
+	| "title-single";
+
+function linkReferenceStatus(sourceLines: string[]): LinkReferenceStatus {
+	const source = sourceLines.join("\n");
+	const label = new RegExp(`^ {0,3}${linkLabel}`).exec(source);
+	if (!label) {
+		if (!/^ {0,3}\[/.test(source) || source.length > 1003) return "invalid";
+		let escaped = false;
+		for (const character of source.slice(source.indexOf("[") + 1)) {
+			if (escaped) escaped = false;
+			else if (character === "\\") escaped = true;
+			else if (character === "]") return "invalid";
+		}
+		return "possible";
+	}
+	const labelStart = label[0].indexOf("[");
+	const labelBody = label[0].slice(labelStart + 1, -2);
+	let labelEscape = false;
+	for (const character of labelBody) {
+		if (labelEscape) labelEscape = false;
+		else if (character === "\\") labelEscape = true;
+		else if (character === "[") return "invalid";
+	}
+	if (![...labelBody].some((character) => ![" ", "\t", "\n"].includes(character))) {
+		return "invalid";
+	}
+	if ([...labelBody].length > 999) return "invalid";
+	let index = label[0].length;
+	while (source[index] === " " || source[index] === "\t") index += 1;
+	if (source[index] === "\n") {
+		index += 1;
+		let indent = 0;
+		while (indent < 3 && source[index] === " ") {
+			index += 1;
+			indent += 1;
+		}
+	}
+	if (index >= source.length) return "possible";
+	if (source[index] === "<") {
+		let escaped = false;
+		let closed = false;
+		for (index += 1; index < source.length && source[index] !== "\n"; index += 1) {
+			const character = source[index]!;
+			if (escaped) escaped = false;
+			else if (character === "\\") escaped = true;
+			else if (character === "<") return "invalid";
+			else if (character === ">") {
+				index += 1;
+				closed = true;
+				break;
+			}
+		}
+		if (!closed) return "invalid";
+	} else {
+		let balance = 0;
+		let escaped = false;
+		const start = index;
+		while (index < source.length && !/[ \t\n]/.test(source[index]!)) {
+			const character = source[index]!;
+			const code = character.charCodeAt(0);
+			if (escaped) escaped = false;
+			else if (character === "\\") escaped = true;
+			else if (code < 32 || code === 127) return "invalid";
+			else if (character === "(") balance += 1;
+			else if (character === ")" && --balance < 0) return "invalid";
+			index += 1;
+		}
+		if (index === start || balance !== 0) return "invalid";
+	}
+	if (index >= source.length) return "destination";
+	if (!/[ \t\n]/.test(source[index]!)) return "invalid";
+	while (source[index] === " " || source[index] === "\t") index += 1;
+	if (source[index] === "\n") {
+		index += 1;
+		let indent = 0;
+		while (indent < 3 && source[index] === " ") {
+			index += 1;
+			indent += 1;
+		}
+	}
+	if (index >= source.length) return "destination";
+	const opener = source[index];
+	const closer = opener === "(" ? ")" : opener;
+	if (!closer || !["\"", "'", ")"].includes(closer)) return "invalid";
+	if (/\n[ \t]*\n/.test(source.slice(index))) return "invalid";
+	let escaped = false;
+	for (index += 1; index < source.length; index += 1) {
+		const character = source[index]!;
+		if (escaped) escaped = false;
+		else if (character === "\\") escaped = true;
+		else if (character === closer) {
+			return /^[ \t]*$/.test(source.slice(index + 1)) ? "complete" : "invalid";
+		}
+	}
+	return closer === "\"" ? "title-double" : closer === "'" ? "title-single" : "title-paren";
+}
+
+function titleCloser(status: LinkReferenceStatus): string | undefined {
+	if (status === "title-double") return "\"";
+	if (status === "title-single") return "'";
+	if (status === "title-paren") return ")";
+	return undefined;
+}
+
+function continuedTitleStatus(line: string, closer: string): "complete" | "invalid" | "possible" {
+	let escaped = false;
+	for (let index = 0; index < line.length; index += 1) {
+		const character = line[index]!;
+		if (escaped) escaped = false;
+		else if (character === "\\") escaped = true;
+		else if (character === closer) {
+			return /^[ \t]*$/.test(line.slice(index + 1)) ? "complete" : "invalid";
+		}
+	}
+	return "possible";
+}
+
+function listItemPrefix(match: RegExpExecArray): { indent: number; length: number } {
+	const markerIndent = match[1]!.length;
+	const markerEndLength = match[0].length - match[3]!.length;
+	const markerEndColumn = markerIndent + match[2]!.length;
+	const padding = indentation(match[3]!, markerEndColumn);
+	const paddingLength = padding.columns > 4 ? 1 : padding.length;
+	return {
+		indent: markerEndColumn + indentation(
+			match[3]!.slice(0, paddingLength),
+			markerEndColumn,
+		).columns,
+		length: markerEndLength + paddingLength,
+	};
+}
+
+function interruptsParagraph(line: string, previousLine: string): boolean {
+	const marker = listMarker.exec(line);
+	const list = marker && line.slice(marker[0].length).trim() !== "" && (
+		!/^\d/.test(marker[2]!) || Number.parseInt(marker[2]!, 10) === 1
+	);
+	const table = previousLine.includes("|") && line.includes("|") &&
+		tableDelimiter.test(line) &&
+		tableColumnCount(previousLine) === tableColumnCount(line);
+	return Boolean(
+		parseFenceLine(line) ||
+		atxHeading.test(line) ||
+		setextHeading.test(line) ||
+		thematicBreak.test(line) ||
+		table ||
+		list ||
+		/^ {0,3}>/.test(line) ||
+		/^ {0,3}(?:<!--|<\?|<!\[CDATA\[|<![A-Z]|<(?:script|pre|style|textarea)(?:[ \t>]|$))/i.test(line) ||
+		htmlBlockTag.test(line)
+	);
+}
+
+function stripObsidianComments(
+	line: string,
+	open: boolean,
+	codeRun: number,
+	source: string,
+	remainingFrom: number,
+): { text: string; open: boolean; codeRun: number; touched: boolean } {
+	const closingBackticks = (source: string, from: number, length: number): number => {
+		const run = "`".repeat(length);
+		for (let close = source.indexOf(run, from); close >= 0; ) {
+			if (source[close - 1] !== "`" && source[close + length] !== "`") return close;
+			close = source.indexOf(run, close + length);
+		}
+		return -1;
+	};
+	let text = "";
+	let touched = open;
+	for (let index = 0; index < line.length; ) {
+		if (open) {
+			const close = line.indexOf("%%", index);
+			if (close < 0) return { text, open, codeRun: 0, touched: true };
+			open = false;
+			touched = true;
+			index = close + 2;
+			continue;
+		}
+		if (codeRun > 0) {
+			const close = closingBackticks(line, index, codeRun);
+			if (close < 0) return { text: text + line.slice(index), open, codeRun, touched };
+			text += line.slice(index, close + codeRun);
+			index = close + codeRun;
+			codeRun = 0;
+			continue;
+		}
+		if (line.startsWith("%%", index)) {
+			open = true;
+			touched = true;
+			index += 2;
+			continue;
+		}
+		if (line[index] === "`") {
+			let runEnd = index + 1;
+			while (line[runEnd] === "`") runEnd += 1;
+			const length = runEnd - index;
+			const close = closingBackticks(line, runEnd, length);
+			if (close >= 0) {
+				text += line.slice(index, close + length);
+				index = close + length;
+				continue;
+			}
+			if (closingBackticks(source, remainingFrom, length) >= 0) {
+				return { text: text + line.slice(index), open, codeRun: length, touched };
+			}
+		}
+		text += line[index] ?? "";
+		index += 1;
+	}
+	return { text, open, codeRun, touched };
 }
 
 function createSourceView(source: string, rawOffset = 0): SourceView {
@@ -118,12 +361,18 @@ function frontmatterEnd(source: string): number {
 	return 0;
 }
 
-function quotePrefix(line: string): { depth: number; length: number } {
+function quotePrefix(
+	line: string,
+	maxIndent = 3,
+	maxDepth = Number.POSITIVE_INFINITY,
+): { depth: number; length: number } {
 	let depth = 0;
 	let offset = 0;
-	while (offset < line.length) {
+	while (offset < line.length && depth < maxDepth) {
 		let marker = offset;
-		while (marker < line.length && marker - offset < 3 && line[marker] === " ") marker += 1;
+		while (marker < line.length && marker - offset < maxIndent && line[marker] === " ") {
+			marker += 1;
+		}
 		if (line[marker] !== ">") break;
 		offset = marker + 1;
 		if (line[offset] === " " || line[offset] === "\t") offset += 1;
@@ -179,8 +428,13 @@ function structuralIndentationLength(
 	return length;
 }
 
-function leavesContainer(line: string, depth: number, containerIndent: number): boolean {
-	const prefix = quotePrefix(line);
+function leavesContainer(
+	line: string,
+	depth: number,
+	containerIndent: number,
+	maxQuoteIndent = 3,
+): boolean {
+	const prefix = quotePrefix(line, maxQuoteIndent);
 	const content = line.slice(prefix.length);
 	return prefix.depth < depth || (
 		prefix.depth === depth &&
@@ -233,15 +487,9 @@ function bodyView(
 	const result: SourceView = { text: "", rawFrom: [], rawTo: [] };
 	for (const line of lines(view.text, from, to)) {
 		const content = view.text.slice(line.start, line.contentEnd);
-		const prefix = quotePrefix(content);
+		const prefix = quotePrefix(content, Number.POSITIVE_INFINITY, depth);
 		if (prefix.depth < depth) return undefined;
-		let prefixLength = 0;
-		for (let count = 0; count < depth; count += 1) {
-			let marker = prefixLength;
-			while (marker < content.length && marker - prefixLength < 3 && content[marker] === " ") marker += 1;
-			prefixLength = marker + 1;
-			if (content[prefixLength] === " " || content[prefixLength] === "\t") prefixLength += 1;
-		}
+		let prefixLength = prefix.length;
 		const unquoted = content.slice(prefixLength);
 		const indentationLength = structuralIndentationLength(
 			unquoted,
@@ -274,7 +522,7 @@ function htmlBlockEnd(
 	else if (/^ {0,3}<\?/.test(content)) terminator = "?>";
 	else if (/^ {0,3}<!\[CDATA\[/.test(content)) terminator = "]]>";
 	else if (/^ {0,3}<![A-Z]/.test(content)) terminator = ">";
-	else if (rawTag) terminator = `</${rawTag.toLowerCase()}`;
+	else if (rawTag) terminator = `</${rawTag.toLowerCase()}>`;
 	if (terminator) {
 		for (let candidate = index; candidate < sourceLines.length; candidate += 1) {
 			const line = sourceLines[candidate];
@@ -308,6 +556,12 @@ function directBlocks(view: SourceView): FenceBlock[] {
 	const listIndents = new Map<number, number[]>();
 	let paragraphContainer = "";
 	let paragraphOpen = false;
+	let previousParagraphLine = "";
+	let commentOpen = false;
+	let inlineCodeRun = 0;
+	let linkReferenceLines: string[] | undefined;
+	let linkReferenceCanTakeTitle = false;
+	let linkReferenceTitleCloser: string | undefined;
 	for (let index = 0; index < sourceLines.length; index += 1) {
 		const line = sourceLines[index];
 		if (!line) continue;
@@ -337,16 +591,9 @@ function directBlocks(view: SourceView): FenceBlock[] {
 			) markerMatch = null;
 		}
 		if (markerMatch) {
-			const markerIndent = markerMatch[1]!.length;
-			const markerEndLength = markerMatch[0].length - markerMatch[3]!.length;
-			const markerEndColumn = markerIndent + markerMatch[2]!.length;
-			const padding = indentation(markerMatch[3]!, markerEndColumn);
-			const paddingLength = padding.columns > 4 ? 1 : padding.length;
-			containerLength = markerEndLength + paddingLength;
-			containerIndent = markerEndColumn + indentation(
-				markerMatch[3]!.slice(0, paddingLength),
-				markerEndColumn,
-			).columns;
+			const item = listItemPrefix(markerMatch);
+			containerLength = item.length;
+			containerIndent = item.indent;
 			if (indents[indents.length - 1] !== containerIndent) indents.push(containerIndent);
 			listIndents.set(prefix.depth, indents);
 		} else {
@@ -358,35 +605,192 @@ function directBlocks(view: SourceView): FenceBlock[] {
 			containerLength = prefix.length;
 			virtualIndent = prefix.excess;
 		}
-		const container = `${prefix.depth}:${containerIndent}`;
-		if (markerMatch || container !== paragraphContainer) paragraphOpen = false;
+		let depth = prefix.depth;
+		let insertionPrefix = rawContent.slice(0, prefix.length) + " ".repeat(containerIndent);
+		let content = " ".repeat(virtualIndent) + unquoted.slice(containerLength);
+		let hadMarker = markerMatch !== null;
+		let allowNestedList = hadMarker;
+		while (true) {
+			const nestedQuote = quotePrefix(content);
+			if (nestedQuote.depth > 0) {
+				depth += nestedQuote.depth;
+				insertionPrefix += content.slice(0, nestedQuote.length);
+				content = content.slice(nestedQuote.length);
+				containerIndent = 0;
+				allowNestedList = true;
+				continue;
+			}
+			if (!allowNestedList) break;
+			const nestedMarker = listMarker.exec(content);
+			if (!nestedMarker) break;
+			const item = listItemPrefix(nestedMarker);
+			containerIndent += item.indent;
+			insertionPrefix += " ".repeat(item.indent);
+			content = content.slice(item.length);
+			hadMarker = true;
+			const nestedIndents = listIndents.get(depth) ?? [];
+			if (nestedIndents[nestedIndents.length - 1] !== containerIndent) {
+				nestedIndents.push(containerIndent);
+			}
+			listIndents.set(depth, nestedIndents);
+		}
+		const container = `${depth}:${containerIndent}`;
+		if (hadMarker || container !== paragraphContainer) {
+			paragraphOpen = false;
+			previousParagraphLine = "";
+			linkReferenceLines = undefined;
+			linkReferenceCanTakeTitle = false;
+			linkReferenceTitleCloser = undefined;
+			inlineCodeRun = 0;
+		}
 		paragraphContainer = container;
-		const content = " ".repeat(virtualIndent) + unquoted.slice(containerLength);
 		if (content.trim() === "") {
 			paragraphOpen = false;
+			previousParagraphLine = "";
+			linkReferenceLines = undefined;
+			linkReferenceCanTakeTitle = false;
+			linkReferenceTitleCloser = undefined;
+			inlineCodeRun = 0;
 			continue;
 		}
-		const htmlEnd = htmlBlockEnd(
-			view.text,
-			sourceLines,
-			index,
-			content,
-			prefix.depth,
-			containerIndent,
-			!paragraphOpen,
-		);
-		if (htmlEnd !== undefined) {
-			index = htmlEnd;
-			paragraphOpen = false;
+		const paragraphInterrupted = interruptsParagraph(content, previousParagraphLine);
+		if (linkReferenceTitleCloser) {
+			if (paragraphInterrupted) {
+				linkReferenceTitleCloser = undefined;
+				paragraphOpen = true;
+			} else {
+				const status = continuedTitleStatus(content, linkReferenceTitleCloser);
+				if (status === "possible") continue;
+				linkReferenceTitleCloser = undefined;
+				if (status === "complete") continue;
+				paragraphOpen = true;
+				previousParagraphLine = content;
+				continue;
+			}
+		}
+		if (
+			!commentOpen &&
+			!paragraphOpen &&
+			/^(?: {4}|\t)/.test(content) &&
+			(!linkReferenceLines || linkReferenceCanTakeTitle)
+		) {
+			previousParagraphLine = "";
+			linkReferenceLines = undefined;
+			linkReferenceCanTakeTitle = false;
+			linkReferenceTitleCloser = undefined;
+			inlineCodeRun = 0;
 			continue;
 		}
-		const match = parseFenceLine(content);
+		if (inlineCodeRun > 0 && paragraphInterrupted) inlineCodeRun = 0;
+		if (linkReferenceLines && !linkReferenceCanTakeTitle && paragraphInterrupted) {
+			linkReferenceLines = undefined;
+			paragraphOpen = true;
+		}
+		let commentTouched = false;
+		if (commentOpen || inlineCodeRun > 0) {
+			const comment = stripObsidianComments(
+				content,
+				commentOpen,
+				inlineCodeRun,
+				view.text,
+				line.end,
+			);
+			content = comment.text;
+			commentOpen = comment.open;
+			inlineCodeRun = comment.codeRun;
+			commentTouched = true;
+		}
+		if (!commentTouched && !paragraphOpen) {
+			if (linkReferenceCanTakeTitle) {
+				if (/^ {0,3}["'(]/.test(content)) linkReferenceCanTakeTitle = false;
+				else {
+					linkReferenceLines = undefined;
+					linkReferenceCanTakeTitle = false;
+				}
+			}
+			if (linkReferenceLines) {
+				linkReferenceLines.push(content);
+				const status = linkReferenceStatus(linkReferenceLines);
+				const closer = titleCloser(status);
+				if (closer) {
+					linkReferenceLines = undefined;
+					linkReferenceCanTakeTitle = false;
+					linkReferenceTitleCloser = closer;
+					continue;
+				}
+				if (status === "possible") continue;
+				if (status === "destination") {
+					linkReferenceCanTakeTitle = true;
+					continue;
+				}
+				linkReferenceLines = undefined;
+				linkReferenceCanTakeTitle = false;
+				if (status === "complete") continue;
+				paragraphOpen = true;
+			}
+			if (!paragraphOpen && /^ {0,3}\[/.test(content)) {
+				const status = linkReferenceStatus([content]);
+				const closer = titleCloser(status);
+				if (closer) {
+					linkReferenceTitleCloser = closer;
+					continue;
+				}
+				if (status === "possible") {
+					linkReferenceLines = [content];
+					continue;
+				}
+				if (status === "destination") {
+					linkReferenceLines = [content];
+					linkReferenceCanTakeTitle = true;
+					continue;
+				}
+				if (status === "complete") continue;
+			}
+		}
+		if (!commentTouched) {
+			const htmlEnd = htmlBlockEnd(
+				view.text,
+				sourceLines,
+				index,
+				content,
+				depth,
+				containerIndent,
+				!paragraphOpen,
+			);
+			if (htmlEnd !== undefined) {
+				index = htmlEnd;
+				paragraphOpen = false;
+				previousParagraphLine = "";
+				continue;
+			}
+		}
+		const match = commentTouched ? undefined : parseFenceLine(content);
 		if (!match) {
+			if (!commentTouched) {
+				const comment = stripObsidianComments(
+					content,
+					false,
+					inlineCodeRun,
+					view.text,
+					line.end,
+				);
+				content = comment.text;
+				commentOpen = comment.open;
+				inlineCodeRun = comment.codeRun;
+				commentTouched = comment.touched;
+			}
+			if (commentTouched && content.trim() === "") continue;
 			if (paragraphOpen) {
 				if (
 					setextHeading.test(content) ||
 					atxHeading.test(content) ||
-					thematicBreak.test(content)
+					thematicBreak.test(content) ||
+					(
+						previousParagraphLine.includes("|") &&
+						content.includes("|") &&
+						tableDelimiter.test(content) &&
+						tableColumnCount(previousParagraphLine) === tableColumnCount(content)
+					)
 				) paragraphOpen = false;
 			} else {
 				paragraphOpen = !(
@@ -395,6 +799,7 @@ function directBlocks(view: SourceView): FenceBlock[] {
 					/^(?: {4}|\t)/.test(content)
 				);
 			}
+			previousParagraphLine = paragraphOpen ? content : "";
 			continue;
 		}
 		const fence = match.run;
@@ -407,12 +812,17 @@ function directBlocks(view: SourceView): FenceBlock[] {
 			const close = sourceLines[candidate];
 			if (!close) continue;
 			const closeContent = view.text.slice(close.start, close.contentEnd);
-			const closePrefix = quotePrefix(closeContent);
-			if (leavesContainer(closeContent, prefix.depth, containerIndent)) {
+			const closePrefix = quotePrefix(closeContent, Number.POSITIVE_INFINITY);
+			if (leavesContainer(
+				closeContent,
+				depth,
+				containerIndent,
+				Number.POSITIVE_INFINITY,
+			)) {
 				containerEndIndex = candidate;
 				break;
 			}
-			if (closePrefix.depth !== prefix.depth) continue;
+			if (closePrefix.depth !== depth) continue;
 			const continuation = closeContent.slice(closePrefix.length);
 			const continuationPrefix = indentationAcross(continuation, containerIndent);
 			if (!continuationPrefix) continue;
@@ -441,7 +851,7 @@ function directBlocks(view: SourceView): FenceBlock[] {
 			view,
 			line.end,
 			innerEnd,
-			prefix.depth,
+			depth,
 			containerIndent,
 			match.indent,
 		);
@@ -452,9 +862,7 @@ function directBlocks(view: SourceView): FenceBlock[] {
 				innerRawFrom: view.rawTo[line.end] ?? -1,
 				innerRawTo: view.rawTo[innerEnd] ?? -1,
 				closeEnd: close?.end ?? innerEnd,
-				prefix: rawContent.slice(0, prefix.length) + " ".repeat(
-					containerIndent + match.indent,
-				),
+				prefix: insertionPrefix + " ".repeat(match.indent),
 				innerHasLine: line.end < innerEnd,
 			});
 		}
@@ -462,6 +870,11 @@ function directBlocks(view: SourceView): FenceBlock[] {
 		else if (containerEndIndex < sourceLines.length) index = containerEndIndex - 1;
 		else break;
 		paragraphOpen = false;
+		previousParagraphLine = "";
+		linkReferenceLines = undefined;
+		linkReferenceCanTakeTitle = false;
+		linkReferenceTitleCloser = undefined;
+		inlineCodeRun = 0;
 	}
 	return result;
 }

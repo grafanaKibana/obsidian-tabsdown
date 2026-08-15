@@ -2244,6 +2244,12 @@ body .tabsdown.tabsdown--right > .tabsdown__tablist > .tabsdown__tab.tabsdown__t
 	}
 }
 
+body.is-mobile .tabsdown:not(.tabsdown--mounted):not(.tabsdown--density-default):not(.tabsdown--density-compact) > .tabsdown__tablist {
+	--tabsdown-tab-min-size: 32px;
+	--tabsdown-tab-padding-block: 0.375rem;
+	--tabsdown-tab-padding-inline: var(--tabsdown-horizontal-padding, 12px);
+}
+
 /* Explicit density remains authoritative on both sides of the container query. */
 .tabsdown.tabsdown--density-default > .tabsdown__tablist {
 	--tabsdown-tab-min-size: 44px;
