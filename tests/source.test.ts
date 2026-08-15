@@ -471,6 +471,9 @@ describe("guarded authored block rewrites", () => {
 
 	test.each([
 		{ boundary: ["# Heading"] },
+		{ boundary: ["paragraph", "# Heading"] },
+		{ boundary: ["paragraph", "***"] },
+		{ boundary: ["paragraph", "___"] },
 		{ boundary: ["---"] },
 		{ boundary: ["Heading", "---"] },
 		{ boundary: ["    indented code"] },

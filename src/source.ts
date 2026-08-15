@@ -359,7 +359,11 @@ function directBlocks(view: SourceView): FenceBlock[] {
 		const match = parseFenceLine(content);
 		if (!match) {
 			if (paragraphOpen) {
-				if (setextHeading.test(content)) paragraphOpen = false;
+				if (
+					setextHeading.test(content) ||
+					atxHeading.test(content) ||
+					thematicBreak.test(content)
+				) paragraphOpen = false;
 			} else {
 				paragraphOpen = !(
 					atxHeading.test(content) ||
