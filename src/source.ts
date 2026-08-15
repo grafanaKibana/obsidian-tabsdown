@@ -606,10 +606,15 @@ function directBlocks(view: SourceView): FenceBlock[] {
 			if (indents[indents.length - 1] !== containerIndent) indents.push(containerIndent);
 			listIndents.set(prefix.depth, indents);
 		} else {
+			const blank = unquoted.trim() === "";
 			const leading = indentation(unquoted).columns;
-			while ((indents[indents.length - 1] ?? -1) > leading) indents.pop();
+			if (!blank) {
+				while ((indents[indents.length - 1] ?? -1) > leading) indents.pop();
+			}
 			containerIndent = indents[indents.length - 1] ?? 0;
-			const prefix = indentationAcross(unquoted, containerIndent);
+			const prefix = blank
+				? { excess: 0, length: indentation(unquoted).length }
+				: indentationAcross(unquoted, containerIndent);
 			if (!prefix) continue;
 			containerLength = prefix.length;
 			virtualIndent = prefix.excess;
@@ -645,10 +650,11 @@ function directBlocks(view: SourceView): FenceBlock[] {
 		}
 		const container = `${depth}:${containerIndent}`;
 		const paragraphInterrupted = interruptsParagraph(content, previousParagraphLine);
-		const paragraphDepth = Number.parseInt(paragraphContainer, 10);
+		const [paragraphDepth, paragraphIndent] = paragraphContainer.split(":").map(Number);
 		const lazyContinuation = paragraphOpen && !hadMarker && content.trim() !== "" &&
 			container !== paragraphContainer &&
-			depth < paragraphDepth &&
+			(depth < paragraphDepth! ||
+				(depth === paragraphDepth && containerIndent < paragraphIndent!)) &&
 			!paragraphInterrupted;
 		if (hadMarker || (container !== paragraphContainer && !lazyContinuation)) {
 			paragraphOpen = false;

@@ -78,6 +78,18 @@ describe("guarded authored block rewrites", () => {
 		);
 	});
 
+	test("retains a list container across an unindented blank line", () => {
+		const text = `- Parent\n\n    ~~~tabsdown\n    ${inner.trimEnd().replaceAll("\n", "\n    ")}\n    ~~~`;
+		const snapshot = captureBlock(text, { lineStart: 2, nestedOffsets: [] }, inner);
+
+		expect(save(text, snapshot)).toBe(
+			text.replace(
+				"    ~~~tabsdown\n",
+				"    ~~~tabsdown\n    config: density=compact\n",
+			),
+		);
+	});
+
 	test("rewrites a block inside an Obsidian footnote continuation", () => {
 		const text = `[^1]:\n    ~~~tabsdown\n    ${inner.trimEnd().replaceAll("\n", "\n    ")}\n    ~~~`;
 		const snapshot = captureBlock(text, { lineStart: 1, nestedOffsets: [] }, inner);
@@ -681,7 +693,6 @@ describe("guarded authored block rewrites", () => {
 		{ boundary: ["[ref]: /url \"long", "title\""] },
 		{ boundary: ["[ref]: /url", "\"long", "title\""] },
 		{ boundary: ["[", "foo", "]: /url"] },
-		{ boundary: ["paragraph", "1. item"] },
 		{ boundary: ["| Header |", "| --- |"] },
 		{ boundary: ["| Header |", "| - |"] },
 		{ boundary: ["paragraph", "# Heading"] },
@@ -740,6 +751,18 @@ describe("guarded authored block rewrites", () => {
 			"<span>",
 			block,
 		].join("\n");
+
+		expect(nestedBlockCandidates(source, 0)).toEqual([
+			{ offset: source.indexOf(block), source: inner },
+		]);
+	});
+
+	test.each([
+		["an existing bullet list", ["- paragraph"]],
+		["a list that interrupts a paragraph", ["paragraph", "1. item"]],
+	] as const)("preserves a lazy continuation leaving %s", (_name, paragraph) => {
+		const block = `~~~tabsdown\n${inner}~~~`;
+		const source = ["tab: Owner", ...paragraph, "<span>", block].join("\n");
 
 		expect(nestedBlockCandidates(source, 0)).toEqual([
 			{ offset: source.indexOf(block), source: inner },
