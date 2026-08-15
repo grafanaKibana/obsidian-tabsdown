@@ -1648,11 +1648,11 @@ test("keeps authored overrides root-scoped without runtime width state", () => {
 test("coarse pointers keep every authored personality and density at 44px", () => {
 	const styles = readStyles();
 	const coarse = styles.slice(styles.lastIndexOf("@media (any-pointer: coarse)"));
-	const coarseRule = matchingRules(coarse, "body .tabsdown > .tabsdown__tablist");
-	expect(coarseRule).toContain("--tabsdown-tab-min-size: 44px !important");
-	expect(coarseRule).toContain("--tabsdown-tab-min-block-size: 44px !important");
-	expect(styles.lastIndexOf("body .tabsdown > .tabsdown__tablist")).toBeGreaterThan(
-		styles.lastIndexOf(".tabsdown.tabsdown--personality-rail > .tabsdown__tablist"),
+	const coarseRule = matchingRules(coarse, "body .tabsdown.tabsdown.tabsdown.tabsdown.tabsdown.tabsdown > .tabsdown__tablist");
+	expect(coarseRule).toContain("--tabsdown-tab-min-size: 44px");
+	expect(coarseRule).toContain("--tabsdown-tab-min-block-size: 44px");
+	expect(styles.lastIndexOf("body .tabsdown.tabsdown.tabsdown.tabsdown.tabsdown.tabsdown > .tabsdown__tablist")).toBeGreaterThan(
+		styles.lastIndexOf(".tabsdown.tabsdown--personality-rail.tabsdown.tabsdown.tabsdown.tabsdown > .tabsdown__tablist"),
 	);
 
 	const style = document.head.appendChild(document.createElement("style"));
@@ -1684,8 +1684,9 @@ test("coarse pointers keep every authored personality and density at 44px", () =
 	style.remove();
 });
 
-test("authored hover states retain the personality's important cascade", () => {
+test("authored hover states retain the personality cascade without important", () => {
 	const styles = readStyles();
+	expect(styles).not.toContain("!important");
 	const authoredHover = styles.slice(
 		styles.indexOf("@media (hover: hover)", styles.indexOf("/* Authored block settings")),
 		styles.indexOf("body .tabsdown.tabsdown--alignment-start"),
@@ -1695,25 +1696,28 @@ test("authored hover states retain the personality's important cascade", () => {
 			authoredHover,
 			`.tabsdown.tabsdown--personality-${personality}`,
 		);
-		expect(rules, personality).toMatch(/(?:border|background|color)[^:]*:[^;]+!important/);
+		expect(rules, personality).toMatch(/(?:border|background|color)[^:]*:[^;]+/);
 	}
 	const buttonSelected = matchingRuleBodies(
 		authoredHover,
-		'.tabsdown.tabsdown--personality-button > .tabsdown__tablist > .tabsdown__tab:is([aria-selected="true"], [aria-expanded="true"]):hover',
+		'.tabsdown.tabsdown--personality-button.tabsdown.tabsdown.tabsdown.tabsdown > .tabsdown__tablist > .tabsdown__tab:is([aria-selected="true"], [aria-expanded="true"]):hover',
 	);
 	const railSelected = matchingRuleBodies(
 		authoredHover,
-		'.tabsdown.tabsdown--personality-rail > .tabsdown__tablist > .tabsdown__tab:is([aria-selected="true"], [aria-expanded="true"]):hover',
+		'.tabsdown.tabsdown--personality-rail.tabsdown.tabsdown.tabsdown.tabsdown > .tabsdown__tablist > .tabsdown__tab:is([aria-selected="true"], [aria-expanded="true"]):hover',
 	);
 	const separatorSelected = matchingRuleBodies(
 		authoredHover,
-		'.tabsdown.tabsdown--personality-separator > .tabsdown__tablist > .tabsdown__tab:is([aria-selected="true"], [aria-expanded="true"]):hover',
+		'.tabsdown.tabsdown--personality-separator.tabsdown.tabsdown.tabsdown.tabsdown > .tabsdown__tablist > .tabsdown__tab:is([aria-selected="true"], [aria-expanded="true"]):hover',
 	);
-	expect(buttonSelected.match(/!important/g)).toHaveLength(3);
+	expect(buttonSelected).toContain("border-color: var(--tabsdown-tab-selected-border)");
+	expect(buttonSelected).toContain("background-color: var(--tabsdown-tab-selected-background)");
+	expect(buttonSelected).toContain("color: var(--tabsdown-tab-selected-color)");
 	expect(separatorSelected).toContain(
-		"color: var(--tabsdown-tab-underline-color) !important",
+		"color: var(--tabsdown-tab-underline-color)",
 	);
-	expect(railSelected.match(/!important/g)).toHaveLength(2);
+	expect(railSelected).toContain("background-color: var(--tabsdown-rail-selected-background)");
+	expect(railSelected).toContain("color: var(--tabsdown-tab-selected-color)");
 });
 
 test("side structure beats every authored alignment at wide and narrow widths", () => {

@@ -7,7 +7,7 @@ Tabsdown is intentionally small: Markdown remains the source of truth, Obsidian'
 1. Open or select an issue.
 2. Keep the change inside that issue's acceptance criteria.
 3. Do not add private Obsidian APIs, runtime dependencies, plugin-specific adapters, or source-mutating tab behavior.
-4. Build DOM with Obsidian's `createEl` helpers in files that import `obsidian`. Only the runtime-agnostic modules — the ones the Quartz port and the jsdom tests reuse — use `ownerDocument.createElement`, and the `obsidianmd/prefer-create-el` override in `eslint.config.mts` lists exactly those files.
+4. Build production DOM with Obsidian's `createEl` helpers. The ESLint exception is test-only.
 5. Run:
 
    ```bash

@@ -7,7 +7,7 @@ Object.defineProperty(Node.prototype, "createEl", {
 		tag: K,
 		options?: { cls?: string | string[] },
 	): HTMLElementTagNameMap[K] {
-		const element = document.createElement(tag);
+		const element = this.ownerDocument.createElement(tag);
 		if (options?.cls) {
 			const classes =
 				typeof options.cls === "string" ? options.cls.split(" ") : options.cls;

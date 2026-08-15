@@ -46,9 +46,7 @@ export default defineConfig(
 		},
 	},
 	{
-		// The Quartz port vendors tabs.ts verbatim, where Obsidian's DOM
-		// extensions do not exist.
-		files: ["src/label.ts", "src/tabs.ts", "tests/**/*.ts"],
+		files: ["tests/**/*.ts"],
 		rules: {
 			// Tests build DOM in jsdom, where Obsidian's createEl helpers do not exist.
 			"obsidianmd/prefer-create-el": "off",

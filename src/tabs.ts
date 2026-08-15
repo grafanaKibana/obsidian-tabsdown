@@ -1,4 +1,4 @@
-import { renderLabel } from "./label";
+import { createElement, renderLabel } from "./label";
 import { trackPanelHeight, type PanelHeightTracker } from "./panel-height";
 import { inlineLabelText, parseInlineLabel } from "./parser";
 import { trackSeparators } from "./separator";
@@ -191,16 +191,16 @@ export function mountTabs(
 		assignedIds.add(candidate);
 		return candidate;
 	};
-	const root = ownerDocument.createElement("div");
+	const root = createElement(container, "div");
 	root.className = "tabsdown tabsdown--mounted";
 	root.tabIndex = -1;
 
-	const tabList = ownerDocument.createElement("div");
+	const tabList = createElement(root, "div");
 	tabList.className = "tabsdown__tablist";
 	tabList.setAttribute("role", "group");
 	tabList.setAttribute("aria-label", inlineLabelText(groupLabel));
 
-	const panelsEl = ownerDocument.createElement("div");
+	const panelsEl = createElement(root, "div");
 	panelsEl.className = "tabsdown__panels";
 
 	const height: PanelHeightTracker = trackPanelHeight(panelsEl);
@@ -219,28 +219,23 @@ export function mountTabs(
 	for (const tab of options.tabs) mountedPanels.add(tab.panel);
 	const tabs: MountedTab[] = options.tabs.map((tab, index) => {
 		const buttonId = uniqueId(`${mountId}-tab-${index}`);
-		const button = ownerDocument.createElement("button");
+		const button = createElement(tabList, "button");
 		button.type = "button";
 		button.id = buttonId;
 		button.className = "tabsdown__tab";
-		const separator = ownerDocument.createElement("span");
+		const separator = createElement(button, "span");
 		separator.className = "tabsdown__separator";
 		separator.setAttribute("aria-hidden", "true");
 		separator.hidden = true;
-		button.append(separator);
-		const content = ownerDocument.createElement("span");
+		const content = createElement(button, "span");
 		content.className = "tabsdown__tab-content";
-		button.append(content);
-		const label = ownerDocument.createElement("span");
+		const label = createElement(content, "span");
 		label.className = "tabsdown__tab-label";
 		renderLabel(label, tabLabels[index] ?? []);
-		content.append(label);
-		const reserve = ownerDocument.createElement("span");
+		const reserve = createElement(content, "span");
 		reserve.className = "tabsdown__tab-reserve";
 		reserve.setAttribute("aria-hidden", "true");
 		renderLabel(reserve, tabLabels[index] ?? []);
-		content.append(reserve);
-		tabList.append(button);
 
 		const restore = new Map<string, string | null>(
 			panelAttributes.map((name) => [name, tab.panel.getAttribute(name)]),
@@ -286,8 +281,6 @@ export function mountTabs(
 		};
 	});
 
-	root.append(tabList, panelsEl);
-	container.append(root);
 	const separators = trackSeparators(
 		tabList,
 		tabs.map((tab) => tab.button),
