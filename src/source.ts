@@ -628,7 +628,7 @@ function directBlocks(view: SourceView): FenceBlock[] {
 			const markerIndent = footnoteMatch[1]!.length;
 			while ((indents[indents.length - 1] ?? -1) > markerIndent) indents.pop();
 			containerLength = footnoteMatch[0].length;
-			containerIndent = markerIndent + 4;
+			containerIndent = (indents[indents.length - 1] ?? 0) + 4;
 			if (indents[indents.length - 1] !== containerIndent) indents.push(containerIndent);
 			listIndents.set(prefix.depth, indents);
 		} else {
@@ -665,6 +665,20 @@ function directBlocks(view: SourceView): FenceBlock[] {
 				continue;
 			}
 			if (!allowNestedList) break;
+			const nestedFootnote = footnoteMarker.exec(content);
+			if (nestedFootnote) {
+				containerIndent += 4;
+				insertionPrefix += "    ";
+				content = content.slice(nestedFootnote[0].length);
+				hadMarker = true;
+				nestedMustInterruptParagraph = false;
+				const nestedIndents = listIndents.get(depth) ?? [];
+				if (nestedIndents[nestedIndents.length - 1] !== containerIndent) {
+					nestedIndents.push(containerIndent);
+				}
+				listIndents.set(depth, nestedIndents);
+				continue;
+			}
 			const nestedMarker = thematicBreak.test(content) ? null : listMarker.exec(content);
 			if (!nestedMarker || (nestedMustInterruptParagraph &&
 				!listMarkerInterruptsParagraph(content, nestedMarker))) break;

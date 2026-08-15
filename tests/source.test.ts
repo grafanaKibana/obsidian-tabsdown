@@ -791,6 +791,77 @@ describe("guarded authored block rewrites", () => {
 		]);
 	});
 
+	test("parses a footnote after its parent list continuation indentation", () => {
+		const block = `~~~tabsdown\n${inner}~~~`;
+		const nested = block.replaceAll(/^/gm, "        ");
+		const source = [
+			"tab: Owner",
+			"-   Parent",
+			"",
+			"    [^1]:",
+			nested,
+		].join("\n");
+
+		expect(nestedBlockCandidates(source, 0)).toEqual([
+			{ offset: source.indexOf(nested), source: inner },
+		]);
+	});
+
+	test("uses four continuation columns regardless of footnote marker indentation", () => {
+		const block = `~~~tabsdown\n${inner}~~~`;
+		const nested = block.replaceAll(/^/gm, "      ");
+		const source = [
+			"tab: Owner",
+			"- Parent[^1]",
+			"",
+			"    [^1]:",
+			nested,
+		].join("\n");
+		const candidate = nestedBlockCandidates(source, 0)[0]!;
+		const text = `~~~~tabsdown\n${source}~~~~`;
+		const snapshot = captureBlock(
+			text,
+			{ lineStart: 0, nestedOffsets: [candidate.offset] },
+			inner,
+		);
+
+		expect(nestedBlockCandidates(source, 0)).toEqual([
+			{ offset: source.indexOf(nested), source: inner },
+		]);
+		expect(save(text, snapshot)).toBe(
+			text.replace(
+				"      tab: One",
+				"      config: density=compact\n      tab: One",
+			),
+		);
+	});
+
+	test("adds a footnote continuation to its remembered list indentation", () => {
+		const body = inner.trimEnd().replaceAll("\n", "\n      ");
+		const source = [
+			"tab: Owner",
+			"- Parent[^1]",
+			"",
+			"  [^1]: ~~~tabsdown",
+			`      ${body}`,
+			"      ~~~",
+		].join("\n");
+		const candidate = nestedBlockCandidates(source, 0)[0]!;
+		const text = `~~~~tabsdown\n${source}\n~~~~`;
+		const snapshot = captureBlock(
+			text,
+			{ lineStart: 0, nestedOffsets: [candidate.offset] },
+			inner,
+		);
+
+		expect(nestedBlockCandidates(source, 0)).toEqual([
+			{ offset: source.indexOf("  [^1]:"), source: inner },
+		]);
+		expect(save(text, snapshot)).toContain(
+			"      config: density=compact\n      tab: One",
+		);
+	});
+
 	test("clears inline code state at a single-line block boundary", () => {
 		const block = `~~~tabsdown\n${inner}~~~`;
 		const source = [
