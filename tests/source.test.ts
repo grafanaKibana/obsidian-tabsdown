@@ -84,6 +84,28 @@ describe("guarded authored block rewrites", () => {
 			.toThrow(SourceConflictError);
 	});
 
+	test.each(["\n", "\r\n"])(
+		"ignores a fence-like frontmatter scalar with %j bytes",
+		(newline) => {
+			const body = inner.replaceAll("\n", newline);
+			const text = `${[
+				"---",
+				"example: |",
+				"  ~~~tabsdown",
+				"---",
+				"~~~tabsdown",
+			].join(newline)}${newline}${body}~~~`;
+			const snapshot = captureBlock(text, { lineStart: 4, nestedOffsets: [] }, inner);
+
+			expect(save(text, snapshot)).toBe(
+				text.replace(
+					`~~~tabsdown${newline}${body}`,
+					`~~~tabsdown${newline}config: density=compact${newline}${body}`,
+				),
+			);
+		},
+	);
+
 	test.each([
 		{ newline: "\n", rendered: inner },
 		{ newline: "\n", rendered: inner.slice(0, -1) },
@@ -461,6 +483,24 @@ describe("guarded authored block rewrites", () => {
 
 	test.each(["2. item", "2) item"])(
 		"keeps a non-1 ordered marker inside its paragraph: %s",
+		(marker) => {
+			const block = `~~~tabsdown\n${inner}~~~`;
+			const source = [
+				"tab: Owner",
+				"paragraph",
+				marker,
+				"<span>",
+				block,
+			].join("\n");
+
+			expect(nestedBlockCandidates(source, 0)).toEqual([
+				{ offset: source.indexOf(block), source: inner },
+			]);
+		},
+	);
+
+	test.each(["+ ", "1. "])(
+		"keeps a blank list marker inside its paragraph: %j",
 		(marker) => {
 			const block = `~~~tabsdown\n${inner}~~~`;
 			const source = [

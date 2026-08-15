@@ -55,6 +55,7 @@ const htmlTagClose = /[ \t]*\/?>[ \t]*$/y;
 const atxHeading = /^ {0,3}#{1,6}(?:[ \t]+|$)/;
 const setextHeading = /^ {0,3}(?:=+|-+)[ \t]*$/;
 const thematicBreak = /^ {0,3}(?:(?:\*[ \t]*){3,}|(?:_[ \t]*){3,}|(?:-[ \t]*){3,})$/;
+const frontmatterFence = /^---[ \t]*$/;
 
 export class SourceConflictError extends Error {}
 
@@ -105,6 +106,16 @@ function lines(source: string, from = 0, to = source.length): SourceLine[] {
 		start = end;
 	}
 	return result;
+}
+
+function frontmatterEnd(source: string): number {
+	const sourceLines = lines(source);
+	const first = sourceLines[0];
+	if (!first || !frontmatterFence.test(source.slice(first.start, first.contentEnd))) return 0;
+	for (const line of sourceLines.slice(1)) {
+		if (frontmatterFence.test(source.slice(line.start, line.contentEnd))) return line.end;
+	}
+	return 0;
 }
 
 function quotePrefix(line: string): { depth: number; length: number } {
@@ -318,8 +329,11 @@ function directBlocks(view: SourceView): FenceBlock[] {
 				`${prefix.depth}:${indents[indents.length - 1] ?? 0}`;
 			if (
 				sameParagraph &&
-				/^\d/.test(markerMatch[2]!) &&
-				Number.parseInt(markerMatch[2]!, 10) !== 1
+				(
+					unquoted.slice(markerMatch[0].length).trim() === "" ||
+					(/^\d/.test(markerMatch[2]!) &&
+						Number.parseInt(markerMatch[2]!, 10) !== 1)
+				)
 			) markerMatch = null;
 		}
 		if (markerMatch) {
@@ -502,7 +516,10 @@ function nestedBlockAt(view: SourceView, offset: number): FenceBlock | undefined
 function resolveLocator(source: string, locator: BlockLocator): FenceBlock {
 	const view = createSourceView(source);
 	const opening = lineOffset(view.text, locator.lineStart);
-	const found = directBlocks(view).find((candidate) => candidate.open === opening);
+	const scanFrom = frontmatterEnd(view.text);
+	const found = directBlocks(sliceView(view, scanFrom, view.text.length)).find(
+		(candidate) => candidate.open === opening - scanFrom,
+	);
 	if (!found) throw new SourceConflictError("The Tabsdown block could not be located.");
 	let block = found;
 	for (const relativeOffset of locator.nestedOffsets) {
