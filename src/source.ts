@@ -247,11 +247,15 @@ function listItemPrefix(match: RegExpExecArray): { indent: number; length: numbe
 	};
 }
 
-function interruptsParagraph(line: string, previousLine: string): boolean {
-	const marker = listMarker.exec(line);
-	const list = marker && line.slice(marker[0].length).trim() !== "" && (
+function listMarkerInterruptsParagraph(line: string, marker: RegExpExecArray): boolean {
+	return line.slice(marker[0].length).trim() !== "" && (
 		!/^\d/.test(marker[2]!) || Number.parseInt(marker[2]!, 10) === 1
 	);
+}
+
+function interruptsParagraph(line: string, previousLine: string): boolean {
+	const marker = listMarker.exec(line);
+	const list = marker && listMarkerInterruptsParagraph(line, marker);
 	const table = previousLine.includes("|") && line.includes("|") &&
 		tableDelimiter.test(line) &&
 		tableColumnCount(previousLine) === tableColumnCount(line);
@@ -610,14 +614,9 @@ function directBlocks(view: SourceView): FenceBlock[] {
 			while ((indents[indents.length - 1] ?? -1) > markerIndent) indents.pop();
 			const sameParagraph = paragraphOpen && paragraphContainer ===
 				`${prefix.depth}:${indents[indents.length - 1] ?? 0}`;
-			if (
-				sameParagraph &&
-				(
-					unquoted.slice(markerMatch[0].length).trim() === "" ||
-					(/^\d/.test(markerMatch[2]!) &&
-						Number.parseInt(markerMatch[2]!, 10) !== 1)
-				)
-			) markerMatch = null;
+			if (sameParagraph && !listMarkerInterruptsParagraph(unquoted, markerMatch)) {
+				markerMatch = null;
+			}
 		}
 		if (markerMatch) {
 			const item = listItemPrefix(markerMatch);
@@ -651,7 +650,8 @@ function directBlocks(view: SourceView): FenceBlock[] {
 		let insertionPrefix = rawContent.slice(0, prefix.length) + " ".repeat(containerIndent);
 		let content = " ".repeat(virtualIndent) + unquoted.slice(containerLength);
 		let hadMarker = markerMatch !== null || footnoteMatch !== null;
-		let allowNestedList = hadMarker;
+		let allowNestedList = hadMarker || containerLength > 0;
+		let nestedMustInterruptParagraph = paragraphOpen && !hadMarker;
 		while (true) {
 			const nestedQuote = quotePrefix(content);
 			if (nestedQuote.depth > 0) {
@@ -661,16 +661,19 @@ function directBlocks(view: SourceView): FenceBlock[] {
 				content = content.slice(nestedQuote.length);
 				containerIndent = 0;
 				allowNestedList = true;
+				nestedMustInterruptParagraph = false;
 				continue;
 			}
 			if (!allowNestedList) break;
 			const nestedMarker = thematicBreak.test(content) ? null : listMarker.exec(content);
-			if (!nestedMarker) break;
+			if (!nestedMarker || (nestedMustInterruptParagraph &&
+				!listMarkerInterruptsParagraph(content, nestedMarker))) break;
 			const item = listItemPrefix(nestedMarker);
 			containerIndent += item.indent;
 			insertionPrefix += " ".repeat(item.indent);
 			content = content.slice(item.length);
 			hadMarker = true;
+			nestedMustInterruptParagraph = false;
 			const nestedIndents = listIndents.get(depth) ?? [];
 			if (nestedIndents[nestedIndents.length - 1] !== containerIndent) {
 				nestedIndents.push(containerIndent);
@@ -838,25 +841,20 @@ function directBlocks(view: SourceView): FenceBlock[] {
 				commentTouched = comment.touched;
 			}
 			if (commentTouched && content.trim() === "") continue;
-			if (paragraphOpen) {
-				if (
+				const singleLineBlock: boolean = atxHeading.test(content) ||
+				thematicBreak.test(content) ||
+				(!paragraphOpen && /^(?: {4}|\t)/.test(content)) ||
+				(paragraphOpen && (
 					setextHeading.test(content) ||
-					atxHeading.test(content) ||
-					thematicBreak.test(content) ||
 					(
 						previousParagraphLine.includes("|") &&
 						content.includes("|") &&
 						tableDelimiter.test(content) &&
 						tableColumnCount(previousParagraphLine) === tableColumnCount(content)
 					)
-				) paragraphOpen = false;
-			} else {
-				paragraphOpen = !(
-					atxHeading.test(content) ||
-					thematicBreak.test(content) ||
-					/^(?: {4}|\t)/.test(content)
-				);
-			}
+				));
+			paragraphOpen = !singleLineBlock;
+			if (singleLineBlock) inlineCodeRun = 0;
 			previousParagraphLine = paragraphOpen ? content : "";
 			continue;
 		}

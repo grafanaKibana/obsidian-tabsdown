@@ -745,6 +745,69 @@ describe("guarded authored block rewrites", () => {
 		]);
 	});
 
+	test("parses a child marker after its parent continuation indentation", () => {
+		const block = `~~~tabsdown\n${inner}~~~`;
+		const nested = block.replaceAll(/^/gm, "        ");
+		const source = ["tab: Owner", "-   Parent", "    1. Child", nested].join("\n");
+
+		expect(nestedBlockCandidates(source, 0)).toEqual([
+			{ offset: source.indexOf(nested), source: inner },
+		]);
+	});
+
+	test.each(["10. Child", "- "])(
+		"does not let a non-interrupting child marker leave its paragraph: %j",
+		(marker) => {
+			const block = `~~~tabsdown\n${inner}~~~`;
+			const nested = block.replaceAll(/^/gm, "        ");
+			const source = ["tab: Owner", "-   Parent", `    ${marker}`, nested].join("\n");
+
+			expect(nestedBlockCandidates(source, 0)).toEqual([]);
+		},
+	);
+
+	test("locates a nested block after a list item's initial indented code", () => {
+		const block = `~~~tabsdown\n${inner}~~~`;
+		const nested = block.replaceAll(/^/gm, "    ");
+		const source = [
+			"tab: Owner",
+			"paragraph",
+			"-     code",
+			nested,
+		].join("\n");
+
+		expect(nestedBlockCandidates(source, 0)).toEqual([
+			{ offset: source.indexOf(nested), source: inner },
+		]);
+	});
+
+	test("allows a non-1 ordered list inside a new outer list item", () => {
+		const block = `~~~tabsdown\n${inner}~~~`;
+		const nested = block.replaceAll(/^/gm, "      ");
+		const source = ["tab: Owner", "paragraph", "- 10. Child", nested].join("\n");
+
+		expect(nestedBlockCandidates(source, 0)).toEqual([
+			{ offset: source.indexOf(nested), source: inner },
+		]);
+	});
+
+	test("clears inline code state at a single-line block boundary", () => {
+		const block = `~~~tabsdown\n${inner}~~~`;
+		const source = [
+			"tab: Owner",
+			"# Heading `",
+			"<span>",
+			"`",
+			block,
+			"",
+			block,
+		].join("\n");
+
+		expect(nestedBlockCandidates(source, 0)).toEqual([
+			{ offset: source.lastIndexOf(block), source: inner },
+		]);
+	});
+
 	test("accepts a maximum-length reference label after three spaces", () => {
 		const block = `~~~tabsdown\n${inner}~~~`;
 		const source = [
