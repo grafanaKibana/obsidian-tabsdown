@@ -17,6 +17,7 @@ import {
 import {
 	applySourceEdit,
 	captureBlock,
+	locateBlock,
 	nestedBlockCandidates,
 	renderedSourceKey,
 	rewriteBlock,
@@ -40,16 +41,21 @@ interface LocatorRef {
 	lineStart?: number;
 	parent?: LocatorRef;
 	offset?: number;
+	/** An embedded block: its own note holds this source, but no section reports it. */
+	search?: string;
 }
 
-function resolveLocatorRef(ref: LocatorRef): BlockLocator | undefined {
+function resolveLocatorRef(ref: LocatorRef, text: string): BlockLocator | undefined {
 	if (ref.parent) {
-		const parent = resolveLocatorRef(ref.parent);
+		const parent = resolveLocatorRef(ref.parent, text);
 		if (!parent || ref.offset === undefined) return undefined;
 		return { lineStart: parent.lineStart, nestedOffsets: [...parent.nestedOffsets, ref.offset] };
 	}
-	if (ref.lineStart === undefined) return undefined;
-	return { lineStart: ref.lineStart, nestedOffsets: [] };
+	const lineStart = ref.search === undefined
+		? ref.lineStart
+		: locateBlock(text, ref.search)?.lineStart;
+	if (lineStart === undefined) return undefined;
+	return { lineStart, nestedOffsets: [] };
 }
 
 function bindNestedLocators(scope: PanelScope): void {
@@ -124,6 +130,8 @@ export default class TabsdownPlugin extends Plugin {
 				bindNestedLocators(parentScope);
 			} else if (renderedSection) {
 				locatorRef = { lineStart: renderedSection.lineStart };
+			} else {
+				locatorRef = { search: source };
 			}
 			const addRenderChild = (child: MarkdownRenderChild): void => {
 				child.registerDomEvent(element, "click", (event) => {
@@ -272,8 +280,6 @@ export default class TabsdownPlugin extends Plugin {
 					if (!available()) throw new Error("This Tabsdown block is no longer available.");
 				};
 				const generation = this.fileGenerations.get(file) ?? 0;
-				const locator = resolveLocatorRef(locatorRef);
-				if (!locator) throw new Error("This nested Tabsdown block could not be identified.");
 				this.assertCurrentFile(file);
 				const editors = this.markdownEditors(file);
 				const owner = origin && editors.includes(origin)
@@ -284,6 +290,8 @@ export default class TabsdownPlugin extends Plugin {
 				if ((this.fileGenerations.get(file) ?? 0) !== generation) {
 					throw new Error("The note changed. Reopen the block settings.");
 				}
+				const locator = resolveLocatorRef(locatorRef, text);
+				if (!locator) throw new Error("This nested Tabsdown block could not be identified.");
 				const snapshot = captureBlock(text, locator, source);
 				return async (nextOptions) => {
 					assertAvailable();

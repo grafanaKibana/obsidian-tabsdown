@@ -548,6 +548,8 @@ settings:
 	--tabsdown-animation-duration: var(--tabsdown-animation-speed, 160ms);
 	--tabsdown-tab-min-size: 44px;
 	--tabsdown-tab-min-block-size: var(--tabsdown-tab-min-size);
+	--tabsdown-rail-tab-min-block-size: 36px;
+	--tabsdown-rail-tab-padding-block: 0.125rem;
 	--tabsdown-equal-wrap-basis: min(
 		100%,
 		max(
@@ -1044,11 +1046,15 @@ body.tabsdown-right-personality-underline .tabsdown--right > .tabsdown__tablist 
 
 body.tabsdown-density-compact .tabsdown {
 	--tabsdown-tab-min-size: 32px;
+	--tabsdown-rail-tab-min-block-size: 28px;
+	--tabsdown-rail-tab-padding-block: 0.0625rem;
 	--tabsdown-tab-padding-block: 0.375rem;
 	--tabsdown-tab-padding-inline: var(--tabsdown-horizontal-padding, 12px);
 }
 
 body.tabsdown-density-default .tabsdown {
+	--tabsdown-rail-tab-min-block-size: 36px;
+	--tabsdown-rail-tab-padding-block: 0.125rem;
 	--tabsdown-tab-padding-block: 0.5rem;
 	--tabsdown-tab-padding-inline: var(--tabsdown-horizontal-padding, 36px);
 }
@@ -1160,14 +1166,14 @@ body.tabsdown-personality-separator .tabsdown__tab[aria-expanded="true"] {
 }
 
 body.tabsdown-personality-rail .tabsdown__tablist {
-	--tabsdown-tab-min-block-size: 36px;
+	--tabsdown-tab-min-block-size: var(--tabsdown-rail-tab-min-block-size);
 	padding: 0.375rem;
 	border-radius: var(--tabsdown-radius, var(--radius-s));
 	background-color: var(--background-secondary);
 }
 
 body.tabsdown-personality-rail .tabsdown__tab {
-	padding-block: 0.125rem;
+	padding-block: var(--tabsdown-rail-tab-padding-block);
 }
 
 body.tabsdown-personality-rail .tabsdown__tab[aria-selected="true"],
@@ -1818,7 +1824,7 @@ body.tabsdown-top-personality-rail .tabsdown--top > .tabsdown__tablist,
 body.tabsdown-bottom-personality-rail .tabsdown--bottom > .tabsdown__tablist,
 body.tabsdown-left-personality-rail .tabsdown--left > .tabsdown__tablist,
 body.tabsdown-right-personality-rail .tabsdown--right > .tabsdown__tablist {
-	--tabsdown-tab-min-block-size: 36px;
+	--tabsdown-tab-min-block-size: var(--tabsdown-rail-tab-min-block-size);
 	padding: 0.375rem;
 	border-radius: var(--tabsdown-radius, var(--radius-s));
 	background-color: var(--background-secondary);
@@ -1828,7 +1834,7 @@ body.tabsdown-top-personality-rail .tabsdown--top > .tabsdown__tablist > .tabsdo
 body.tabsdown-bottom-personality-rail .tabsdown--bottom > .tabsdown__tablist > .tabsdown__tab,
 body.tabsdown-left-personality-rail .tabsdown--left > .tabsdown__tablist > .tabsdown__tab,
 body.tabsdown-right-personality-rail .tabsdown--right > .tabsdown__tablist > .tabsdown__tab {
-	padding-block: 0.125rem;
+	padding-block: var(--tabsdown-rail-tab-padding-block);
 }
 
 body.tabsdown-top-personality-rail .tabsdown--top > .tabsdown__tablist > .tabsdown__tab[aria-selected="true"],
@@ -2129,14 +2135,14 @@ body .tabsdown.tabsdown--personality-rail.tabsdown.tabsdown.tabsdown.tabsdown > 
 }
 
 body .tabsdown.tabsdown--personality-rail.tabsdown.tabsdown.tabsdown.tabsdown > .tabsdown__tablist {
-	--tabsdown-tab-min-block-size: 36px;
+	--tabsdown-tab-min-block-size: var(--tabsdown-rail-tab-min-block-size);
 	padding: 0.375rem;
 	border-radius: var(--tabsdown-radius, var(--radius-s));
 	background-color: var(--background-secondary);
 }
 
 body .tabsdown.tabsdown--personality-rail.tabsdown.tabsdown.tabsdown.tabsdown > .tabsdown__tablist > .tabsdown__tab {
-	padding-block: 0.125rem;
+	padding-block: var(--tabsdown-rail-tab-padding-block);
 }
 
 body .tabsdown.tabsdown--personality-rail.tabsdown.tabsdown.tabsdown.tabsdown > .tabsdown__tablist > .tabsdown__tab[aria-selected="true"],
@@ -2233,6 +2239,8 @@ body .tabsdown.tabsdown--right > .tabsdown__tablist > .tabsdown__tab.tabsdown__t
 @container (max-width: 28rem) {
 	.tabsdown:not(.tabsdown--mounted):not(.tabsdown--density-default):not(.tabsdown--density-compact) > .tabsdown__tablist {
 		--tabsdown-tab-min-size: 32px;
+		--tabsdown-rail-tab-min-block-size: 28px;
+		--tabsdown-rail-tab-padding-block: 0.0625rem;
 		--tabsdown-tab-padding-block: 0.375rem;
 		--tabsdown-tab-padding-inline: var(--tabsdown-horizontal-padding, 12px);
 	}
@@ -2248,6 +2256,8 @@ body .tabsdown.tabsdown--right > .tabsdown__tablist > .tabsdown__tab.tabsdown__t
 
 body.is-mobile .tabsdown:not(.tabsdown--mounted):not(.tabsdown--density-default):not(.tabsdown--density-compact) > .tabsdown__tablist {
 	--tabsdown-tab-min-size: 32px;
+	--tabsdown-rail-tab-min-block-size: 28px;
+	--tabsdown-rail-tab-padding-block: 0.0625rem;
 	--tabsdown-tab-padding-block: 0.375rem;
 	--tabsdown-tab-padding-inline: var(--tabsdown-horizontal-padding, 12px);
 }
@@ -2255,12 +2265,16 @@ body.is-mobile .tabsdown:not(.tabsdown--mounted):not(.tabsdown--density-default)
 /* Explicit density remains authoritative on both sides of the container query. */
 .tabsdown.tabsdown--density-default > .tabsdown__tablist {
 	--tabsdown-tab-min-size: 44px;
+	--tabsdown-rail-tab-min-block-size: 36px;
+	--tabsdown-rail-tab-padding-block: 0.125rem;
 	--tabsdown-tab-padding-block: 0.5rem;
 	--tabsdown-tab-padding-inline: var(--tabsdown-horizontal-padding, 36px);
 }
 
 .tabsdown.tabsdown--density-compact > .tabsdown__tablist {
 	--tabsdown-tab-min-size: 32px;
+	--tabsdown-rail-tab-min-block-size: 28px;
+	--tabsdown-rail-tab-padding-block: 0.0625rem;
 	--tabsdown-tab-padding-block: 0.375rem;
 	--tabsdown-tab-padding-inline: var(--tabsdown-horizontal-padding, 12px);
 }
@@ -2270,4 +2284,160 @@ body.is-mobile .tabsdown:not(.tabsdown--mounted):not(.tabsdown--density-default)
 		--tabsdown-tab-min-size: 44px;
 		--tabsdown-tab-min-block-size: 44px;
 	}
+}
+
+/* Resolved inherited settings, read only by the block settings menu. Nothing
+   here renders. The Inherit labels read these values so the menu never derives
+   the cascade above a second time and drifts from it. Authored block classes are
+   deliberately absent: the labels describe what applies when a block omits the
+   setting. Repeated root classes rank the sources without important
+   declarations, in the documented order — built-in, global, position, nesting,
+   automatic size. */
+
+.tabsdown {
+	--tabsdown-resolved-personality: button;
+	--tabsdown-resolved-palette: primary;
+}
+
+.tabsdown > .tabsdown__tablist {
+	--tabsdown-resolved-density: default;
+	--tabsdown-resolved-layout: one;
+	--tabsdown-resolved-alignment: start;
+}
+
+body.tabsdown-personality-default .tabsdown {
+	--tabsdown-resolved-personality: button;
+}
+
+body.tabsdown-personality-underline .tabsdown {
+	--tabsdown-resolved-personality: underline;
+}
+
+body.tabsdown-personality-separator .tabsdown {
+	--tabsdown-resolved-personality: separator;
+}
+
+body.tabsdown-personality-rail .tabsdown {
+	--tabsdown-resolved-personality: rail;
+}
+
+body.tabsdown-palette-primary .tabsdown {
+	--tabsdown-resolved-palette: primary;
+}
+
+body.tabsdown-palette-secondary .tabsdown {
+	--tabsdown-resolved-palette: secondary;
+}
+
+body.tabsdown-density-compact .tabsdown > .tabsdown__tablist {
+	--tabsdown-resolved-density: compact;
+}
+
+body.tabsdown-density-default .tabsdown > .tabsdown__tablist {
+	--tabsdown-resolved-density: default;
+}
+
+body.tabsdown-overflow-scroll .tabsdown > .tabsdown__tablist {
+	--tabsdown-resolved-layout: one;
+}
+
+body.tabsdown-overflow-wrap .tabsdown > .tabsdown__tablist {
+	--tabsdown-resolved-layout: multi;
+}
+
+body.tabsdown-alignment-start .tabsdown > .tabsdown__tablist {
+	--tabsdown-resolved-alignment: start;
+}
+
+body.tabsdown-alignment-center .tabsdown > .tabsdown__tablist {
+	--tabsdown-resolved-alignment: center;
+}
+
+body.tabsdown-alignment-equal-width .tabsdown > .tabsdown__tablist {
+	--tabsdown-resolved-alignment: equal-width;
+}
+
+/* One class above the global rules, so a position override wins. */
+
+body.tabsdown-top-personality-button .tabsdown--top.tabsdown,
+body.tabsdown-bottom-personality-button .tabsdown--bottom.tabsdown,
+body.tabsdown-left-personality-button .tabsdown--left.tabsdown,
+body.tabsdown-right-personality-button .tabsdown--right.tabsdown {
+	--tabsdown-resolved-personality: button;
+}
+
+body.tabsdown-top-personality-underline .tabsdown--top.tabsdown,
+body.tabsdown-bottom-personality-underline .tabsdown--bottom.tabsdown,
+body.tabsdown-left-personality-underline .tabsdown--left.tabsdown,
+body.tabsdown-right-personality-underline .tabsdown--right.tabsdown {
+	--tabsdown-resolved-personality: underline;
+}
+
+body.tabsdown-top-personality-separator .tabsdown--top.tabsdown,
+body.tabsdown-bottom-personality-separator .tabsdown--bottom.tabsdown,
+body.tabsdown-left-personality-separator .tabsdown--left.tabsdown,
+body.tabsdown-right-personality-separator .tabsdown--right.tabsdown {
+	--tabsdown-resolved-personality: separator;
+}
+
+body.tabsdown-top-personality-rail .tabsdown--top.tabsdown,
+body.tabsdown-bottom-personality-rail .tabsdown--bottom.tabsdown,
+body.tabsdown-left-personality-rail .tabsdown--left.tabsdown,
+body.tabsdown-right-personality-rail .tabsdown--right.tabsdown {
+	--tabsdown-resolved-personality: rail;
+}
+
+body.tabsdown-top-palette-primary .tabsdown--top.tabsdown,
+body.tabsdown-bottom-palette-primary .tabsdown--bottom.tabsdown,
+body.tabsdown-left-palette-primary .tabsdown--left.tabsdown,
+body.tabsdown-right-palette-primary .tabsdown--right.tabsdown {
+	--tabsdown-resolved-palette: primary;
+}
+
+body.tabsdown-top-palette-secondary .tabsdown--top.tabsdown,
+body.tabsdown-bottom-palette-secondary .tabsdown--bottom.tabsdown,
+body.tabsdown-left-palette-secondary .tabsdown--left.tabsdown,
+body.tabsdown-right-palette-secondary .tabsdown--right.tabsdown {
+	--tabsdown-resolved-palette: secondary;
+}
+
+body.tabsdown-top-alignment-start .tabsdown--top.tabsdown > .tabsdown__tablist,
+body.tabsdown-bottom-alignment-start .tabsdown--bottom.tabsdown > .tabsdown__tablist,
+body.tabsdown-left-alignment-start .tabsdown--left.tabsdown > .tabsdown__tablist,
+body.tabsdown-right-alignment-start .tabsdown--right.tabsdown > .tabsdown__tablist {
+	--tabsdown-resolved-alignment: start;
+}
+
+body.tabsdown-top-alignment-center .tabsdown--top.tabsdown > .tabsdown__tablist,
+body.tabsdown-bottom-alignment-center .tabsdown--bottom.tabsdown > .tabsdown__tablist,
+body.tabsdown-left-alignment-center .tabsdown--left.tabsdown > .tabsdown__tablist,
+body.tabsdown-right-alignment-center .tabsdown--right.tabsdown > .tabsdown__tablist {
+	--tabsdown-resolved-alignment: center;
+}
+
+body.tabsdown-top-alignment-equal-width .tabsdown--top.tabsdown > .tabsdown__tablist,
+body.tabsdown-bottom-alignment-equal-width .tabsdown--bottom.tabsdown > .tabsdown__tablist,
+body.tabsdown-left-alignment-equal-width .tabsdown--left.tabsdown > .tabsdown__tablist,
+body.tabsdown-right-alignment-equal-width .tabsdown--right.tabsdown > .tabsdown__tablist {
+	--tabsdown-resolved-alignment: equal-width;
+}
+
+/* Nesting forces Secondary whatever the global and position palettes say. */
+
+body .tabsdown--nested-odd.tabsdown.tabsdown,
+body .tabsdown--nested-even.tabsdown.tabsdown {
+	--tabsdown-resolved-palette: secondary;
+}
+
+/* Compact applies automatically to a block that omits density, so these outrank
+   the global rules and drop the authored-density guards the render rules carry. */
+
+@container (max-width: 28rem) {
+	.tabsdown.tabsdown.tabsdown.tabsdown:not(.tabsdown--mounted) > .tabsdown__tablist {
+		--tabsdown-resolved-density: compact;
+	}
+}
+
+body.is-mobile .tabsdown.tabsdown.tabsdown.tabsdown:not(.tabsdown--mounted) > .tabsdown__tablist {
+	--tabsdown-resolved-density: compact;
 }

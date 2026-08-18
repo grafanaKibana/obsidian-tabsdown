@@ -13,6 +13,7 @@ import {
 	addBlockSettingsContextMenu,
 	type SaveBlockSettings,
 } from "../src/block-settings";
+import type { TabsdownConfig } from "../src/config";
 import type { TabDefinition } from "../src/parser";
 import {
 	menuItems,
@@ -180,7 +181,7 @@ test("shows every block setting as a checked native submenu and saves a choice",
 	]);
 	expect(menuChoice("Overflow", "Wrap — multiple rows").checked).toBe(true);
 	expect(menuChoice("Density", "Compact").checked).toBe(true);
-	expect(menuChoice("Personality", "Inherit position / global Personality").checked).toBe(true);
+	expect(menuChoice("Personality", "Inherit (Button)").checked).toBe(true);
 
 	await menuChoice("Personality", "Rail").callback?.(new MouseEvent("click"));
 	expect(open).toHaveBeenCalledOnce();
@@ -321,7 +322,7 @@ test("does nothing when the checked choice is selected", async () => {
 		{ open, registerPanel: vi.fn() },
 	).load();
 	openContextMenu(container.querySelector<HTMLButtonElement>('[role="tab"]')!);
-	await menuChoice("Density", "Automatic / inherit global Size").callback?.(
+	await menuChoice("Density", "Inherit (Default)").callback?.(
 		new MouseEvent("click"),
 	);
 	expect(open).toHaveBeenCalledOnce();
@@ -1244,7 +1245,7 @@ test("fully resets position personality, palette, and alignment", () => {
 		expect(rail).toContain("background-color: var(--tabsdown-rail-selected-background)");
 		expect(rail).toContain("color: var(--tabsdown-tab-selected-color)");
 		expect(rail).toContain("padding: 0.375rem");
-		expect(rail).toContain("padding-block: 0.125rem");
+		expect(rail).toContain("padding-block: var(--tabsdown-rail-tab-padding-block)");
 
 		for (const palette of ["primary", "secondary"]) {
 			const body = matchingRuleBodies(styles, `body.tabsdown-${position}-palette-${palette}`);
@@ -1628,8 +1629,11 @@ test("makes only unconfigured authored narrow blocks compact", () => {
 	expect(explicitDefault).toContain("--tabsdown-horizontal-padding, 36px");
 	expect(explicitCompact).toContain("--tabsdown-tab-min-size: 32px");
 	expect(explicitCompact).toContain("--tabsdown-horizontal-padding, 12px");
-	expect(styles.lastIndexOf(".tabsdown.tabsdown--density-default > .tabsdown__tablist")).toBeGreaterThan(
-		styles.lastIndexOf("body.is-mobile .tabsdown"),
+	// Source order among the render rules; the resolved-settings section below
+	// them sets no rendering declarations.
+	const rendering = styles.slice(0, styles.indexOf("--tabsdown-resolved-personality"));
+	expect(rendering.lastIndexOf(".tabsdown.tabsdown--density-default > .tabsdown__tablist")).toBeGreaterThan(
+		rendering.lastIndexOf("body.is-mobile .tabsdown"),
 	);
 });
 
@@ -1751,5 +1755,153 @@ test("side structure beats every authored alignment at wide and narrow widths", 
 			root.remove();
 			style.remove();
 		}
+	}
+});
+
+test("scales the rail personality with the requested density", () => {
+	const styles = readStyles();
+	for (const selector of [
+		"body.tabsdown-personality-rail .tabsdown__tablist",
+		"body.tabsdown-top-personality-rail",
+		"body .tabsdown.tabsdown--personality-rail",
+	]) {
+		expect(matchingRuleBodies(styles, selector)).toContain(
+			"--tabsdown-tab-min-block-size: var(--tabsdown-rail-tab-min-block-size)",
+		);
+	}
+	for (const selector of [
+		"body.tabsdown-density-compact .tabsdown",
+		".tabsdown.tabsdown--density-compact > .tabsdown__tablist",
+	]) {
+		const body = matchingRuleBodies(styles, selector);
+		expect(body).toContain("--tabsdown-rail-tab-min-block-size: 28px");
+		expect(body).toContain("--tabsdown-rail-tab-padding-block: 0.0625rem");
+	}
+	for (const selector of [
+		"body.tabsdown-density-default .tabsdown",
+		".tabsdown.tabsdown--density-default > .tabsdown__tablist",
+	]) {
+		const body = matchingRuleBodies(styles, selector);
+		expect(body).toContain("--tabsdown-rail-tab-min-block-size: 36px");
+		expect(body).toContain("--tabsdown-rail-tab-padding-block: 0.125rem");
+	}
+});
+
+function inheritLabels(body: string, block: string, options: TabsdownConfig = {}): string[] {
+	const style = document.head.appendChild(document.createElement("style"));
+	style.textContent = readStyles();
+	document.body.className = body;
+	const parent = document.body.appendChild(document.createElement("div"));
+	parent.className = `tabsdown ${block}`.trim();
+	const list = parent.appendChild(document.createElement("div"));
+	list.className = "tabsdown__tablist";
+	list.appendChild(document.createElement("button")).className = "tabsdown__tab";
+	try {
+		addBlockSettingsContextMenu(
+			parent, options, async () => async () => {}, () => true,
+			(element, type, callback) => element.addEventListener(type, callback),
+			vi.fn(),
+		);
+		menuItems.splice(0);
+		openContextMenu(parent);
+		return menuItems
+			.filter((item) => item.parent && item.title.startsWith("Inherit ("))
+			.map((item) => item.title);
+	} finally {
+		style.remove();
+		parent.remove();
+		document.body.className = "";
+	}
+}
+
+const styleSettingsDefaults = [
+	"tabsdown-density-default", "tabsdown-personality-rail", "tabsdown-overflow-scroll",
+	"tabsdown-palette-primary", "tabsdown-alignment-equal-width",
+	"tabsdown-top-personality-inherit", "tabsdown-top-palette-inherit",
+	"tabsdown-top-alignment-inherit", "tabsdown-left-personality-underline",
+].join(" ");
+
+test("names each omitted setting after the value the stylesheet resolves", () => {
+	// No Style Settings: only the built-in values apply.
+	expect(inheritLabels("", "")).toEqual([
+		"Inherit (Top)", "Inherit (Scroll — one row)", "Inherit (Default)",
+		"Inherit (Button)", "Inherit (Primary)", "Inherit (Start)",
+	]);
+
+	expect(inheritLabels(styleSettingsDefaults, "tabsdown--top")).toEqual([
+		"Inherit (Top)", "Inherit (Scroll — one row)", "Inherit (Default)",
+		"Inherit (Rail)", "Inherit (Primary)", "Inherit (Equal width)",
+	]);
+
+	expect(inheritLabels(
+		"tabsdown-density-compact tabsdown-overflow-wrap tabsdown-personality-default"
+			+ " tabsdown-palette-secondary tabsdown-alignment-center",
+		"",
+	)).toEqual([
+		"Inherit (Top)", "Inherit (Wrap — multiple rows)", "Inherit (Compact)",
+		"Inherit (Button)", "Inherit (Secondary)", "Inherit (Center)",
+	]);
+});
+
+test("prefers the position override, then nesting, over the global choice", () => {
+	const personality = (body: string, block: string): string =>
+		inheritLabels(body, block)[3]!;
+
+	expect(personality("tabsdown-personality-rail", "tabsdown--left")).toBe("Inherit (Rail)");
+	expect(personality(
+		"tabsdown-personality-rail tabsdown-left-personality-separator",
+		"tabsdown--left",
+	)).toBe("Inherit (Separator)");
+	// The override only speaks for its own position.
+	expect(personality(
+		"tabsdown-personality-rail tabsdown-left-personality-separator",
+		"tabsdown--top",
+	)).toBe("Inherit (Rail)");
+
+	const palette = (body: string, block: string): string => inheritLabels(body, block)[4]!;
+
+	expect(palette("tabsdown-palette-primary", "")).toBe("Inherit (Primary)");
+	// Nested blocks are always Secondary, whatever the global and position say.
+	for (const parity of ["odd", "even"]) {
+		expect(palette(
+			"tabsdown-palette-primary tabsdown-top-palette-primary",
+			`tabsdown--top tabsdown--nested-${parity}`,
+		)).toBe("Inherit (Secondary)");
+	}
+});
+
+test("names Compact where a block gets it automatically", () => {
+	expect(inheritLabels("tabsdown-density-default", "")[2]).toBe("Inherit (Default)");
+	expect(inheritLabels("is-mobile tabsdown-density-default", "")[2]).toBe("Inherit (Compact)");
+	// mountTabs keeps its own containing block and never takes automatic Compact.
+	expect(inheritLabels("is-mobile tabsdown-density-default", "tabsdown--mounted")[2])
+		.toBe("Inherit (Default)");
+});
+
+test("describes the inherited value, not the block's own choice", () => {
+	const labels = inheritLabels(
+		"tabsdown-palette-primary tabsdown-density-default",
+		"tabsdown--palette-secondary tabsdown--density-compact",
+		{ palette: "secondary", density: "compact" },
+	);
+
+	expect(labels).toContain("Inherit (Primary)");
+	expect(labels).toContain("Inherit (Default)");
+});
+
+test("resolves every Style Settings choice the menu can inherit", () => {
+	const styles = readStyles();
+	const manifest = /\/\* @settings([\s\S]*?)\*\//.exec(styles)?.[1] ?? "";
+	const resolved = styles.slice(styles.indexOf("--tabsdown-resolved-personality"));
+	const labelled = /-(density|personality|overflow|palette|alignment)-/;
+	const options = [...manifest.matchAll(/value: (tabsdown-[\w-]+)/g)]
+		.map((match) => match[1]!)
+		.filter((option) => labelled.test(option) && !option.endsWith("-inherit"));
+
+	expect(options.length).toBeGreaterThan(20);
+	// A new choice that nothing resolves would silently mislabel every Inherit entry.
+	expect(options.filter((option) => !resolved.includes(`.${option} `))).toEqual([]);
+	for (const source of ["is-mobile", "@container (max-width: 28rem)", "--nested-odd", "--nested-even"]) {
+		expect(resolved).toContain(source);
 	}
 });

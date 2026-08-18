@@ -1469,3 +1469,17 @@ test("styles mounted selections as active", () => {
 		/body\.tabsdown-personality-underline \.tabsdown__tab\[aria-selected="true"\],\s*body\.tabsdown-personality-underline \.tabsdown__tab\[aria-expanded="true"\] \{/,
 	);
 });
+
+test("keeps the Quartz-shared modules off the Obsidian runtime", () => {
+	const root = resolve(dirname(fileURLToPath(import.meta.url)), "..");
+	const reachable = new Set<string>();
+	const visit = (file: string): void => {
+		if (reachable.has(file)) return;
+		reachable.add(file);
+		const text = readFileSync(resolve(root, "src", `${file}.ts`), "utf8");
+		expect(text).not.toMatch(/from "obsidian"|import "obsidian"/);
+		expect(text).not.toMatch(/createEl\b/);
+		for (const match of text.matchAll(/from "\.\/([\w-]+)"/g)) visit(match[1]!);
+	};
+	visit("tabs");
+});

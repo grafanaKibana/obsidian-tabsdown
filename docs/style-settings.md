@@ -15,7 +15,7 @@ Tabsdown works without [Style Settings](https://github.com/mgmeyers/obsidian-sty
 
 Top, Bottom, Left, and Right can each override personality, palette, and alignment. Top and Bottom inherit Rail by default; Left and Right default to Underline. **Inherit defaults** restores the global choice. These overrides apply to fenced Markdown blocks; tabs created with `mountTabs` use the global settings.
 
-An authored block can override position, overflow, density, personality, palette, and alignment directly from the matching right-click submenu. The current choice is checked and changes save immediately. The cascade is block override → automatic mobile or narrow Compact density → position override → global setting → built-in fallback. Nested blocks resolve independently, and `mountTabs` remains global-only.
+An authored block can override position, overflow, density, personality, palette, and alignment directly from the matching right-click submenu. The current choice is checked and changes save immediately, and each **Inherit** entry names the value it currently resolves to. The cascade is block override → automatic mobile or narrow Compact density → position override → global setting → built-in fallback. Nested blocks resolve independently, and `mountTabs` remains global-only.
 
 ## Behavior notes
 
