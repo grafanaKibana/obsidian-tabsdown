@@ -1,5 +1,3 @@
-import "obsidian";
-
 import type { InlineLabelToken } from "./parser";
 
 const tokenTags = {
@@ -13,7 +11,9 @@ export function createElement<K extends keyof HTMLElementTagNameMap>(
 	parent: Node,
 	tag: K,
 ): HTMLElementTagNameMap[K] {
-	return Node.prototype.createEl.call(parent, tag) as HTMLElementTagNameMap[K];
+	const element = (parent.ownerDocument ?? (parent as Document)).createElement(tag);
+	parent.appendChild(element);
+	return element;
 }
 
 export function renderLabel(

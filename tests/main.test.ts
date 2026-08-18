@@ -1017,3 +1017,55 @@ test("forgets controllers consumers already destroyed", () => {
 
 	expect(destroy).toHaveBeenCalledOnce();
 });
+
+
+test("locates an embedded block that no section reports", async () => {
+	const source = "tab: One\nA\ntab: Two\nB\n";
+	const text = `# Note\n\n~~~tabsdown\n${source}~~~\n`;
+	const { plugin, editors } = writablePlugin(text, 1);
+	plugin.onload();
+	const handler = processorRegistrationMock.mock.calls[0]?.[1];
+	if (!handler) throw new Error("Expected processor");
+	const container = document.body.appendChild(document.createElement("div"));
+	void handler(source, container, {
+		sourcePath: "Note.md",
+		addChild: (child: { load(): void }) => child.load(),
+		getSectionInfo: () => null,
+	});
+	await flush();
+
+	openContextMenu(container);
+	await selectMenuChoice();
+
+	expect(noticeMock).not.toHaveBeenCalled();
+	expect(editors[0]?.replaceRange).toHaveBeenCalledWith(
+		"config: density=compact\n",
+		{ line: 3, ch: 0 },
+		{ line: 3, ch: 0 },
+	);
+});
+
+test("refuses to guess between identical unreported blocks", async () => {
+	const source = "tab: One\nA\ntab: Two\nB\n";
+	const block = `~~~tabsdown\n${source}~~~`;
+	const text = `${block}\n\n${block}\n`;
+	const { plugin, editors } = writablePlugin(text, 1);
+	plugin.onload();
+	const handler = processorRegistrationMock.mock.calls[0]?.[1];
+	if (!handler) throw new Error("Expected processor");
+	const container = document.body.appendChild(document.createElement("div"));
+	void handler(source, container, {
+		sourcePath: "Note.md",
+		addChild: (child: { load(): void }) => child.load(),
+		getSectionInfo: () => null,
+	});
+	await flush();
+
+	openContextMenu(container);
+	await selectMenuChoice();
+
+	expect(editors[0]?.replaceRange).not.toHaveBeenCalled();
+	expect(noticeMock).toHaveBeenCalledWith(
+		"This nested Tabsdown block could not be identified.",
+	);
+});

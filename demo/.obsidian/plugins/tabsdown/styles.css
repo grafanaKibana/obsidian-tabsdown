@@ -548,6 +548,8 @@ settings:
 	--tabsdown-animation-duration: var(--tabsdown-animation-speed, 160ms);
 	--tabsdown-tab-min-size: 44px;
 	--tabsdown-tab-min-block-size: var(--tabsdown-tab-min-size);
+	--tabsdown-rail-tab-min-block-size: 36px;
+	--tabsdown-rail-tab-padding-block: 0.125rem;
 	--tabsdown-equal-wrap-basis: min(
 		100%,
 		max(
@@ -1044,11 +1046,15 @@ body.tabsdown-right-personality-underline .tabsdown--right > .tabsdown__tablist 
 
 body.tabsdown-density-compact .tabsdown {
 	--tabsdown-tab-min-size: 32px;
+	--tabsdown-rail-tab-min-block-size: 28px;
+	--tabsdown-rail-tab-padding-block: 0.0625rem;
 	--tabsdown-tab-padding-block: 0.375rem;
 	--tabsdown-tab-padding-inline: var(--tabsdown-horizontal-padding, 12px);
 }
 
 body.tabsdown-density-default .tabsdown {
+	--tabsdown-rail-tab-min-block-size: 36px;
+	--tabsdown-rail-tab-padding-block: 0.125rem;
 	--tabsdown-tab-padding-block: 0.5rem;
 	--tabsdown-tab-padding-inline: var(--tabsdown-horizontal-padding, 36px);
 }
@@ -1160,14 +1166,14 @@ body.tabsdown-personality-separator .tabsdown__tab[aria-expanded="true"] {
 }
 
 body.tabsdown-personality-rail .tabsdown__tablist {
-	--tabsdown-tab-min-block-size: 36px;
+	--tabsdown-tab-min-block-size: var(--tabsdown-rail-tab-min-block-size);
 	padding: 0.375rem;
 	border-radius: var(--tabsdown-radius, var(--radius-s));
 	background-color: var(--background-secondary);
 }
 
 body.tabsdown-personality-rail .tabsdown__tab {
-	padding-block: 0.125rem;
+	padding-block: var(--tabsdown-rail-tab-padding-block);
 }
 
 body.tabsdown-personality-rail .tabsdown__tab[aria-selected="true"],
@@ -1818,7 +1824,7 @@ body.tabsdown-top-personality-rail .tabsdown--top > .tabsdown__tablist,
 body.tabsdown-bottom-personality-rail .tabsdown--bottom > .tabsdown__tablist,
 body.tabsdown-left-personality-rail .tabsdown--left > .tabsdown__tablist,
 body.tabsdown-right-personality-rail .tabsdown--right > .tabsdown__tablist {
-	--tabsdown-tab-min-block-size: 36px;
+	--tabsdown-tab-min-block-size: var(--tabsdown-rail-tab-min-block-size);
 	padding: 0.375rem;
 	border-radius: var(--tabsdown-radius, var(--radius-s));
 	background-color: var(--background-secondary);
@@ -1828,7 +1834,7 @@ body.tabsdown-top-personality-rail .tabsdown--top > .tabsdown__tablist > .tabsdo
 body.tabsdown-bottom-personality-rail .tabsdown--bottom > .tabsdown__tablist > .tabsdown__tab,
 body.tabsdown-left-personality-rail .tabsdown--left > .tabsdown__tablist > .tabsdown__tab,
 body.tabsdown-right-personality-rail .tabsdown--right > .tabsdown__tablist > .tabsdown__tab {
-	padding-block: 0.125rem;
+	padding-block: var(--tabsdown-rail-tab-padding-block);
 }
 
 body.tabsdown-top-personality-rail .tabsdown--top > .tabsdown__tablist > .tabsdown__tab[aria-selected="true"],
@@ -2129,14 +2135,14 @@ body .tabsdown.tabsdown--personality-rail.tabsdown.tabsdown.tabsdown.tabsdown > 
 }
 
 body .tabsdown.tabsdown--personality-rail.tabsdown.tabsdown.tabsdown.tabsdown > .tabsdown__tablist {
-	--tabsdown-tab-min-block-size: 36px;
+	--tabsdown-tab-min-block-size: var(--tabsdown-rail-tab-min-block-size);
 	padding: 0.375rem;
 	border-radius: var(--tabsdown-radius, var(--radius-s));
 	background-color: var(--background-secondary);
 }
 
 body .tabsdown.tabsdown--personality-rail.tabsdown.tabsdown.tabsdown.tabsdown > .tabsdown__tablist > .tabsdown__tab {
-	padding-block: 0.125rem;
+	padding-block: var(--tabsdown-rail-tab-padding-block);
 }
 
 body .tabsdown.tabsdown--personality-rail.tabsdown.tabsdown.tabsdown.tabsdown > .tabsdown__tablist > .tabsdown__tab[aria-selected="true"],
@@ -2233,6 +2239,8 @@ body .tabsdown.tabsdown--right > .tabsdown__tablist > .tabsdown__tab.tabsdown__t
 @container (max-width: 28rem) {
 	.tabsdown:not(.tabsdown--mounted):not(.tabsdown--density-default):not(.tabsdown--density-compact) > .tabsdown__tablist {
 		--tabsdown-tab-min-size: 32px;
+		--tabsdown-rail-tab-min-block-size: 28px;
+		--tabsdown-rail-tab-padding-block: 0.0625rem;
 		--tabsdown-tab-padding-block: 0.375rem;
 		--tabsdown-tab-padding-inline: var(--tabsdown-horizontal-padding, 12px);
 	}
@@ -2248,6 +2256,8 @@ body .tabsdown.tabsdown--right > .tabsdown__tablist > .tabsdown__tab.tabsdown__t
 
 body.is-mobile .tabsdown:not(.tabsdown--mounted):not(.tabsdown--density-default):not(.tabsdown--density-compact) > .tabsdown__tablist {
 	--tabsdown-tab-min-size: 32px;
+	--tabsdown-rail-tab-min-block-size: 28px;
+	--tabsdown-rail-tab-padding-block: 0.0625rem;
 	--tabsdown-tab-padding-block: 0.375rem;
 	--tabsdown-tab-padding-inline: var(--tabsdown-horizontal-padding, 12px);
 }
@@ -2255,12 +2265,16 @@ body.is-mobile .tabsdown:not(.tabsdown--mounted):not(.tabsdown--density-default)
 /* Explicit density remains authoritative on both sides of the container query. */
 .tabsdown.tabsdown--density-default > .tabsdown__tablist {
 	--tabsdown-tab-min-size: 44px;
+	--tabsdown-rail-tab-min-block-size: 36px;
+	--tabsdown-rail-tab-padding-block: 0.125rem;
 	--tabsdown-tab-padding-block: 0.5rem;
 	--tabsdown-tab-padding-inline: var(--tabsdown-horizontal-padding, 36px);
 }
 
 .tabsdown.tabsdown--density-compact > .tabsdown__tablist {
 	--tabsdown-tab-min-size: 32px;
+	--tabsdown-rail-tab-min-block-size: 28px;
+	--tabsdown-rail-tab-padding-block: 0.0625rem;
 	--tabsdown-tab-padding-block: 0.375rem;
 	--tabsdown-tab-padding-inline: var(--tabsdown-horizontal-padding, 12px);
 }

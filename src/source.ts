@@ -1093,6 +1093,21 @@ export function applySourceEdit(text: string, edit: SourceEdit): string {
 	return text.slice(0, edit.from) + edit.replacement + text.slice(edit.to);
 }
 
+export function locateBlock(
+	text: string,
+	renderedSource: string,
+): BlockLocator | undefined {
+	const view = createSourceView(text);
+	const scanFrom = frontmatterEnd(view.text);
+	const matches = directBlocks(sliceView(view, scanFrom, view.text.length)).filter(
+		(block) => matchesRenderedSource(block.inner.text, renderedSource),
+	);
+	const only = matches.length === 1 ? matches[0] : undefined;
+	if (!only) return undefined;
+	const opening = view.text.slice(0, scanFrom + only.open);
+	return { lineStart: opening.split("\n").length - 1, nestedOffsets: [] };
+}
+
 export function nestedBlockCandidates(
 	source: string,
 	tabIndex: number,

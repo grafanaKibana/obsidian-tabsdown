@@ -12,23 +12,23 @@ const fields = [
 		["left", "Left"], ["right", "Right"],
 	]],
 	["Overflow", "layout", [
-		["", "Inherit global Overflow"], ["one", "Scroll — one row"],
+		["", "Inherit (Overflow behavior)"], ["one", "Scroll — one row"],
 		["multi", "Wrap — multiple rows"],
 	]],
 	["Density", "density", [
-		["", "Automatic / inherit global Size"], ["default", "Default"],
+		["", "Inherit (Size)"], ["default", "Default"],
 		["compact", "Compact"],
 	]],
 	["Personality", "personality", [
-		["", "Inherit position / global Personality"], ["button", "Button"],
+		["", "Inherit (Personality)"], ["button", "Button"],
 		["underline", "Underline"], ["separator", "Separator"], ["rail", "Rail"],
 	]],
 	["Palette", "palette", [
-		["", "Inherit position / global Palette"], ["primary", "Primary"],
+		["", "Inherit (Palette)"], ["primary", "Primary"],
 		["secondary", "Secondary"],
 	]],
 	["Alignment", "alignment", [
-		["", "Inherit position / global Alignment"], ["start", "Start"],
+		["", "Inherit (Alignment)"], ["start", "Start"],
 		["center", "Center"], ["equal-width", "Equal width"],
 	]],
 ] as const;

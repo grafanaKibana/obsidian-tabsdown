@@ -52,4 +52,11 @@ export default defineConfig(
 			"obsidianmd/prefer-create-el": "off",
 		},
 	},
+	{
+		files: ["src/label.ts", "src/tabs.ts"],
+		rules: {
+			// quartz-tabsdown vendors these modules outside Obsidian, where createEl is absent.
+			"obsidianmd/prefer-create-el": "off",
+		},
+	},
 );

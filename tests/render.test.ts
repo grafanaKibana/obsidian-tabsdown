@@ -180,7 +180,7 @@ test("shows every block setting as a checked native submenu and saves a choice",
 	]);
 	expect(menuChoice("Overflow", "Wrap — multiple rows").checked).toBe(true);
 	expect(menuChoice("Density", "Compact").checked).toBe(true);
-	expect(menuChoice("Personality", "Inherit position / global Personality").checked).toBe(true);
+	expect(menuChoice("Personality", "Inherit (Personality)").checked).toBe(true);
 
 	await menuChoice("Personality", "Rail").callback?.(new MouseEvent("click"));
 	expect(open).toHaveBeenCalledOnce();
@@ -321,7 +321,7 @@ test("does nothing when the checked choice is selected", async () => {
 		{ open, registerPanel: vi.fn() },
 	).load();
 	openContextMenu(container.querySelector<HTMLButtonElement>('[role="tab"]')!);
-	await menuChoice("Density", "Automatic / inherit global Size").callback?.(
+	await menuChoice("Density", "Inherit (Size)").callback?.(
 		new MouseEvent("click"),
 	);
 	expect(open).toHaveBeenCalledOnce();
@@ -1244,7 +1244,7 @@ test("fully resets position personality, palette, and alignment", () => {
 		expect(rail).toContain("background-color: var(--tabsdown-rail-selected-background)");
 		expect(rail).toContain("color: var(--tabsdown-tab-selected-color)");
 		expect(rail).toContain("padding: 0.375rem");
-		expect(rail).toContain("padding-block: 0.125rem");
+		expect(rail).toContain("padding-block: var(--tabsdown-rail-tab-padding-block)");
 
 		for (const palette of ["primary", "secondary"]) {
 			const body = matchingRuleBodies(styles, `body.tabsdown-${position}-palette-${palette}`);
@@ -1751,5 +1751,51 @@ test("side structure beats every authored alignment at wide and narrow widths", 
 			root.remove();
 			style.remove();
 		}
+	}
+});
+
+test("scales the rail personality with the requested density", () => {
+	const styles = readStyles();
+	for (const selector of [
+		"body.tabsdown-personality-rail .tabsdown__tablist",
+		"body.tabsdown-top-personality-rail",
+		"body .tabsdown.tabsdown--personality-rail",
+	]) {
+		expect(matchingRuleBodies(styles, selector)).toContain(
+			"--tabsdown-tab-min-block-size: var(--tabsdown-rail-tab-min-block-size)",
+		);
+	}
+	for (const selector of [
+		"body.tabsdown-density-compact .tabsdown",
+		".tabsdown.tabsdown--density-compact > .tabsdown__tablist",
+	]) {
+		const body = matchingRuleBodies(styles, selector);
+		expect(body).toContain("--tabsdown-rail-tab-min-block-size: 28px");
+		expect(body).toContain("--tabsdown-rail-tab-padding-block: 0.0625rem");
+	}
+	for (const selector of [
+		"body.tabsdown-density-default .tabsdown",
+		".tabsdown.tabsdown--density-default > .tabsdown__tablist",
+	]) {
+		const body = matchingRuleBodies(styles, selector);
+		expect(body).toContain("--tabsdown-rail-tab-min-block-size: 36px");
+		expect(body).toContain("--tabsdown-rail-tab-padding-block: 0.125rem");
+	}
+});
+
+test("names the inherited global setting the same way in every submenu", () => {
+	const parent = document.body.appendChild(document.createElement("div"));
+	parent.className = "tabsdown";
+	addBlockSettingsContextMenu(
+		parent, {}, async () => async () => {}, () => true,
+		(element, type, callback) => element.addEventListener(type, callback),
+		vi.fn(),
+	);
+	openContextMenu(parent);
+	const inherited = menuItems.filter((item) => item.parent && item.checked);
+
+	expect(inherited).toHaveLength(6);
+	for (const item of inherited) {
+		expect(item.title).toMatch(/^Inherit \(.+\)$/);
 	}
 });
