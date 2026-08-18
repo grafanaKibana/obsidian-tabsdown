@@ -1069,3 +1069,44 @@ test("refuses to guess between identical unreported blocks", async () => {
 		"This nested Tabsdown block could not be identified.",
 	);
 });
+
+test("edits a nested block under an unreported ancestor without opening the ancestor first", async () => {
+	const inner = "config: position=left\ntab: Inner one\nInner A\ntab: Inner two\nInner B\n";
+	const block = `~~~tabsdown\n${inner}~~~`;
+	const source = ["tab: Outer one", "", "Outer body.", "", block, "", "tab: Outer two", "", "Second.", ""].join("\n");
+	const text = `~~~~tabsdown\n${source}~~~~`;
+	const { plugin, editors } = writablePlugin(text, 1);
+	plugin.onload();
+	const handler = processorRegistrationMock.mock.calls[0]?.[1];
+	if (!handler) throw new Error("Expected processor");
+	renderMock.mockImplementation(async (_app, markdown, element) => {
+		element.textContent = markdown;
+		if (!markdown.includes(block)) return;
+		const nested = element.appendChild(document.createElement("div"));
+		void handler(inner, nested, {
+			sourcePath: "Note.md",
+			addChild: (child: { load(): void }) => child.load(),
+			getSectionInfo: () => null,
+		});
+	});
+	const container = document.body.appendChild(document.createElement("div"));
+	// No section reports the outer block either, so its own locator is searchable.
+	void handler(source, container, {
+		sourcePath: "Note.md",
+		addChild: (child: { load(): void }) => child.load(),
+		getSectionInfo: () => null,
+	});
+	await flush();
+	const nested = renderedBlocks(container)[1];
+	if (!nested) throw new Error("Expected a nested block");
+
+	openContextMenu(nested);
+	await selectMenuChoice();
+
+	expect(noticeMock).not.toHaveBeenCalled();
+	expect(editors[0]?.replaceRange).toHaveBeenCalledWith(
+		"config: position=left, density=compact\n",
+		{ line: 6, ch: 0 },
+		{ line: 7, ch: 0 },
+	);
+});
