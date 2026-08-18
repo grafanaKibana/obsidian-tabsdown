@@ -180,7 +180,7 @@ test("shows every block setting as a checked native submenu and saves a choice",
 	]);
 	expect(menuChoice("Overflow", "Wrap — multiple rows").checked).toBe(true);
 	expect(menuChoice("Density", "Compact").checked).toBe(true);
-	expect(menuChoice("Personality", "Inherit (Personality)").checked).toBe(true);
+	expect(menuChoice("Personality", "Inherit (Button)").checked).toBe(true);
 
 	await menuChoice("Personality", "Rail").callback?.(new MouseEvent("click"));
 	expect(open).toHaveBeenCalledOnce();
@@ -321,7 +321,7 @@ test("does nothing when the checked choice is selected", async () => {
 		{ open, registerPanel: vi.fn() },
 	).load();
 	openContextMenu(container.querySelector<HTMLButtonElement>('[role="tab"]')!);
-	await menuChoice("Density", "Inherit (Size)").callback?.(
+	await menuChoice("Density", "Inherit (Default)").callback?.(
 		new MouseEvent("click"),
 	);
 	expect(open).toHaveBeenCalledOnce();
@@ -1783,19 +1783,65 @@ test("scales the rail personality with the requested density", () => {
 	}
 });
 
-test("names the inherited global setting the same way in every submenu", () => {
+test("names the value each omitted setting inherits", () => {
+	// An earlier cascade test leaves its last combination on the body.
+	document.body.className = "";
 	const parent = document.body.appendChild(document.createElement("div"));
 	parent.className = "tabsdown";
+	const inheritTitles = (): string[] => {
+		menuItems.splice(0);
+		openContextMenu(parent);
+		return menuItems.filter((item) => item.parent && item.checked).map((item) => item.title);
+	};
 	addBlockSettingsContextMenu(
 		parent, {}, async () => async () => {}, () => true,
 		(element, type, callback) => element.addEventListener(type, callback),
 		vi.fn(),
 	);
-	openContextMenu(parent);
-	const inherited = menuItems.filter((item) => item.parent && item.checked);
 
-	expect(inherited).toHaveLength(6);
-	for (const item of inherited) {
-		expect(item.title).toMatch(/^Inherit \(.+\)$/);
+	// Without Style Settings no class is applied, so the built-in values show.
+	expect(inheritTitles()).toEqual([
+		"Inherit (Top)", "Inherit (Scroll — one row)", "Inherit (Default)",
+		"Inherit (Button)", "Inherit (Primary)", "Inherit (Start)",
+	]);
+
+	document.body.classList.add(
+		"tabsdown-density-compact",
+		"tabsdown-overflow-wrap",
+		"tabsdown-personality-default",
+		"tabsdown-palette-secondary",
+		"tabsdown-alignment-equal-width",
+	);
+	try {
+		expect(inheritTitles()).toEqual([
+			"Inherit (Top)", "Inherit (Wrap — multiple rows)", "Inherit (Compact)",
+			"Inherit (Button)", "Inherit (Secondary)", "Inherit (Equal width)",
+		]);
+
+		// A position override outranks the global choice for its own position.
+		document.body.classList.add("tabsdown-top-personality-rail", "tabsdown-top-palette-inherit");
+		expect(inheritTitles().slice(3, 5)).toEqual(["Inherit (Rail)", "Inherit (Secondary)"]);
+	} finally {
+		document.body.className = "";
+	}
+});
+
+test("reads the position override that matches the block's own position", () => {
+	const parent = document.body.appendChild(document.createElement("div"));
+	parent.className = "tabsdown";
+	document.body.className = "";
+	document.body.classList.add("tabsdown-personality-underline", "tabsdown-left-personality-separator");
+	try {
+		addBlockSettingsContextMenu(
+			parent, { position: "left" }, async () => async () => {}, () => true,
+			(element, type, callback) => element.addEventListener(type, callback),
+			vi.fn(),
+		);
+		menuItems.splice(0);
+		openContextMenu(parent);
+
+		expect(menuChoice("Personality", "Inherit (Separator)").checked).toBe(true);
+	} finally {
+		document.body.className = "";
 	}
 });

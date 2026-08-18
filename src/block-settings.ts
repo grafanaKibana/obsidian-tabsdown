@@ -1,5 +1,5 @@
 import { Menu, type MenuItem, Notice } from "obsidian";
-import type { TabsdownConfig } from "./config";
+import type { KeyedConfigName, TabsdownConfig } from "./config";
 
 export type SaveBlockSettings = (options: TabsdownConfig) => Promise<void>;
 
@@ -8,30 +8,78 @@ export const INTERACTIVE_SELECTOR =
 
 const fields = [
 	["Position", "position", [
-		["", "Inherit (Top)"], ["top", "Top"], ["bottom", "Bottom"],
-		["left", "Left"], ["right", "Right"],
+		["top", "Top"], ["bottom", "Bottom"], ["left", "Left"], ["right", "Right"],
 	]],
 	["Overflow", "layout", [
-		["", "Inherit (Overflow behavior)"], ["one", "Scroll — one row"],
-		["multi", "Wrap — multiple rows"],
+		["one", "Scroll — one row"], ["multi", "Wrap — multiple rows"],
 	]],
 	["Density", "density", [
-		["", "Inherit (Size)"], ["default", "Default"],
-		["compact", "Compact"],
+		["default", "Default"], ["compact", "Compact"],
 	]],
 	["Personality", "personality", [
-		["", "Inherit (Personality)"], ["button", "Button"],
-		["underline", "Underline"], ["separator", "Separator"], ["rail", "Rail"],
+		["button", "Button"], ["underline", "Underline"],
+		["separator", "Separator"], ["rail", "Rail"],
 	]],
 	["Palette", "palette", [
-		["", "Inherit (Palette)"], ["primary", "Primary"],
-		["secondary", "Secondary"],
+		["primary", "Primary"], ["secondary", "Secondary"],
 	]],
 	["Alignment", "alignment", [
-		["", "Inherit (Alignment)"], ["start", "Start"],
-		["center", "Center"], ["equal-width", "Equal width"],
+		["start", "Start"], ["center", "Center"], ["equal-width", "Equal width"],
 	]],
 ] as const;
+
+/**
+ * How an omitted value resolves: the Style Settings class that carries it, and
+ * the built-in value that applies when Style Settings is absent.
+ */
+const inheritance: Record<
+	KeyedConfigName,
+	{
+		slug?: string;
+		positional?: boolean;
+		aliases?: Readonly<Record<string, string>>;
+		fallback: string;
+	}
+> = {
+	position: { fallback: "top" },
+	layout: {
+		slug: "overflow",
+		aliases: { scroll: "one", wrap: "multi" },
+		fallback: "one",
+	},
+	density: { fallback: "default" },
+	personality: {
+		positional: true,
+		aliases: { default: "button" },
+		fallback: "button",
+	},
+	palette: { positional: true, fallback: "primary" },
+	alignment: { positional: true, fallback: "start" },
+};
+
+function inheritedTitle(
+	parent: HTMLElement,
+	key: KeyedConfigName,
+	position: string,
+	titles: ReadonlyMap<string, string>,
+): string {
+	const rule = inheritance[key];
+	const slug = rule.slug ?? key;
+	const applied = parent.ownerDocument.body.classList;
+	const suffixes = [
+		...Object.entries(rule.aliases ?? {}),
+		...[...titles.keys()].map((value) => [value, value] as const),
+	];
+	const scopes = rule.positional ? [`${position}-${slug}`, slug] : [slug];
+	for (const scope of scopes) {
+		for (const [suffix, value] of suffixes) {
+			if (!applied.contains(`tabsdown-${scope}-${suffix}`)) continue;
+			const title = titles.get(value);
+			if (title) return title;
+		}
+	}
+	return titles.get(rule.fallback) ?? "";
+}
 
 interface MenuItemWithSubmenu extends MenuItem {
 	setSubmenu(): Menu;
@@ -80,7 +128,16 @@ export function addBlockSettingsContextMenu(
 			(error: unknown) => ({ error }),
 		);
 		const menu = new Menu().setParentElement(parent);
-		for (const [label, key, values] of fields) {
+		const position = options.position ?? "top";
+		for (const [label, key, choices] of fields) {
+			const titles = new Map<string, string>(choices);
+			const values: [
+				readonly [string, string],
+				...Array<readonly [string, string]>,
+			] = [
+				["", `Inherit (${inheritedTitle(parent, key, position, titles)})`],
+				...choices,
+			];
 			menu.addItem((item) => {
 				const addChoice = (
 					choice: MenuItem,
