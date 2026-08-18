@@ -1845,3 +1845,38 @@ test("reads the position override that matches the block's own position", () => 
 		document.body.className = "";
 	}
 });
+
+test("reports the Compact density a narrow or mobile block gets automatically", () => {
+	const parent = document.body.appendChild(document.createElement("div"));
+	parent.className = "tabsdown";
+	document.body.className = "tabsdown-density-default";
+	const density = (): string => {
+		menuItems.splice(0);
+		openContextMenu(parent);
+		return menuItems.find((item) => item.parent?.title === "Density" && item.checked)!.title;
+	};
+	addBlockSettingsContextMenu(
+		parent, {}, async () => async () => {}, () => true,
+		(element, type, callback) => element.addEventListener(type, callback),
+		vi.fn(),
+	);
+	const width = (value: number): void => {
+		Object.defineProperty(parent, "clientWidth", { configurable: true, value });
+	};
+	try {
+		// jsdom lays nothing out, so an unmeasurable block keeps the global choice.
+		expect(density()).toBe("Inherit (Default)");
+
+		width(28 * 16 + 1);
+		expect(density()).toBe("Inherit (Default)");
+
+		width(28 * 16);
+		expect(density()).toBe("Inherit (Compact)");
+
+		width(900);
+		document.body.classList.add("is-mobile");
+		expect(density()).toBe("Inherit (Compact)");
+	} finally {
+		document.body.className = "";
+	}
+});

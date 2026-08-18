@@ -57,12 +57,30 @@ const inheritance: Record<
 	alignment: { positional: true, fallback: "start" },
 };
 
+/** Matches the `@container (max-width: 28rem)` and `body.is-mobile` density rules. */
+function automaticallyCompact(parent: HTMLElement): boolean {
+	const doc = parent.ownerDocument;
+	if (doc.body.classList.contains("is-mobile")) return true;
+	const view = doc.defaultView;
+	if (!view) return false;
+	// A block is its own query container, so its content box is what the rule reads.
+	const style = view.getComputedStyle(parent);
+	const inline = parent.clientWidth
+		- parseFloat(style.paddingInlineStart)
+		- parseFloat(style.paddingInlineEnd);
+	const rem = parseFloat(view.getComputedStyle(doc.documentElement).fontSize);
+	return inline > 0 && inline <= 28 * rem;
+}
+
 function inheritedTitle(
 	parent: HTMLElement,
 	key: KeyedConfigName,
 	position: string,
 	titles: ReadonlyMap<string, string>,
 ): string {
+	if (key === "density" && automaticallyCompact(parent)) {
+		return titles.get("compact") ?? "";
+	}
 	const rule = inheritance[key];
 	const slug = rule.slug ?? key;
 	const applied = parent.ownerDocument.body.classList;
