@@ -29,74 +29,30 @@ const fields = [
 ] as const;
 
 /**
- * How an omitted value resolves: the Style Settings class that carries it, and
- * the built-in value that applies when Style Settings is absent.
+ * What an omitted setting resolves to. `styles.css` publishes the answer as a
+ * custom property so this never re-derives the cascade; only Position has no
+ * stylesheet source, and no built-in value shows before the stylesheet loads.
  */
-const inheritance: Record<
-	KeyedConfigName,
-	{
-		slug?: string;
-		positional?: boolean;
-		aliases?: Readonly<Record<string, string>>;
-		fallback: string;
-	}
-> = {
-	position: { fallback: "top" },
-	layout: {
-		slug: "overflow",
-		aliases: { scroll: "one", wrap: "multi" },
-		fallback: "one",
-	},
-	density: { fallback: "default" },
-	personality: {
-		positional: true,
-		aliases: { default: "button" },
-		fallback: "button",
-	},
-	palette: { positional: true, fallback: "primary" },
-	alignment: { positional: true, fallback: "start" },
+const builtIn: Record<KeyedConfigName, string> = {
+	position: "top",
+	layout: "one",
+	density: "default",
+	personality: "button",
+	palette: "primary",
+	alignment: "start",
 };
-
-/** Matches the `@container (max-width: 28rem)` and `body.is-mobile` density rules. */
-function automaticallyCompact(parent: HTMLElement): boolean {
-	const doc = parent.ownerDocument;
-	if (doc.body.classList.contains("is-mobile")) return true;
-	const view = doc.defaultView;
-	if (!view) return false;
-	// A block is its own query container, so its content box is what the rule reads.
-	const style = view.getComputedStyle(parent);
-	const inline = parent.clientWidth
-		- parseFloat(style.paddingInlineStart)
-		- parseFloat(style.paddingInlineEnd);
-	const rem = parseFloat(view.getComputedStyle(doc.documentElement).fontSize);
-	return inline > 0 && inline <= 28 * rem;
-}
 
 function inheritedTitle(
 	parent: HTMLElement,
 	key: KeyedConfigName,
-	position: string,
 	titles: ReadonlyMap<string, string>,
 ): string {
-	if (key === "density" && automaticallyCompact(parent)) {
-		return titles.get("compact") ?? "";
-	}
-	const rule = inheritance[key];
-	const slug = rule.slug ?? key;
-	const applied = parent.ownerDocument.body.classList;
-	const suffixes = [
-		...Object.entries(rule.aliases ?? {}),
-		...[...titles.keys()].map((value) => [value, value] as const),
-	];
-	const scopes = rule.positional ? [`${position}-${slug}`, slug] : [slug];
-	for (const scope of scopes) {
-		for (const [suffix, value] of suffixes) {
-			if (!applied.contains(`tabsdown-${scope}-${suffix}`)) continue;
-			const title = titles.get(value);
-			if (title) return title;
-		}
-	}
-	return titles.get(rule.fallback) ?? "";
+	const tab = parent.querySelector(":scope > .tabsdown__tablist > .tabsdown__tab");
+	const view = parent.ownerDocument.defaultView;
+	const resolved = tab && view
+		? view.getComputedStyle(tab).getPropertyValue(`--tabsdown-resolved-${key}`).trim()
+		: "";
+	return titles.get(resolved) ?? titles.get(builtIn[key]) ?? "";
 }
 
 interface MenuItemWithSubmenu extends MenuItem {
@@ -146,14 +102,13 @@ export function addBlockSettingsContextMenu(
 			(error: unknown) => ({ error }),
 		);
 		const menu = new Menu().setParentElement(parent);
-		const position = options.position ?? "top";
 		for (const [label, key, choices] of fields) {
 			const titles = new Map<string, string>(choices);
 			const values: [
 				readonly [string, string],
 				...Array<readonly [string, string]>,
 			] = [
-				["", `Inherit (${inheritedTitle(parent, key, position, titles)})`],
+				["", `Inherit (${inheritedTitle(parent, key, titles)})`],
 				...choices,
 			];
 			menu.addItem((item) => {

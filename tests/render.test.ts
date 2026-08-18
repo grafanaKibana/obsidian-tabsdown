@@ -13,6 +13,7 @@ import {
 	addBlockSettingsContextMenu,
 	type SaveBlockSettings,
 } from "../src/block-settings";
+import type { TabsdownConfig } from "../src/config";
 import type { TabDefinition } from "../src/parser";
 import {
 	menuItems,
@@ -1628,8 +1629,11 @@ test("makes only unconfigured authored narrow blocks compact", () => {
 	expect(explicitDefault).toContain("--tabsdown-horizontal-padding, 36px");
 	expect(explicitCompact).toContain("--tabsdown-tab-min-size: 32px");
 	expect(explicitCompact).toContain("--tabsdown-horizontal-padding, 12px");
-	expect(styles.lastIndexOf(".tabsdown.tabsdown--density-default > .tabsdown__tablist")).toBeGreaterThan(
-		styles.lastIndexOf("body.is-mobile .tabsdown"),
+	// Source order among the render rules; the resolved-settings section below
+	// them sets no rendering declarations.
+	const rendering = styles.slice(0, styles.indexOf("--tabsdown-resolved-personality"));
+	expect(rendering.lastIndexOf(".tabsdown.tabsdown--density-default > .tabsdown__tablist")).toBeGreaterThan(
+		rendering.lastIndexOf("body.is-mobile .tabsdown"),
 	);
 });
 
@@ -1783,100 +1787,121 @@ test("scales the rail personality with the requested density", () => {
 	}
 });
 
-test("names the value each omitted setting inherits", () => {
-	// An earlier cascade test leaves its last combination on the body.
-	document.body.className = "";
+function inheritLabels(body: string, block: string, options: TabsdownConfig = {}): string[] {
+	const style = document.head.appendChild(document.createElement("style"));
+	style.textContent = readStyles();
+	document.body.className = body;
 	const parent = document.body.appendChild(document.createElement("div"));
-	parent.className = "tabsdown";
-	const inheritTitles = (): string[] => {
-		menuItems.splice(0);
-		openContextMenu(parent);
-		return menuItems.filter((item) => item.parent && item.checked).map((item) => item.title);
-	};
-	addBlockSettingsContextMenu(
-		parent, {}, async () => async () => {}, () => true,
-		(element, type, callback) => element.addEventListener(type, callback),
-		vi.fn(),
-	);
-
-	// Without Style Settings no class is applied, so the built-in values show.
-	expect(inheritTitles()).toEqual([
-		"Inherit (Top)", "Inherit (Scroll — one row)", "Inherit (Default)",
-		"Inherit (Button)", "Inherit (Primary)", "Inherit (Start)",
-	]);
-
-	document.body.classList.add(
-		"tabsdown-density-compact",
-		"tabsdown-overflow-wrap",
-		"tabsdown-personality-default",
-		"tabsdown-palette-secondary",
-		"tabsdown-alignment-equal-width",
-	);
-	try {
-		expect(inheritTitles()).toEqual([
-			"Inherit (Top)", "Inherit (Wrap — multiple rows)", "Inherit (Compact)",
-			"Inherit (Button)", "Inherit (Secondary)", "Inherit (Equal width)",
-		]);
-
-		// A position override outranks the global choice for its own position.
-		document.body.classList.add("tabsdown-top-personality-rail", "tabsdown-top-palette-inherit");
-		expect(inheritTitles().slice(3, 5)).toEqual(["Inherit (Rail)", "Inherit (Secondary)"]);
-	} finally {
-		document.body.className = "";
-	}
-});
-
-test("reads the position override that matches the block's own position", () => {
-	const parent = document.body.appendChild(document.createElement("div"));
-	parent.className = "tabsdown";
-	document.body.className = "";
-	document.body.classList.add("tabsdown-personality-underline", "tabsdown-left-personality-separator");
+	parent.className = `tabsdown ${block}`.trim();
+	const list = parent.appendChild(document.createElement("div"));
+	list.className = "tabsdown__tablist";
+	list.appendChild(document.createElement("button")).className = "tabsdown__tab";
 	try {
 		addBlockSettingsContextMenu(
-			parent, { position: "left" }, async () => async () => {}, () => true,
+			parent, options, async () => async () => {}, () => true,
 			(element, type, callback) => element.addEventListener(type, callback),
 			vi.fn(),
 		);
 		menuItems.splice(0);
 		openContextMenu(parent);
-
-		expect(menuChoice("Personality", "Inherit (Separator)").checked).toBe(true);
+		return menuItems
+			.filter((item) => item.parent && item.title.startsWith("Inherit ("))
+			.map((item) => item.title);
 	} finally {
+		style.remove();
+		parent.remove();
 		document.body.className = "";
+	}
+}
+
+const styleSettingsDefaults = [
+	"tabsdown-density-default", "tabsdown-personality-rail", "tabsdown-overflow-scroll",
+	"tabsdown-palette-primary", "tabsdown-alignment-equal-width",
+	"tabsdown-top-personality-inherit", "tabsdown-top-palette-inherit",
+	"tabsdown-top-alignment-inherit", "tabsdown-left-personality-underline",
+].join(" ");
+
+test("names each omitted setting after the value the stylesheet resolves", () => {
+	// No Style Settings: only the built-in values apply.
+	expect(inheritLabels("", "")).toEqual([
+		"Inherit (Top)", "Inherit (Scroll — one row)", "Inherit (Default)",
+		"Inherit (Button)", "Inherit (Primary)", "Inherit (Start)",
+	]);
+
+	expect(inheritLabels(styleSettingsDefaults, "tabsdown--top")).toEqual([
+		"Inherit (Top)", "Inherit (Scroll — one row)", "Inherit (Default)",
+		"Inherit (Rail)", "Inherit (Primary)", "Inherit (Equal width)",
+	]);
+
+	expect(inheritLabels(
+		"tabsdown-density-compact tabsdown-overflow-wrap tabsdown-personality-default"
+			+ " tabsdown-palette-secondary tabsdown-alignment-center",
+		"",
+	)).toEqual([
+		"Inherit (Top)", "Inherit (Wrap — multiple rows)", "Inherit (Compact)",
+		"Inherit (Button)", "Inherit (Secondary)", "Inherit (Center)",
+	]);
+});
+
+test("prefers the position override, then nesting, over the global choice", () => {
+	const personality = (body: string, block: string): string =>
+		inheritLabels(body, block)[3]!;
+
+	expect(personality("tabsdown-personality-rail", "tabsdown--left")).toBe("Inherit (Rail)");
+	expect(personality(
+		"tabsdown-personality-rail tabsdown-left-personality-separator",
+		"tabsdown--left",
+	)).toBe("Inherit (Separator)");
+	// The override only speaks for its own position.
+	expect(personality(
+		"tabsdown-personality-rail tabsdown-left-personality-separator",
+		"tabsdown--top",
+	)).toBe("Inherit (Rail)");
+
+	const palette = (body: string, block: string): string => inheritLabels(body, block)[4]!;
+
+	expect(palette("tabsdown-palette-primary", "")).toBe("Inherit (Primary)");
+	// Nested blocks are always Secondary, whatever the global and position say.
+	for (const parity of ["odd", "even"]) {
+		expect(palette(
+			"tabsdown-palette-primary tabsdown-top-palette-primary",
+			`tabsdown--top tabsdown--nested-${parity}`,
+		)).toBe("Inherit (Secondary)");
 	}
 });
 
-test("reports the Compact density a narrow or mobile block gets automatically", () => {
-	const parent = document.body.appendChild(document.createElement("div"));
-	parent.className = "tabsdown";
-	document.body.className = "tabsdown-density-default";
-	const density = (): string => {
-		menuItems.splice(0);
-		openContextMenu(parent);
-		return menuItems.find((item) => item.parent?.title === "Density" && item.checked)!.title;
-	};
-	addBlockSettingsContextMenu(
-		parent, {}, async () => async () => {}, () => true,
-		(element, type, callback) => element.addEventListener(type, callback),
-		vi.fn(),
+test("names Compact where a block gets it automatically", () => {
+	expect(inheritLabels("tabsdown-density-default", "")[2]).toBe("Inherit (Default)");
+	expect(inheritLabels("is-mobile tabsdown-density-default", "")[2]).toBe("Inherit (Compact)");
+	// mountTabs keeps its own containing block and never takes automatic Compact.
+	expect(inheritLabels("is-mobile tabsdown-density-default", "tabsdown--mounted")[2])
+		.toBe("Inherit (Default)");
+});
+
+test("describes the inherited value, not the block's own choice", () => {
+	const labels = inheritLabels(
+		"tabsdown-palette-primary tabsdown-density-default",
+		"tabsdown--palette-secondary tabsdown--density-compact",
+		{ palette: "secondary", density: "compact" },
 	);
-	const width = (value: number): void => {
-		Object.defineProperty(parent, "clientWidth", { configurable: true, value });
-	};
-	try {
-		// jsdom lays nothing out, so an unmeasurable block keeps the global choice.
-		expect(density()).toBe("Inherit (Default)");
 
-		width(28 * 16 + 1);
-		expect(density()).toBe("Inherit (Default)");
+	expect(labels).toContain("Inherit (Primary)");
+	expect(labels).toContain("Inherit (Default)");
+});
 
-		width(28 * 16);
-		expect(density()).toBe("Inherit (Compact)");
+test("resolves every Style Settings choice the menu can inherit", () => {
+	const styles = readStyles();
+	const manifest = /\/\* @settings([\s\S]*?)\*\//.exec(styles)?.[1] ?? "";
+	const resolved = styles.slice(styles.indexOf("--tabsdown-resolved-personality"));
+	const labelled = /-(density|personality|overflow|palette|alignment)-/;
+	const options = [...manifest.matchAll(/value: (tabsdown-[\w-]+)/g)]
+		.map((match) => match[1]!)
+		.filter((option) => labelled.test(option) && !option.endsWith("-inherit"));
 
-		width(900);
-		document.body.classList.add("is-mobile");
-		expect(density()).toBe("Inherit (Compact)");
-	} finally {
-		document.body.className = "";
+	expect(options.length).toBeGreaterThan(20);
+	// A new choice that nothing resolves would silently mislabel every Inherit entry.
+	expect(options.filter((option) => !resolved.includes(`.${option} `))).toEqual([]);
+	for (const source of ["is-mobile", "@container (max-width: 28rem)", "--nested-odd", "--nested-even"]) {
+		expect(resolved).toContain(source);
 	}
 });
