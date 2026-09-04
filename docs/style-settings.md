@@ -6,7 +6,7 @@ Tabsdown works without [Style Settings](https://github.com/mgmeyers/obsidian-sty
 | --- | --- |
 | General | **Size:** Compact or Default. **Personality:** Button, Underline, Separator, or Rail. **Overflow:** Scroll or Wrap. **Palette:** Primary or Secondary. **Accent:** custom color, or the theme accent when unset. **Alignment:** Start, Center, or Equal width. Defaults: Size = Default, Personality = Rail, Overflow = Scroll, Palette = Primary, Alignment = Equal width. |
 | Tab appearance | Optional theme button outline (off by default); underline thickness from 1–8 px (default 2 px); underline placement of Auto, Top, Right, Bottom, or Left. |
-| Layout | Tab gap from 0–48 px (default 4 px); corner radius from 0–24 px (default 4 px); horizontal padding and content spacing from 0–48 px (defaults 36 px and 12 px); side-list width from 192–320 px (default 192 px). |
+| Layout | Tab gap from 0–48 px (default 4 px); corner radius from 0–24 px (default 4 px); horizontal padding and content spacing from 0–48 px (defaults 36 px and 12 px); horizontal padding is the Default/base value and Compact uses one-third; side-list width from 192–320 px (default 192 px). |
 | Icons and labels | Icon size from 12–32 px (default 16 px); icon spacing from 0–16 px (default 6 px); selected-label weight of Thinner (400), Default (600), or Bolder (700). |
 | Nested blocks | Flat (default) or Card. Nested tabs default to the Secondary palette unless the block overrides it. |
 | Motion | Animation speed from 0–500 ms (default 160 ms), plus a toggle to disable animations. Animations are enabled by default. |
@@ -21,6 +21,6 @@ An authored block can override position, overflow, density, personality, palette
 
 - Underline Auto uses the bottom edge for Top, Bottom, and mounted controls, the right edge for Left, and the left edge for Right.
 - Left and Right tabs always fill their side list on wide layouts and become an equal-width row above the content in narrow containers; Alignment positions the list without changing that structural sizing. Equal width with Wrap keeps complete rows aligned and expands the final row.
-- An unconfigured authored block is always Compact on mobile and also becomes Compact when its own container is 28rem wide or narrower, including split panes on desktop. Explicit Default and Compact choices do not change with device or width.
+- An unconfigured authored block is always Compact on mobile and also becomes Compact when its own container is 28rem wide or narrower, including split panes on desktop. Compact reduces both tab padding and the Rail track padding. Explicit Default and Compact choices do not change with device or width.
 - Touch/coarse-pointer tabs retain at least 44 × 44 px targets across every personality.
 - Theme colors, focus styles, and reduced-motion behavior still come from Obsidian.
