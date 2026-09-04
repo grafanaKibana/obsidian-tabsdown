@@ -23,4 +23,6 @@ Open **Settings → Appearance → CSS snippets**, select the folder icon, and c
 
 The background rules above target the **Button** personality. If Style Settings is installed, select **Settings → Style Settings → Tabsdown → Personality → Button** before using them.
 
+`--tabsdown-horizontal-padding` accepts CSS lengths such as `px` or `rem`. It is the Default/base value; Compact density derives one-third of it, so `1.5rem` becomes `0.5rem` in Compact.
+
 After saving the file, return to **CSS snippets**, select **Reload snippets**, and enable `tabsdown`. You may need to adjust the overrides after changing themes.

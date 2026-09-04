@@ -982,6 +982,7 @@ test("preserves global Style Settings and adds the approved hierarchy", () => {
 		"tabsdown-alignment": ["default: tabsdown-alignment-equal-width", "value: tabsdown-alignment-start", "value: tabsdown-alignment-center"],
 		"tabsdown-gap": ["default: 4", "min: 0", "step: 1", "format: px"],
 		"tabsdown-radius": ["default: 4", "min: 0", "max: 24", "step: 1", "format: px"],
+		"tabsdown-horizontal-padding": ["default: 36", "min: 0", "max: 48", "step: 1", "format: px"],
 		"tabsdown-content-spacing": ["default: 12", "min: 0", "max: 48", "step: 1", "format: px"],
 		"tabsdown-animation-speed": ["default: 160", "min: 0", "max: 500", "step: 20", "format: ms"],
 		"tabsdown-animations-disabled": ["type: class-toggle", "default: false"],
@@ -1244,7 +1245,7 @@ test("fully resets position personality, palette, and alignment", () => {
 		expect(rail).toContain("background-color: var(--background-secondary)");
 		expect(rail).toContain("background-color: var(--tabsdown-rail-selected-background)");
 		expect(rail).toContain("color: var(--tabsdown-tab-selected-color)");
-		expect(rail).toContain("padding: 0.375rem");
+		expect(rail).toContain("padding: var(--tabsdown-rail-track-padding)");
 		expect(rail).toContain("padding-block: var(--tabsdown-rail-tab-padding-block)");
 
 		for (const palette of ["primary", "secondary"]) {
@@ -1428,10 +1429,15 @@ test("wires appearance controls without breaking touch, labels, or spacing", () 
 
 	const defaultDensity = matchingRuleBodies(styles, "body.tabsdown-density-default .tabsdown");
 	const compactDensity = matchingRuleBodies(styles, "body.tabsdown-density-compact .tabsdown");
+	const baseDensity = exactRuleBodies(styles, ".tabsdown")[0] ?? "";
 	expect(defaultDensity).not.toContain("--tabsdown-content-spacing");
 	const paddingSlider = settingId(styleSetting(styles, "title", "Horizontal padding"));
-	expect(defaultDensity).toContain(`var(--${paddingSlider}, 36px)`);
-	expect(compactDensity).toContain(`var(--${paddingSlider}, 12px)`);
+	expect(baseDensity).toContain("--tabsdown-tab-padding-block: 0.5rem");
+	expect(baseDensity).toContain(`--tabsdown-tab-padding-inline: var(--${paddingSlider}, 2.25rem)`);
+	expect(baseDensity).toContain("--tabsdown-rail-tab-padding-block: 0.125rem");
+	expect(baseDensity).toContain("--tabsdown-rail-track-padding: 0.375rem");
+	expect(defaultDensity).toContain(`var(--${paddingSlider}, 2.25rem)`);
+	expect(compactDensity).toContain(`calc(var(--${paddingSlider}, 2.25rem) / 3)`);
 	const sideSlider = settingId(styleSetting(styles, "title", "Side-list width"));
 	for (const position of ["left", "right"]) {
 		const sideList = matchingRuleBodies(styles, `.tabsdown--${position} > .tabsdown__tablist`);
@@ -1466,6 +1472,7 @@ test("documents the public horizontal padding variable", () => {
 		"utf8",
 	);
 	expect(cssGuide).toContain("--tabsdown-horizontal-padding: 1.5rem");
+	expect(cssGuide).toContain("Compact density derives one-third");
 	expect(cssGuide).not.toContain("--tabsdown-tab-padding-inline");
 });
 
@@ -1608,14 +1615,22 @@ test("makes only unconfigured authored narrow blocks compact", () => {
 	);
 	expect(automatic).toContain("--tabsdown-tab-min-size: 32px");
 	expect(automatic).toContain("--tabsdown-tab-padding-block: 0.375rem");
-	expect(automatic).toContain("--tabsdown-horizontal-padding, 12px");
+	expect(automatic).toContain("--tabsdown-rail-tab-padding-block: 0.0625rem");
+	expect(automatic).toContain(
+		"--tabsdown-tab-padding-inline: calc(var(--tabsdown-horizontal-padding, 2.25rem) / 3)",
+	);
+	expect(automatic).toContain("--tabsdown-rail-track-padding: 0.25rem");
 	const mobile = matchingRuleBodies(
 		styles,
 		"body.is-mobile .tabsdown:not(.tabsdown--mounted):not(.tabsdown--density-default):not(.tabsdown--density-compact) > .tabsdown__tablist",
 	);
 	expect(mobile).toContain("--tabsdown-tab-min-size: 32px");
 	expect(mobile).toContain("--tabsdown-tab-padding-block: 0.375rem");
-	expect(mobile).toContain("--tabsdown-horizontal-padding, 12px");
+	expect(mobile).toContain("--tabsdown-rail-tab-padding-block: 0.0625rem");
+	expect(mobile).toContain(
+		"--tabsdown-tab-padding-inline: calc(var(--tabsdown-horizontal-padding, 2.25rem) / 3)",
+	);
+	expect(mobile).toContain("--tabsdown-rail-track-padding: 0.25rem");
 
 	const explicitDefault = matchingRuleBodies(
 		styles,
@@ -1626,9 +1641,19 @@ test("makes only unconfigured authored narrow blocks compact", () => {
 		".tabsdown.tabsdown--density-compact > .tabsdown__tablist",
 	);
 	expect(explicitDefault).toContain("--tabsdown-tab-min-size: 44px");
-	expect(explicitDefault).toContain("--tabsdown-horizontal-padding, 36px");
+	expect(explicitDefault).toContain("--tabsdown-tab-padding-block: 0.5rem");
+	expect(explicitDefault).toContain("--tabsdown-rail-tab-padding-block: 0.125rem");
+	expect(explicitDefault).toContain(
+		"--tabsdown-tab-padding-inline: var(--tabsdown-horizontal-padding, 2.25rem)",
+	);
+	expect(explicitDefault).toContain("--tabsdown-rail-track-padding: 0.375rem");
 	expect(explicitCompact).toContain("--tabsdown-tab-min-size: 32px");
-	expect(explicitCompact).toContain("--tabsdown-horizontal-padding, 12px");
+	expect(explicitCompact).toContain("--tabsdown-tab-padding-block: 0.375rem");
+	expect(explicitCompact).toContain("--tabsdown-rail-tab-padding-block: 0.0625rem");
+	expect(explicitCompact).toContain(
+		"--tabsdown-tab-padding-inline: calc(var(--tabsdown-horizontal-padding, 2.25rem) / 3)",
+	);
+	expect(explicitCompact).toContain("--tabsdown-rail-track-padding: 0.25rem");
 	// Source order among the render rules; the resolved-settings section below
 	// them sets no rendering declarations.
 	const rendering = styles.slice(0, styles.indexOf("--tabsdown-resolved-personality"));
@@ -1762,11 +1787,18 @@ test("scales the rail personality with the requested density", () => {
 	const styles = readStyles();
 	for (const selector of [
 		"body.tabsdown-personality-rail .tabsdown__tablist",
-		"body.tabsdown-top-personality-rail",
-		"body .tabsdown.tabsdown--personality-rail",
+		"body.tabsdown-top-personality-rail .tabsdown--top > .tabsdown__tablist",
+		"body.tabsdown-bottom-personality-rail .tabsdown--bottom > .tabsdown__tablist",
+		"body.tabsdown-left-personality-rail .tabsdown--left > .tabsdown__tablist",
+		"body.tabsdown-right-personality-rail .tabsdown--right > .tabsdown__tablist",
+		"body .tabsdown.tabsdown--personality-rail.tabsdown.tabsdown.tabsdown.tabsdown > .tabsdown__tablist",
 	]) {
-		expect(matchingRuleBodies(styles, selector)).toContain(
+		const body = exactRuleBodies(styles, selector).join("\n");
+		expect(body).toContain(
 			"--tabsdown-tab-min-block-size: var(--tabsdown-rail-tab-min-block-size)",
+		);
+		expect(body).toContain(
+			"padding: var(--tabsdown-rail-track-padding)",
 		);
 	}
 	for (const selector of [
@@ -1776,6 +1808,11 @@ test("scales the rail personality with the requested density", () => {
 		const body = matchingRuleBodies(styles, selector);
 		expect(body).toContain("--tabsdown-rail-tab-min-block-size: 28px");
 		expect(body).toContain("--tabsdown-rail-tab-padding-block: 0.0625rem");
+		expect(body).toContain("--tabsdown-rail-track-padding: 0.25rem");
+		expect(body).toContain("--tabsdown-tab-padding-block: 0.375rem");
+		expect(body).toContain(
+			"--tabsdown-tab-padding-inline: calc(var(--tabsdown-horizontal-padding, 2.25rem) / 3)",
+		);
 	}
 	for (const selector of [
 		"body.tabsdown-density-default .tabsdown",
@@ -1784,6 +1821,11 @@ test("scales the rail personality with the requested density", () => {
 		const body = matchingRuleBodies(styles, selector);
 		expect(body).toContain("--tabsdown-rail-tab-min-block-size: 36px");
 		expect(body).toContain("--tabsdown-rail-tab-padding-block: 0.125rem");
+		expect(body).toContain("--tabsdown-rail-track-padding: 0.375rem");
+		expect(body).toContain("--tabsdown-tab-padding-block: 0.5rem");
+		expect(body).toContain(
+			"--tabsdown-tab-padding-inline: var(--tabsdown-horizontal-padding, 2.25rem)",
+		);
 	}
 });
 
