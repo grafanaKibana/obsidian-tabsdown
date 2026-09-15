@@ -12,14 +12,6 @@ Tabsdown turns ordinary Markdown into theme-native tabs in Obsidian. Tabs can co
 - Uses Obsidian's Markdown renderer, so links, embeds, and compatible plugin blocks keep working.
 - Matches the active theme and can be adjusted with Style Settings or CSS snippets.
 
-## New in 1.5.0
-
-- Add, rename, and delete tabs directly from a rendered block. Double-click a tab to edit its name in place.
-- Choose a theme-following or custom corner radius. Rail tabs derive their inner radius from the Rail's padding and follow its corner shape, including on macOS.
-- Keep tab widths stable when switching the active tab, avoiding a few pixels of unnecessary horizontal scrolling when the labels fit.
-
-See [tab editing](#add-rename-and-delete-tabs) and [corner radius](#corner-radius) below.
-
 ## Syntax
 
 Start each tab with a column-zero `tab: <label>` marker. A block needs at least two non-empty, unique labels. Add optional block settings as comma-separated `property=value` entries on a column-zero `config:` line before the first tab, or right-click the block in Reading View or Live Preview and choose directly from the Position, Overflow, Density, Personality, Palette, and Alignment submenus.
@@ -117,19 +109,6 @@ Markers inside a nested block belong to that block, so the inner `tab:` lines ab
 | Reading View | Interactive tabs on desktop and mobile. Switching tabs never edits the note. |
 | Live Preview | Interactive tabs while the cursor is outside the block; fenced source while editing inside it. |
 | Source Mode | Raw fenced Markdown only. |
-
-## Corner radius
-
-With [Style Settings](docs/style-settings.md) installed, open **Settings → Style Settings → Tabsdown → Tab appearance**:
-
-- **Corner radius → Auto** follows the active theme's small radius.
-- **Corner radius → Custom** uses the **Custom corner radius** slider, from 0–24 px.
-
-For **Button**, the chosen radius applies to the outer corners of each row or column. Corners between buttons keep the theme's default radius.
-
-For **Rail**, it applies to the whole Rail. Each tab uses the Rail radius minus its inset padding, with a minimum of zero, and matches the Rail's curve shape. For example, a 20 px Rail with 6 px padding gives its tabs a 14 px radius. The calculation adapts to Default and Compact density.
-
-**Underline** and **Separator** keep their existing square corners. Radius settings do not change tab content panels.
 
 ## Installation
 
