@@ -210,6 +210,461 @@ async function openWritableMenu(
 	return children;
 }
 
+async function renderWritableBlock(
+	plugin: TabsdownPlugin,
+	source: string,
+): Promise<HTMLElement> {
+	plugin.onload();
+	const handler = processorRegistrationMock.mock.calls[0]?.[1];
+	if (!handler) throw new Error("Expected processor");
+	const container = document.body.appendChild(document.createElement("div"));
+	void handler(source, container, {
+		sourcePath: "Note.md",
+		addChild: (child: { load(): void }) => child.load(),
+		getSectionInfo: () => ({ lineStart: 0, lineEnd: 5, text: source }),
+	});
+	await flush();
+	return container;
+}
+
+function labelEditorInput(): HTMLInputElement {
+	const input = document.querySelector<HTMLInputElement>(".tabsdown-label-editor__input");
+	if (!input) throw new Error("Expected inline label editor");
+	return input;
+}
+
+function commitLabel(value: string): void {
+	const input = labelEditorInput();
+	input.value = value;
+	input.dispatchEvent(new KeyboardEvent("keydown", {
+		key: "Enter",
+		bubbles: true,
+		cancelable: true,
+	}));
+}
+
+test("Add tab commits through the sole editor from the first context-menu item", async () => {
+	const source = "tab: One\nA\ntab: Two\nB";
+	const text = `~~~tabsdown\n${source}\n~~~`;
+	const { plugin, editors, process } = writablePlugin(text, 1);
+	const container = await renderWritableBlock(plugin, source);
+	openContextMenu(container);
+	const rootItems = menuItems.filter((item) => !item.parent);
+	expect(rootItems[0]?.title).toBe("Add tab");
+	await rootItems[0]?.callback?.(new MouseEvent("click"));
+	commitLabel("Three");
+	await flush();
+
+	expect(editors[0]?.replaceRange).toHaveBeenCalledExactlyOnceWith(
+		"tab: Three\n",
+		{ line: 5, ch: 0 },
+		{ line: 5, ch: 0 },
+	);
+	expect(process).not.toHaveBeenCalled();
+});
+
+test("Add tab commits through one atomic Vault.process in Reading View", async () => {
+	const source = "tab: One\nA\ntab: Two\nB";
+	const text = `~~~tabsdown\n${source}\n~~~`;
+	const { cachedRead, plugin, process } = writablePlugin(text, 0);
+	const container = await renderWritableBlock(plugin, source);
+	openContextMenu(container);
+	await menuItems.find((item) => !item.parent && item.title === "Add tab")
+		?.callback?.(new MouseEvent("click"));
+	commitLabel("Three");
+	await flush();
+
+	expect(process).toHaveBeenCalledOnce();
+	expect(await cachedRead()).toBe(`~~~tabsdown\n${source}\ntab: Three\n~~~`);
+});
+
+test("double-click edits the name while preserving its icon through the exact editor range", async () => {
+	const source = "tab: icon:code **One**\nA\ntab: Two\nB";
+	const text = `~~~tabsdown\n${source}\n~~~`;
+	const { plugin, editors, process } = writablePlugin(text, 1);
+	const container = await renderWritableBlock(plugin, source);
+	container.querySelector<HTMLButtonElement>(".tabsdown__tab")?.dispatchEvent(
+		new MouseEvent("dblclick", { bubbles: true, cancelable: true }),
+	);
+	expect(labelEditorInput().value).toBe("**One**");
+	commitLabel("*Updated*");
+	await flush();
+
+	expect(editors[0]?.replaceRange).toHaveBeenCalledExactlyOnceWith(
+		"icon:code *Updated*",
+		{ line: 1, ch: 5 },
+		{ line: 1, ch: 22 },
+	);
+	expect(process).not.toHaveBeenCalled();
+});
+
+function answerDelete(confirm: boolean): void {
+	const dialog = document.querySelector('[role="dialog"]');
+	const button = Array.from(dialog?.querySelectorAll("button") ?? [])
+		.find((element) => element.textContent === (confirm ? "Delete tab" : "Cancel"));
+	if (!button) throw new Error("Expected delete confirmation");
+	button.click();
+}
+
+test("Delete tab confirms content removal and writes one exact editor range", async () => {
+	const source = "tab: One\nA\ntab: Two\nB\ntab: Three\nC";
+	const text = `~~~tabsdown\n${source}\n~~~`;
+	const { plugin, editors, process } = writablePlugin(text, 1);
+	const container = await renderWritableBlock(plugin, source);
+	openContextMenu(container.querySelectorAll<HTMLElement>("[role=tab]")[1]!);
+	await menuItems.find((item) => item.title === "Delete tab")?.callback?.(new MouseEvent("click"));
+	expect(editors[0]?.replaceRange).not.toHaveBeenCalled();
+	answerDelete(false);
+	await flush();
+	expect(editors[0]?.replaceRange).not.toHaveBeenCalled();
+	openContextMenu(container.querySelectorAll<HTMLElement>("[role=tab]")[1]!);
+	await menuItems.find((item) => item.title === "Delete tab")?.callback?.(new MouseEvent("click"));
+	answerDelete(true);
+	await flush();
+	expect(editors[0]?.replaceRange).toHaveBeenCalledExactlyOnceWith("", { line: 3, ch: 0 }, { line: 5, ch: 0 });
+	expect(process).not.toHaveBeenCalled();
+});
+
+test("Delete tab uses Vault.process and preserves the minimum of two tabs", async () => {
+	const source = "tab: One\nA\ntab: Two\nB\ntab: Three\nC";
+	const { cachedRead, plugin, process } = writablePlugin(`~~~tabsdown\n${source}\n~~~`, 0);
+	const container = await renderWritableBlock(plugin, source);
+	openContextMenu(container.querySelector<HTMLElement>("[role=tab]")!);
+	await menuItems.find((item) => item.title === "Delete tab")?.callback?.(new MouseEvent("click"));
+	answerDelete(true);
+	await flush();
+	expect(process).toHaveBeenCalledOnce();
+	expect(await cachedRead()).toBe("~~~tabsdown\ntab: Two\nB\ntab: Three\nC\n~~~");
+	menuItems.splice(0);
+	const only = await renderWritableBlock(plugin, "tab: Two\nB\ntab: Three\nC");
+	openContextMenu(only.querySelector<HTMLElement>("[role=tab]")!);
+	expect(menuItems.find((item) => item.title === "Delete tab")?.disabled).toBe(true);
+});
+
+test("Delete tab rejects edits made while confirmation is open", async () => {
+	const source = "tab: One\nA\ntab: Two\nB\ntab: Three\nC";
+	const text = `~~~tabsdown\n${source}\n~~~`;
+	const { plugin, editors } = writablePlugin(text, 1);
+	const container = await renderWritableBlock(plugin, source);
+	openContextMenu(container.querySelector<HTMLElement>("[role=tab]")!);
+	await menuItems.find((item) => item.title === "Delete tab")?.callback?.(new MouseEvent("click"));
+	await flush();
+	editors[0]?.getValue.mockReturnValue(text + "\nExternal change");
+	answerDelete(true);
+	await flush();
+	expect(editors[0]?.replaceRange).not.toHaveBeenCalled();
+	expect(noticeMock).toHaveBeenCalledWith(expect.stringContaining("note changed"));
+});
+
+test("inline rename rejects editor drift after the edit session opens", async () => {
+	const source = "tab: One\nA\ntab: Two\nB";
+	const text = `~~~tabsdown\n${source}\n~~~`;
+	const { plugin, editors, process } = writablePlugin(text, 1);
+	const container = await renderWritableBlock(plugin, source);
+	container.querySelector<HTMLButtonElement>(".tabsdown__tab")?.dispatchEvent(
+		new MouseEvent("dblclick", { bubbles: true, cancelable: true }),
+	);
+	await flush();
+	editors[0]?.getValue.mockReturnValue(`${text}\nexternal change`);
+	commitLabel("Changed");
+	await flush();
+
+	expect(editors[0]?.replaceRange).not.toHaveBeenCalled();
+	expect(process).not.toHaveBeenCalled();
+	expect(labelEditorInput().getAttribute("aria-invalid")).toBe("true");
+	expect(document.querySelector(".tabsdown-label-editor__error")?.textContent)
+		.toContain("note changed");
+});
+
+test("Add tab targets the exact nested block editor range", async () => {
+	const inner = "tab: One\nA\ntab: Two\nB\n";
+	const block = `~~~tabsdown\n${inner}~~~`;
+	const source = `tab: Outer\n${block}\ntab: Last\nDone\n`;
+	const text = `~~~~tabsdown\n${source}~~~~`;
+	const { plugin, editors, process } = writablePlugin(text, 1);
+	plugin.onload();
+	const handler = processorRegistrationMock.mock.calls[0]?.[1];
+	if (!handler) throw new Error("Expected processor");
+	renderMock.mockImplementation(async (_app, markdown, element) => {
+		element.textContent = markdown;
+		if (!markdown.includes(block)) return;
+		const nested = element.appendChild(document.createElement("div"));
+		void handler(inner, nested, {
+			sourcePath: "Note.md",
+			addChild: (child: { load(): void }) => child.load(),
+			getSectionInfo: () => null,
+		});
+	});
+	const container = document.body.appendChild(document.createElement("div"));
+	void handler(source, container, {
+		sourcePath: "Note.md",
+		addChild: (child: { load(): void }) => child.load(),
+		getSectionInfo: () => ({ lineStart: 0, lineEnd: 9, text: source }),
+	});
+	await flush();
+	openContextMenu(renderedBlocks(container)[1]!);
+	await menuItems.find((item) => !item.parent && item.title === "Add tab")
+		?.callback?.(new MouseEvent("click"));
+	commitLabel("Three");
+	await flush();
+
+	expect(editors[0]?.replaceRange).toHaveBeenCalledExactlyOnceWith(
+		"tab: Three\n",
+		{ line: 7, ch: 0 },
+		{ line: 7, ch: 0 },
+	);
+	expect(process).not.toHaveBeenCalled();
+});
+
+test("rename restores focus to the matching new duplicate block after synchronous rerender", async () => {
+	const oldSource = "tab: One\nA\ntab: Two\nB";
+	const newSource = "tab: One\nA\ntab: Changed\nB";
+	const firstBlock = `~~~tabsdown\n${newSource}\n~~~`;
+	const secondBlock = `~~~tabsdown\n${oldSource}\n~~~`;
+	const oldText = `${firstBlock}\n${secondBlock}`;
+	const newText = `${firstBlock}\n~~~tabsdown\n${newSource}\n~~~`;
+	const { plugin, editors } = writablePlugin(oldText, 1);
+	plugin.onload();
+	const handler = processorRegistrationMock.mock.calls[0]?.[1];
+	if (!handler) throw new Error("Expected processor");
+	const children: Array<{ load(): void; unload(): void }> = [];
+	const render = (source: string, lineStart: number): HTMLElement => {
+		const container = document.body.appendChild(document.createElement("div"));
+		void handler(source, container, {
+			sourcePath: "Note.md",
+			addChild: (child: { load(): void; unload(): void }) => {
+				children.push(child);
+				child.load();
+			},
+			getSectionInfo: () => ({ lineStart, lineEnd: lineStart + 5, text: source }),
+		});
+		return container;
+	};
+	const oldContainer = render(oldSource, 6);
+	let wrongContainer: HTMLElement | undefined;
+	let newContainer: HTMLElement | undefined;
+	editors[0]?.replaceRange.mockImplementation(() => {
+		editors[0]?.getValue.mockReturnValue(newText);
+		children[0]?.unload();
+		oldContainer.remove();
+		wrongContainer = render(newSource, 0);
+		newContainer = render(newSource, 6);
+	});
+	const second = oldContainer.querySelectorAll<HTMLButtonElement>(".tabsdown__tab")[1]!;
+	second.click();
+	second.dispatchEvent(new MouseEvent("dblclick", { bubbles: true, cancelable: true }));
+	commitLabel("Changed");
+	await flush();
+
+	expect(wrongContainer?.contains(document.activeElement)).toBe(false);
+	expect(document.activeElement).toBe(
+		newContainer?.querySelectorAll<HTMLButtonElement>(".tabsdown__tab")[1],
+	);
+	expect(newContainer?.querySelectorAll<HTMLButtonElement>(".tabsdown__tab")[1]
+		?.getAttribute("aria-selected")).toBe("true");
+});
+
+test("Add tab restores selection and focus only in its initiating leaf", async () => {
+	const oldSource = "tab: One\nA\ntab: Two\nB";
+	const newSource = `${oldSource}\ntab: Three`;
+	const oldText = `~~~tabsdown\n${oldSource}\n~~~`;
+	const newText = `~~~tabsdown\n${newSource}\n~~~`;
+	const { plugin, editors } = writablePlugin(oldText, 1);
+	plugin.onload();
+	const handler = processorRegistrationMock.mock.calls[0]?.[1];
+	if (!handler) throw new Error("Expected processor");
+	const children: Array<{ load(): void; unload(): void }> = [];
+	const firstLeaf = document.body.appendChild(document.createElement("div"));
+	firstLeaf.classList.add("workspace-leaf-content");
+	const secondLeaf = document.body.appendChild(document.createElement("div"));
+	secondLeaf.classList.add("workspace-leaf-content");
+	const render = (source: string, leaf: HTMLElement): HTMLElement => {
+		const container = leaf.appendChild(document.createElement("div"));
+		void handler(source, container, {
+			sourcePath: "Note.md",
+			addChild: (child: { load(): void; unload(): void }) => {
+				children.push(child);
+				child.load();
+			},
+			getSectionInfo: () => ({ lineStart: 0, lineEnd: 5, text: source }),
+		});
+		return container;
+	};
+	const oldContainer = render(oldSource, firstLeaf);
+	let wrongContainer: HTMLElement | undefined;
+	let newContainer: HTMLElement | undefined;
+	editors[0]?.replaceRange.mockImplementation(() => {
+		editors[0]?.getValue.mockReturnValue(newText);
+		children[0]?.unload();
+		oldContainer.remove();
+		wrongContainer = render(newSource, secondLeaf);
+		newContainer = render(newSource, firstLeaf);
+	});
+	oldContainer.querySelectorAll<HTMLButtonElement>(".tabsdown__tab")[1]?.click();
+	openContextMenu(oldContainer);
+	await menuItems.find((item) => !item.parent && item.title === "Add tab")
+		?.callback?.(new MouseEvent("click"));
+	commitLabel("Three");
+	await flush();
+
+	expect(document.activeElement).toBe(
+		newContainer?.querySelectorAll<HTMLButtonElement>(".tabsdown__tab")[1],
+	);
+	expect(wrongContainer?.contains(document.activeElement)).toBe(false);
+	expect(newContainer?.querySelectorAll<HTMLButtonElement>(".tabsdown__tab")[1]
+		?.getAttribute("aria-selected")).toBe("true");
+});
+
+test("rename hands focus to a matching rerender that arrives after save resolves", async () => {
+	const oldSource = "tab: One\nA\ntab: Two\nB";
+	const newSource = "tab: Changed\nA\ntab: Two\nB";
+	const oldText = `~~~tabsdown\n${oldSource}\n~~~`;
+	const newText = `~~~tabsdown\n${newSource}\n~~~`;
+	const { plugin, editors } = writablePlugin(oldText, 1);
+	plugin.onload();
+	const handler = processorRegistrationMock.mock.calls[0]?.[1];
+	if (!handler) throw new Error("Expected processor");
+	const children: Array<{ load(): void; unload(): void }> = [];
+	const render = (source: string): HTMLElement => {
+		const container = document.body.appendChild(document.createElement("div"));
+		void handler(source, container, {
+			sourcePath: "Note.md",
+			addChild: (child: { load(): void; unload(): void }) => {
+				children.push(child);
+				child.load();
+			},
+			getSectionInfo: () => ({ lineStart: 0, lineEnd: 5, text: source }),
+		});
+		return container;
+	};
+	const oldContainer = render(oldSource);
+	editors[0]?.replaceRange.mockImplementation(() => {
+		editors[0]?.getValue.mockReturnValue(newText);
+	});
+	const oldButton = oldContainer.querySelector<HTMLButtonElement>(".tabsdown__tab")!;
+	oldButton.dispatchEvent(new MouseEvent("dblclick", { bubbles: true, cancelable: true }));
+	commitLabel("Changed");
+	await flush();
+	expect(document.activeElement).toBe(oldButton);
+
+	children[0]?.unload();
+	oldContainer.remove();
+	const newContainer = render(newSource);
+	await flush();
+	expect(document.activeElement).toBe(
+		newContainer.querySelector<HTMLButtonElement>(".tabsdown__tab"),
+	);
+});
+
+test("an expired focus handoff cannot focus a later matching render", async () => {
+	const oldSource = "tab: One\nA\ntab: Two\nB";
+	const newSource = "tab: Changed\nA\ntab: Two\nB";
+	const oldText = `~~~tabsdown\n${oldSource}\n~~~`;
+	const newText = `~~~tabsdown\n${newSource}\n~~~`;
+	const { plugin, editors } = writablePlugin(oldText, 1);
+	const timer = vi.spyOn(window, "setTimeout");
+	plugin.onload();
+	const handler = processorRegistrationMock.mock.calls[0]?.[1];
+	if (!handler) throw new Error("Expected processor");
+	const render = (source: string): HTMLElement => {
+		const container = document.body.appendChild(document.createElement("div"));
+		void handler(source, container, {
+			sourcePath: "Note.md",
+			addChild: (child: { load(): void }) => child.load(),
+			getSectionInfo: () => ({ lineStart: 0, lineEnd: 5, text: source }),
+		});
+		return container;
+	};
+	const oldContainer = render(oldSource);
+	editors[0]?.replaceRange.mockImplementation(() => {
+		editors[0]?.getValue.mockReturnValue(newText);
+	});
+	const oldButton = oldContainer.querySelector<HTMLButtonElement>(".tabsdown__tab")!;
+	oldButton.dispatchEvent(new MouseEvent("dblclick", { bubbles: true, cancelable: true }));
+	commitLabel("Changed");
+	await flush();
+	const expiry = timer.mock.calls.find(([, delay]) => delay === 2_000)?.[0];
+	if (typeof expiry !== "function") throw new Error("Expected focus expiry timer");
+	expiry();
+
+	const candidate = render(newSource);
+	await flush();
+	expect(document.activeElement).toBe(oldButton);
+	expect(candidate.contains(document.activeElement)).toBe(false);
+	timer.mockRestore();
+});
+
+test("failed rename clears its focus handoff before a matching block renders", async () => {
+	const oldSource = "tab: One\nA\ntab: Two\nB";
+	const newSource = "tab: Changed\nA\ntab: Two\nB";
+	const oldText = `~~~tabsdown\n${oldSource}\n~~~`;
+	const { plugin, editors } = writablePlugin(oldText, 1);
+	plugin.onload();
+	const handler = processorRegistrationMock.mock.calls[0]?.[1];
+	if (!handler) throw new Error("Expected processor");
+	const render = (source: string): HTMLElement => {
+		const container = document.body.appendChild(document.createElement("div"));
+		void handler(source, container, {
+			sourcePath: "Note.md",
+			addChild: (child: { load(): void }) => child.load(),
+			getSectionInfo: () => ({ lineStart: 0, lineEnd: 5, text: source }),
+		});
+		return container;
+	};
+	const oldContainer = render(oldSource);
+	editors[0]?.replaceRange.mockImplementation(() => {
+		throw new Error("Save failed");
+	});
+	oldContainer.querySelector<HTMLButtonElement>(".tabsdown__tab")?.dispatchEvent(
+		new MouseEvent("dblclick", { bubbles: true, cancelable: true }),
+	);
+	commitLabel("Changed");
+	await flush();
+	const input = labelEditorInput();
+	expect(document.activeElement).toBe(input);
+
+	const candidate = render(newSource);
+	await flush();
+	expect(document.activeElement).toBe(input);
+	expect(candidate.contains(document.activeElement)).toBe(false);
+});
+
+test("rejected Vault.process clears its focus handoff", async () => {
+	const oldSource = "tab: One\nA\ntab: Two\nB";
+	const newSource = "tab: Changed\nA\ntab: Two\nB";
+	const oldText = `~~~tabsdown\n${oldSource}\n~~~`;
+	const { plugin, process } = writablePlugin(oldText, 0);
+	process.mockImplementationOnce(async (_file, transform) => {
+		transform(oldText);
+		throw new Error("Vault write failed");
+	});
+	plugin.onload();
+	const handler = processorRegistrationMock.mock.calls[0]?.[1];
+	if (!handler) throw new Error("Expected processor");
+	const render = (source: string): HTMLElement => {
+		const container = document.body.appendChild(document.createElement("div"));
+		void handler(source, container, {
+			sourcePath: "Note.md",
+			addChild: (child: { load(): void }) => child.load(),
+			getSectionInfo: () => ({ lineStart: 0, lineEnd: 5, text: source }),
+		});
+		return container;
+	};
+	const oldContainer = render(oldSource);
+	oldContainer.querySelector<HTMLButtonElement>(".tabsdown__tab")?.dispatchEvent(
+		new MouseEvent("dblclick", { bubbles: true, cancelable: true }),
+	);
+	commitLabel("Changed");
+	await flush();
+	const input = labelEditorInput();
+	expect(document.activeElement).toBe(input);
+
+	const candidate = render(newSource);
+	await flush();
+	expect(document.activeElement).toBe(input);
+	expect(candidate.contains(document.activeElement)).toBe(false);
+});
+
 test("writes through the sole editor with one replaceRange and never the vault", async () => {
 	const source = "tab: One\nA\ntab: Two\nB";
 	const text = `~~~tabsdown\n${source}\n~~~`;

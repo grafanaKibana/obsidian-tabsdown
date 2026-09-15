@@ -6,7 +6,7 @@ Tabsdown is intentionally small: Markdown remains the source of truth, Obsidian'
 
 1. Open or select an issue.
 2. Keep the change inside that issue's acceptance criteria.
-3. Do not add private Obsidian APIs, runtime dependencies, plugin-specific adapters, or source-mutating tab behavior.
+3. Do not add private Obsidian APIs, runtime dependencies, plugin-specific adapters, or implicit source changes when switching tabs. Explicit authoring actions must use the snapshot-validated editor/vault write path.
 4. Build production DOM with Obsidian's `createEl` helpers. The ESLint exception is test-only.
 5. Run:
 
@@ -44,7 +44,7 @@ Tabsdown is the only plugin enabled in the tracked demo state. Style Settings, B
 - Link the issue in the pull request body with a closing keyword, such as `Closes #17`.
 - Prefer one independently verifiable issue per pull request.
 - Include command output and manual test evidence.
-- Treat inaccessible focus, leaked render children, source mutation, and release-contract failures as blockers.
+- Treat inaccessible focus, leaked render children, unintended source mutation, and release-contract failures as blockers.
 
 Pull requests into `main` need the `quality` check. `main` cannot be force-pushed or deleted.
 

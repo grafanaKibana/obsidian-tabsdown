@@ -4,7 +4,9 @@ import {
 	captureBlock,
 	nestedBlockCandidates,
 	rewriteBlock,
+	rewriteTab,
 	SourceConflictError,
+	tabLabels,
 } from "../src/source";
 
 const inner = "tab: One\nA\ntab: Two\nB\n";
@@ -1009,5 +1011,200 @@ describe("guarded authored block rewrites", () => {
 		expect(() => rewriteBlock(changed, snapshot, { alignment: "center" })).toThrow(
 			SourceConflictError,
 		);
+	});
+});
+
+describe("guarded tab edits", () => {
+	function tabEdit(
+		text: string,
+		rendered: string,
+		edit: Parameters<typeof rewriteTab>[2],
+		locator = { lineStart: 0, nestedOffsets: [] as number[] },
+	): string {
+		const snapshot = captureBlock(text, locator, rendered);
+		return applySourceEdit(text, rewriteTab(text, snapshot, edit));
+	}
+
+	test("returns full raw labels with only marker whitespace trimmed", () => {
+		const source = [
+			"tab:\t icon:lucide-star **One**  ",
+			"Body with \\tab: escaped",
+			"```text",
+			"tab: code",
+			"```",
+			"tab: \\icon:literal *Two*",
+		].join("\n");
+		expect(tabLabels(source)).toEqual([
+			"icon:lucide-star **One**",
+			"code",
+			"\\icon:literal *Two*",
+		]);
+	});
+
+	test("renames only the selected label bytes", () => {
+		const rendered = "tab:  icon:star **One**  \nBody\ntab:\tTwo\t\nLast\n";
+		const text = `before\n~~~tabsdown\n${rendered}~~~\nafter`;
+		const result = tabEdit(text, rendered, {
+			type: "rename",
+			index: 0,
+			label: " icon:moon ~~Night~~ ",
+		}, { lineStart: 1, nestedOffsets: [] });
+		expect(result).toBe(
+			text.replace("icon:star **One**", "icon:moon ~~Night~~"),
+		);
+	});
+
+	test("renames only the selected byte-identical nested block", () => {
+		const leaf = "~~~tabsdown\ntab: One\nA\ntab: Two\nB\n~~~";
+		const source = `tab: Outer\n${leaf}\n${leaf}\ntab: Last\nDone\n`;
+		const text = `~~~~tabsdown\n${source}~~~~`;
+		const candidates = nestedBlockCandidates(source, 0);
+		const rendered = "tab: One\nA\ntab: Two\nB\n";
+		const result = tabEdit(text, rendered, {
+			type: "rename",
+			index: 1,
+			label: "Second",
+		}, { lineStart: 0, nestedOffsets: [candidates[1]!.offset] });
+		expect(result.match(/tab: Second/g)).toHaveLength(1);
+		expect(result.indexOf("tab: Second")).toBeGreaterThan(text.indexOf(leaf));
+	});
+
+	test.each(["\n", "\r\n"])("appends before a quoted list close with %j", (newline) => {
+		const rendered = "tab: One\nA\ntab: Two\nB\n";
+		const lines = [
+			"> - ~~~tabsdown",
+			">   tab: One",
+			">   A",
+			">   tab: Two",
+			">   B",
+			">   ~~~",
+		];
+		const text = lines.join(newline);
+		expect(tabEdit(text, rendered, { type: "add", label: "Three" })).toBe([
+			...lines.slice(0, -1),
+			">   tab: Three",
+			lines[lines.length - 1]!,
+		].join(newline));
+	});
+
+	test("appends to an unclosed EOF block without adding a final newline", () => {
+		const rendered = "tab: One\nA\ntab: Two\nB";
+		const text = `~~~tabsdown\n${rendered}`;
+		expect(tabEdit(text, rendered, { type: "add", label: "Three" })).toBe(
+			`${text}\ntab: Three`,
+		);
+	});
+
+	test.each(["\n", "\r\n"])(
+		"preserves an unclosed EOF block's existing final %j",
+		(newline) => {
+			const rendered = "tab: One\nA\ntab: Two\nB\n";
+			const body = rendered.replaceAll("\n", newline);
+			const text = `~~~tabsdown${newline}${body}`;
+			expect(tabEdit(text, rendered, { type: "add", label: "Three" })).toBe(
+				`${text}tab: Three${newline}`,
+			);
+		},
+	);
+
+	test("rejects empty, multiline, and semantic duplicate labels", () => {
+		const rendered = "tab: icon:a One\nA\ntab: Two\nB\n";
+		const text = `~~~tabsdown\n${rendered}~~~`;
+		for (const label of ["  ", "Three\nFour"]) {
+			expect(() => tabEdit(text, rendered, { type: "add", label }))
+				.toThrow(SourceConflictError);
+		}
+		expect(() => tabEdit(text, rendered, {
+			type: "rename",
+			index: 1,
+			label: "icon:b One",
+		})).toThrow(/Duplicate tab label/);
+	});
+
+	test("rejects stale snapshots before changing bytes", () => {
+		const rendered = "tab: One\nA\ntab: Two\nB\n";
+		const text = `~~~tabsdown\n${rendered}~~~`;
+		const snapshot = captureBlock(text, { lineStart: 0, nestedOffsets: [] }, rendered);
+		expect(() => rewriteTab(`${text}\nchanged`, snapshot, {
+			type: "rename",
+			index: 0,
+			label: "First",
+		})).toThrow(SourceConflictError);
+	});
+
+	test.each([
+		{
+			name: "first",
+			index: 0,
+			expected: "tab: Two\nB\ntab: Three\nC\n",
+		},
+		{
+			name: "middle",
+			index: 1,
+			expected: "tab: One\nA\ntab: Three\nC\n",
+		},
+		{
+			name: "last",
+			index: 2,
+			expected: "tab: One\nA\ntab: Two\nB\n",
+		},
+	] as const)("deletes the $name tab marker and complete body", ({ index, expected }) => {
+		const rendered = "tab: One\nA\ntab: Two\nB\ntab: Three\nC\n";
+		const text = `before\n~~~tabsdown\n${rendered}~~~\nafter`;
+		expect(tabEdit(
+			text,
+			rendered,
+			{ type: "delete", index },
+			{ lineStart: 1, nestedOffsets: [] },
+		)).toBe(
+			`before\n~~~tabsdown\n${expected}~~~\nafter`,
+		);
+	});
+
+	test("deletes a tab body containing nested blocks without touching sibling tabs", () => {
+		const nested = "~~~~tabsdown\ntab: Inner one\nX\ntab: Inner two\nY\n~~~~\n";
+		const rendered = `tab: One\nA\ntab: Nested\n${nested}Tail\ntab: Three\nC\n`;
+		const text = `~~~~~tabsdown\n${rendered}~~~~~`;
+		expect(tabEdit(text, rendered, { type: "delete", index: 1 })).toBe(
+			"~~~~~tabsdown\ntab: One\nA\ntab: Three\nC\n~~~~~",
+		);
+	});
+
+	test("preserves list, quote, and CRLF bytes around a deleted middle tab", () => {
+		const rendered = "tab: One\nA\ntab: Two\nB\ntab: Three\nC\n";
+		const lines = [
+			"> - ~~~tabsdown",
+			">   tab: One",
+			">   A",
+			">   tab: Two",
+			">   B",
+			">   tab: Three",
+			">   C",
+			">   ~~~",
+		];
+		const text = lines.join("\r\n");
+		expect(tabEdit(text, rendered, { type: "delete", index: 1 })).toBe([
+			...lines.slice(0, 3),
+			...lines.slice(5),
+		].join("\r\n"));
+	});
+
+	test("rejects invalid indexes and deletion that would leave too few tabs", () => {
+		const rendered = "tab: One\nA\ntab: Two\nB\n";
+		const text = `~~~tabsdown\n${rendered}~~~`;
+		for (const index of [-1, 2]) {
+			expect(() => tabEdit(text, rendered, { type: "delete", index }))
+				.toThrow(/could not be located/);
+		}
+		expect(() => tabEdit(text, rendered, { type: "delete", index: 1 }))
+			.toThrow(/at least two tabs/);
+	});
+
+	test("rejects stale snapshots before deleting", () => {
+		const rendered = "tab: One\nA\ntab: Two\nB\ntab: Three\nC\n";
+		const text = `~~~tabsdown\n${rendered}~~~`;
+		const snapshot = captureBlock(text, { lineStart: 0, nestedOffsets: [] }, rendered);
+		expect(() => rewriteTab(`${text}\nchanged`, snapshot, { type: "delete", index: 1 }))
+			.toThrow(SourceConflictError);
 	});
 });

@@ -23,6 +23,12 @@ Object.defineProperty(HTMLElement.prototype, "empty", {
 		this.replaceChildren();
 	},
 });
+Object.defineProperty(HTMLElement.prototype, "createDiv", {
+	configurable: true,
+	value(this: HTMLElement, options?: { cls?: string | string[] }): HTMLDivElement {
+		return this.createEl("div", options);
+	},
+});
 
 type RenderFunction = (
 	app: unknown,
@@ -132,6 +138,12 @@ export const menus: Menu[] = [];
 export const menuShowAtMouseEventMock = vi.fn();
 export const menuShowAtPositionMock = vi.fn();
 export class MenuItem {
+	icon: string | null = null;
+	disabled = false;
+	warning = false;
+	setDisabled(value: boolean): this { this.disabled = value; return this; }
+	setWarning(value: boolean): this { this.warning = value; return this; }
+	setIcon(icon: string | null): this { this.icon = icon; return this; }
 	title = "";
 	checked: boolean | null = null;
 	submenu?: Menu;
@@ -150,6 +162,10 @@ export class MenuItem {
 }
 export class Menu extends Component {
 	readonly items: MenuItem[] = [];
+	useNativeMenu = true;
+	separatorPositions: number[] = [];
+	setUseNativeMenu(value: boolean): this { this.useNativeMenu = value; return this; }
+	addSeparator(): this { this.separatorPositions.push(this.items.length); return this; }
 	private readonly hideCallbacks: Array<() => unknown> = [];
 	constructor(private readonly parentItem?: MenuItem) { super(); menus.push(this); }
 	setParentElement(_element: HTMLElement): this { return this; }
@@ -193,5 +209,28 @@ export class Plugin extends Component {
 		) => Promise<unknown> | void,
 	): void {
 		processorRegistrationMock(language, handler);
+	}
+}
+
+export class Modal {
+	readonly contentEl = document.createElement("div");
+	constructor(readonly app: unknown) {}
+	setTitle(title: string): this { this.contentEl.setAttribute("aria-label", title); return this; }
+	open(): void { this.contentEl.setAttribute("role", "dialog"); document.body.append(this.contentEl); this.onOpen(); }
+	close(): void { this.contentEl.remove(); this.onClose(); }
+	onOpen(): void {}
+	onClose(): void {}
+}
+export class Setting {
+	constructor(private readonly element: HTMLElement) {}
+	addButton(callback: (button: { buttonEl: HTMLButtonElement; setButtonText(text: string): unknown; onClick(callback: () => void): unknown }) => unknown): this {
+		const element = this.element.appendChild(document.createElement("button"));
+		const button = {
+			buttonEl: element,
+			setButtonText(text: string) { element.textContent = text; return button; },
+			onClick(fn: () => void) { element.addEventListener("click", fn); return button; },
+		};
+		callback(button);
+		return this;
 	}
 }
