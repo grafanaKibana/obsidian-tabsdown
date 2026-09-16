@@ -1,5 +1,5 @@
 import { configEdit, type TabsdownConfig } from "./config";
-import { isTabsdownFence, parseFenceLine } from "./parser";
+import { isTabsdownFence, parseFenceLine, parseTabs } from "./parser";
 
 export interface BlockLocator {
 	lineStart: number;
@@ -18,6 +18,11 @@ export interface SourceEdit {
 	to: number;
 	replacement: string;
 }
+
+export type TabEdit =
+	| { type: "add"; label: string }
+	| { type: "rename"; index: number; label: string }
+	| { type: "delete"; index: number };
 
 interface SourceView {
 	text: string;
@@ -44,6 +49,11 @@ interface SourceLine {
 interface SourceRange {
 	from: number;
 	to: number;
+}
+
+interface TabMarker extends SourceRange {
+	label: string;
+	lineStart: number;
 }
 
 const listMarker = /^( {0,3})([-+*]|\d{1,9}[.)])([ \t]+)/;
@@ -992,6 +1002,38 @@ function tabBodies(source: string): SourceRange[] {
 	return bodies;
 }
 
+function tabMarkers(source: string): TabMarker[] {
+	const markers: TabMarker[] = [];
+	let openFence: string | undefined;
+	let nested = false;
+	for (const line of lines(source)) {
+		const content = source.slice(line.start, line.contentEnd);
+		const fence = parseFenceLine(content);
+		if (openFence) {
+			if (fence?.run.startsWith(openFence) && /^[ \t]*$/.test(fence.info)) {
+				openFence = undefined;
+				nested = false;
+			}
+		} else if (fence) {
+			openFence = fence.run;
+			nested = isTabsdownFence(fence.info);
+		}
+		if (nested || !content.startsWith("tab:")) continue;
+		const rawLabel = content.slice("tab:".length);
+		const label = rawLabel.trim();
+		const leading = rawLabel.indexOf(label);
+		markers.push({
+			label,
+			lineStart: line.start,
+			from: line.start + "tab:".length + (leading < 0 ? rawLabel.length : leading),
+			to: line.start + "tab:".length + rawLabel.length -
+				(rawLabel.length - rawLabel.trimEnd().length),
+		});
+		openFence = undefined;
+	}
+	return markers;
+}
+
 function nestedBlockAt(view: SourceView, offset: number): FenceBlock | undefined {
 	for (const body of tabBodies(view.text)) {
 		if (offset < body.from || offset >= body.to) continue;
@@ -1023,6 +1065,114 @@ export function renderedSourceKey(source: string): string {
 	return source.endsWith("\n") ? source.slice(0, -1) : source;
 }
 
+export function tabLabels(source: string): string[] {
+	return tabMarkers(source).map(({ label }) => label);
+}
+
+function resolvedSnapshot(text: string, snapshot: BlockSnapshot): FenceBlock {
+	if (text !== snapshot.text) {
+		throw new SourceConflictError("The note changed. Reopen the block settings.");
+	}
+	const block = resolveLocator(text, snapshot.locator);
+	if (
+		block.inner.text !== snapshot.target ||
+		text.slice(block.innerRawFrom, block.innerRawTo) !== snapshot.rawTarget
+	) {
+		throw new SourceConflictError("The Tabsdown block changed. Reopen its settings.");
+	}
+	return block;
+}
+
+function editLabel(label: string): string {
+	if (/\r|\n/.test(label)) {
+		throw new SourceConflictError("Tab labels must use a single line.");
+	}
+	const trimmed = label.trim();
+	if (trimmed === "") throw new SourceConflictError("Tab labels must not be empty.");
+	return trimmed;
+}
+
+function validateTabs(source: string): void {
+	const parsed = parseTabs(source);
+	if (!parsed.ok) throw new SourceConflictError(parsed.diagnostic.message);
+}
+
+function sourceNewline(text: string, block: FenceBlock): string {
+	const logicalNewline = block.inner.text.indexOf("\n");
+	return logicalNewline < 0
+		? "\n"
+		: text.slice(
+			block.inner.rawFrom[logicalNewline],
+			block.inner.rawTo[logicalNewline + 1],
+		);
+}
+
+export function rewriteTab(
+	text: string,
+	snapshot: BlockSnapshot,
+	edit: TabEdit,
+): SourceEdit {
+	const block = resolvedSnapshot(text, snapshot);
+	const markers = tabMarkers(block.inner.text);
+	if (edit.type === "delete") {
+		const marker = markers[edit.index];
+		if (!marker) throw new SourceConflictError("The tab could not be located.");
+		if (markers.length <= 2) {
+			throw new SourceConflictError("A Tabsdown block must keep at least two tabs.");
+		}
+		const logicalTo = markers[edit.index + 1]?.lineStart ?? block.inner.text.length;
+		validateTabs(
+			block.inner.text.slice(0, marker.lineStart) + block.inner.text.slice(logicalTo),
+		);
+		const mappedFrom = block.inner.rawFrom[marker.lineStart] ?? -1;
+		const mappedTo = logicalTo < block.inner.text.length
+			? block.inner.rawFrom[logicalTo] ?? -1
+			: block.inner.rawTo[logicalTo] ?? -1;
+		return {
+			from: text.lastIndexOf("\n", mappedFrom - 1) + 1,
+			to: logicalTo < block.inner.text.length
+				? text.lastIndexOf("\n", mappedTo - 1) + 1
+				: mappedTo,
+			replacement: "",
+		};
+	}
+
+	const label = editLabel(edit.label);
+	if (edit.type === "rename") {
+		const marker = markers[edit.index];
+		if (!marker) throw new SourceConflictError("The tab could not be located.");
+		validateTabs(
+			block.inner.text.slice(0, marker.from) + label + block.inner.text.slice(marker.to),
+		);
+		return {
+			from: block.inner.rawFrom[marker.from] ?? -1,
+			to: block.inner.rawTo[marker.to] ?? -1,
+			replacement: label,
+		};
+	}
+
+	const logicalNewline = "\n";
+	const leading = block.inner.text === "" || block.inner.text.endsWith(logicalNewline)
+		? ""
+		: logicalNewline;
+	const trailing = block.inner.text.endsWith(logicalNewline) || block.innerRawTo < text.length
+		? logicalNewline
+		: "";
+	const insertion = `${leading}tab: ${label}${trailing}`;
+	validateTabs(block.inner.text + insertion);
+	const lastMarker = markers[markers.length - 1];
+	if (!lastMarker) throw new SourceConflictError("The tab could not be located.");
+	const markerRawFrom = block.inner.rawFrom[lastMarker.lineStart] ?? -1;
+	const rawLineStart = text.lastIndexOf("\n", markerRawFrom - 1) + 1;
+	const prefix = text.slice(rawLineStart, markerRawFrom);
+	const newline = sourceNewline(text, block);
+	return {
+		from: block.innerRawTo,
+		to: block.innerRawTo,
+		replacement: `${leading ? newline : ""}${prefix}tab: ${label}${trailing ? newline : ""}`,
+	};
+}
+
 function matchesRenderedSource(authored: string, rendered: string): boolean {
 	return renderedSourceKey(authored) === renderedSourceKey(rendered);
 }
@@ -1050,25 +1200,9 @@ export function rewriteBlock(
 	snapshot: BlockSnapshot,
 	config: TabsdownConfig,
 ): SourceEdit {
-	if (text !== snapshot.text) {
-		throw new SourceConflictError("The note changed. Reopen the block settings.");
-	}
-	const block = resolveLocator(text, snapshot.locator);
-	if (
-		!block ||
-		block.inner.text !== snapshot.target ||
-		text.slice(block.innerRawFrom, block.innerRawTo) !== snapshot.rawTarget
-	) {
-		throw new SourceConflictError("The Tabsdown block changed. Reopen its settings.");
-	}
+	const block = resolvedSnapshot(text, snapshot);
 	const edit = configEdit(snapshot.target, config);
-	const logicalNewline = block.inner.text.indexOf("\n");
-	const rawNewline = logicalNewline < 0
-		? "\n"
-		: text.slice(
-			block.inner.rawFrom[logicalNewline],
-			block.inner.rawTo[logicalNewline + 1],
-		);
+	const rawNewline = sourceNewline(text, block);
 	let replacement = edit.replacement.replace(/\r?\n/g, rawNewline);
 	let from = block.inner.rawFrom[edit.from] ?? -1;
 	if (replacement === "" && edit.from < edit.to) {

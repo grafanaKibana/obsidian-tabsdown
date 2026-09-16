@@ -21,6 +21,8 @@ import {
 	nestedBlockCandidates,
 	renderedSourceKey,
 	rewriteBlock,
+	rewriteTab,
+	tabLabels,
 	type BlockLocator,
 } from "./source";
 import { mountTabs, type MountTabsOptions, type TabsController } from "./tabs";
@@ -43,6 +45,28 @@ interface LocatorRef {
 	offset?: number;
 	/** An embedded block: its own note holds this source, but no section reports it. */
 	search?: string;
+}
+
+interface PendingTabFocus {
+	file: TFile;
+	locator: BlockLocator;
+	expectedText: string;
+	focusIndex: number;
+	selectedIndex: number;
+	scope: Element | Document;
+	timeout: number;
+	view: Window;
+}
+
+function sameLocator(left: BlockLocator, right: BlockLocator): boolean {
+	return left.lineStart === right.lineStart &&
+		left.nestedOffsets.length === right.nestedOffsets.length &&
+		left.nestedOffsets.every((offset, index) => offset === right.nestedOffsets[index]);
+}
+
+function renderScope(element: HTMLElement): Element | Document {
+	return element.closest(".markdown-embed-content, .workspace-leaf-content") ??
+		element.ownerDocument;
 }
 
 function resolveLocatorRef(ref: LocatorRef, text: string): BlockLocator | undefined {
@@ -95,6 +119,7 @@ export default class TabsdownPlugin extends Plugin {
 	private freshnessGeneration = 0;
 	private readonly fileGenerations = new WeakMap<TFile, number>();
 	private readonly mountedTabs = new Set<TabsController>();
+	private readonly pendingTabFocus = new Set<PendingTabFocus>();
 
 	onload(): void {
 		const panelScopes = new WeakMap<HTMLElement, PanelScope>();
@@ -196,6 +221,7 @@ export default class TabsdownPlugin extends Plugin {
 						options,
 						origin,
 						panelScopes,
+						element,
 					)
 				: undefined;
 
@@ -262,8 +288,71 @@ export default class TabsdownPlugin extends Plugin {
 		options: TabsdownConfig,
 		origin: Editor | undefined,
 		panelScopes: WeakMap<HTMLElement, PanelScope>,
+		element: HTMLElement,
 	): BlockEditing {
+		let focusRequest: PendingTabFocus | undefined;
+		let requestedFocus: { focusIndex: number; selectedIndex: number } | undefined;
+		const discardFocusRequest = (request: PendingTabFocus): void => {
+			request.view.clearTimeout(request.timeout);
+			this.pendingTabFocus.delete(request);
+			if (focusRequest === request) focusRequest = undefined;
+		};
+		const clearFocusRequest = (): void => {
+			if (focusRequest) discardFocusRequest(focusRequest);
+			focusRequest = undefined;
+		};
+		const queueFocusRequest = (
+			locator: BlockLocator,
+			text: string,
+			focus: { focusIndex: number; selectedIndex: number },
+		): void => {
+			clearFocusRequest();
+			const view = element.ownerDocument.defaultView;
+			if (!view) return;
+			for (const pending of this.pendingTabFocus) {
+				if (
+					pending.file === file &&
+					pending.scope === renderScope(element) &&
+					sameLocator(pending.locator, locator)
+				) discardFocusRequest(pending);
+			}
+			let request!: PendingTabFocus;
+			focusRequest = {
+				file,
+				locator: { lineStart: locator.lineStart, nestedOffsets: [...locator.nestedOffsets] },
+				expectedText: text,
+				...focus,
+				scope: renderScope(element),
+				timeout: view.setTimeout(() => discardFocusRequest(request), 2_000),
+				view,
+			};
+			request = focusRequest;
+			this.pendingTabFocus.add(focusRequest);
+		};
 		return {
+			labels: tabLabels(source),
+			pendingFocus: () => {
+				if (!element.isConnected) return undefined;
+				for (const request of this.pendingTabFocus) {
+					if (request.file !== file || request.scope !== renderScope(element)) continue;
+					const locator = resolveLocatorRef(locatorRef, request.expectedText);
+					if (!locator || !sameLocator(locator, request.locator)) continue;
+					try {
+						captureBlock(request.expectedText, locator, source);
+					} catch {
+						continue;
+					}
+					return {
+						focusIndex: request.focusIndex,
+						selectedIndex: request.selectedIndex,
+						consume: () => discardFocusRequest(request),
+					};
+				}
+				return undefined;
+			},
+			requestFocus: (focusIndex, selectedIndex) => {
+				requestedFocus = { focusIndex, selectedIndex };
+			},
 			registerPanel: (element, tabIndex) => {
 				panelScopes.set(element, {
 					element,
@@ -303,30 +392,63 @@ export default class TabsdownPlugin extends Plugin {
 					const editor = currentEditors[0];
 					if (editor) {
 						const current = editor.getValue();
-						const edit = rewriteBlock(current, snapshot, nextOptions);
+						const edit = "type" in nextOptions
+							? rewriteTab(current, snapshot, nextOptions)
+							: rewriteBlock(current, snapshot, nextOptions);
 						assertAvailable();
-						editor.replaceRange(
-							edit.replacement,
-							positionAt(current, edit.from),
-							positionAt(current, edit.to),
-						);
+						if ("type" in nextOptions && requestedFocus) {
+							queueFocusRequest(
+								snapshot.locator,
+								applySourceEdit(current, edit),
+								requestedFocus,
+							);
+						}
+						try {
+							editor.replaceRange(
+								edit.replacement,
+								positionAt(current, edit.from),
+								positionAt(current, edit.to),
+							);
+						} catch (error) {
+							clearFocusRequest();
+							throw error;
+						}
 						return;
 					}
-					await this.app.vault.process(file, (current) => {
-						assertAvailable();
-						this.assertCurrentFile(file);
-						if (this.markdownEditors(file).length > 0) {
-							throw new Error("An editor opened this note. Retry the save there.");
-						}
-						const edit = rewriteBlock(current, snapshot, nextOptions);
-						return applySourceEdit(current, edit);
-					});
+					try {
+						await this.app.vault.process(file, (current) => {
+							assertAvailable();
+							this.assertCurrentFile(file);
+							if (this.markdownEditors(file).length > 0) {
+								throw new Error("An editor opened this note. Retry the save there.");
+							}
+							const edit = "type" in nextOptions
+								? rewriteTab(current, snapshot, nextOptions)
+								: rewriteBlock(current, snapshot, nextOptions);
+							const next = applySourceEdit(current, edit);
+							if ("type" in nextOptions && requestedFocus) {
+								queueFocusRequest(
+									snapshot.locator,
+									next,
+									requestedFocus,
+								);
+							}
+							return next;
+						});
+					} catch (error) {
+						clearFocusRequest();
+						throw error;
+					}
 				};
 			},
 		};
 	}
 
 	onunload(): void {
+		for (const request of this.pendingTabFocus) {
+			request.view.clearTimeout(request.timeout);
+		}
+		this.pendingTabFocus.clear();
 		for (const controller of this.mountedTabs) controller.destroy();
 	}
 

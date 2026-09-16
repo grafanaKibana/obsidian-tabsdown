@@ -18,6 +18,20 @@ Start each tab with a column-zero `tab: <label>` marker. A block needs at least 
 
 The context-menu action is available only when the rendered block has a writable backing Markdown file.
 
+### Add, rename, and delete tabs
+
+- Right-click a block and choose **Add tab** to append a tab with an empty body.
+- Double-click a tab to rename it, or right-click its label and choose **Rename tab**.
+- Right-click a tab and choose **Delete tab** to remove it and its contents after confirmation. Delete is disabled when only two tabs remain.
+- Enter saves the label. Escape or clicking outside cancels. A new tab is saved only after you enter a non-empty, unique label.
+- The editor shows the name, including Markdown formatting. Any `icon:` prefix stays hidden and is preserved when saving.
+
+These actions update the backing Markdown, including nested and embedded blocks. If the note changes while a label is being edited, the save stops to avoid overwriting other changes. Ordinary tab switching never edits the note.
+
+**Add tab** appears first in the context menu. Tab actions are separated from the block's style settings. Menus use Obsidian's platform-native behavior. Menu icons appear where Obsidian supports them; its current native macOS menu bridge omits icons.
+
+### Writing a block
+
 `````markdown
 ````tabsdown
 tab: Greedy

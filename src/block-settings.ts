@@ -1,7 +1,8 @@
 import { Menu, type MenuItem, Notice } from "obsidian";
 import type { KeyedConfigName, TabsdownConfig } from "./config";
+import type { TabEdit } from "./source";
 
-export type SaveBlockSettings = (options: TabsdownConfig) => Promise<void>;
+export type SaveBlockSettings = (options: TabsdownConfig | TabEdit) => Promise<void>;
 
 export const INTERACTIVE_SELECTOR =
 	'a, audio, button, iframe, input, label, select, summary, textarea, video, [contenteditable]:not([contenteditable="false"]), [tabindex]:not([tabindex="-1"]), [role="button"], [role="checkbox"], [role="link"], [role="menuitem"], [role="switch"]';
@@ -27,6 +28,17 @@ const fields = [
 		["start", "Start"], ["center", "Center"], ["equal-width", "Equal width"],
 	]],
 ] as const;
+
+const icons: Record<string, string> = {
+	position: "panel-top", top: "panel-top", bottom: "panel-bottom",
+	left: "panel-left", right: "panel-right", layout: "wrap-text",
+	one: "move-horizontal", multi: "wrap-text", density: "between-horizontal-start",
+	default: "maximize-2", compact: "minimize-2", personality: "shapes",
+	button: "rectangle-horizontal", underline: "underline", separator: "columns-2",
+	rail: "panel-top", palette: "palette", primary: "circle", secondary: "circle-dashed",
+	alignment: "align-horizontal-justify-start", start: "align-horizontal-justify-start",
+	center: "align-horizontal-justify-center", "equal-width": "columns-3",
+};
 
 /**
  * What an omitted setting resolves to. `styles.css` publishes the answer as a
@@ -84,6 +96,8 @@ export function addBlockSettingsContextMenu(
 	available: () => boolean,
 	register: (element: HTMLElement, type: "contextmenu", callback: EventListener) => void,
 	ownMenu: (menu: Menu) => void,
+	editLabel?: (trigger: HTMLElement, save: Promise<SaveBlockSettings>, index?: number) => void,
+	deleteTab?: (trigger: HTMLElement, save: Promise<SaveBlockSettings>, index: number) => void,
 ): void {
 	let pending = false;
 	register(parent, "contextmenu", (event) => {
@@ -91,6 +105,7 @@ export function addBlockSettingsContextMenu(
 		if (!view || !(event instanceof view.MouseEvent)) return;
 		const eventTarget = event.target instanceof view.Element ? event.target : null;
 		if (!eventTarget || eventTarget.closest(".tabsdown") !== parent) return;
+		if (eventTarget.closest(".tabsdown-label-editor__input")) return;
 		const interactive = eventTarget.closest(INTERACTIVE_SELECTOR);
 		const panel = eventTarget.closest(".tabsdown__panel");
 		if (interactive && panel?.closest(".tabsdown") === parent) return;
@@ -102,6 +117,30 @@ export function addBlockSettingsContextMenu(
 			(error: unknown) => ({ error }),
 		);
 		const menu = new Menu().setParentElement(parent);
+		if (editLabel) {
+			const save = (): Promise<SaveBlockSettings> => prepared.then((result) => {
+				if ("error" in result) throw result.error;
+				return result.save;
+			});
+			menu.addItem((item) => item.setTitle("Add tab").setIcon("plus").onClick(() => {
+				if (available()) editLabel(trigger, save());
+			}));
+			const button = eventTarget.closest(".tabsdown__tab");
+			const buttons = Array.from(parent.querySelectorAll(":scope > .tabsdown__tablist > [role=tab]"));
+			const index = button ? buttons.indexOf(button) : -1;
+			if (index >= 0) {
+				menu.addItem((item) => item.setTitle("Rename tab").setIcon("pencil").onClick(() => {
+					if (available()) editLabel(trigger, save(), index);
+				}));
+				if (deleteTab) {
+					menu.addItem((item) => item.setTitle("Delete tab").setIcon("trash-2")
+						.setWarning(true).setDisabled(buttons.length <= 2).onClick(() => {
+							if (available() && buttons.length > 2) deleteTab(trigger, save(), index);
+						}));
+				}
+			}
+			menu.addSeparator();
+		}
 		for (const [label, key, choices] of fields) {
 			const titles = new Map<string, string>(choices);
 			const values: [
@@ -119,6 +158,7 @@ export function addBlockSettingsContextMenu(
 					prefix = "",
 				): void => {
 						choice.setTitle(`${prefix}${title}`);
+						choice.setIcon(value === "" ? "undo-2" : icons[value] ?? icons[key]!);
 						choice.setChecked((options[key] ?? "") === value);
 						choice.onClick(async () => {
 							if (pending || (options[key] ?? "") === value) return;
@@ -148,6 +188,7 @@ export function addBlockSettingsContextMenu(
 				const setSubmenu = (item as Partial<MenuItemWithSubmenu>).setSubmenu;
 				if (typeof setSubmenu === "function") {
 					item.setTitle(label);
+					item.setIcon(icons[key]!);
 					const submenu = setSubmenu.call(item);
 					for (const [value, title] of values) {
 						submenu.addItem((choice) => addChoice(choice, value, title));

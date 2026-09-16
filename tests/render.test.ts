@@ -165,7 +165,7 @@ test("shows every block setting as a checked native submenu and saves a choice",
 		[],
 		() => 0,
 		{ density: "compact", layout: "multi" },
-		{ open, registerPanel: vi.fn() },
+		{ open, registerPanel: vi.fn(), labels: tabs.map((tab) => tab.label) },
 	);
 	child.load();
 
@@ -177,8 +177,12 @@ test("shows every block setting as a checked native submenu and saves a choice",
 	const trigger = container.querySelector<HTMLButtonElement>('[role="tab"]')!;
 	openContextMenu(trigger);
 	expect(menuItems.filter((item) => !item.parent).map((item) => item.title)).toEqual([
-		"Position", "Overflow", "Density", "Personality", "Palette", "Alignment",
+		"Add tab", "Rename tab", "Delete tab", "Position", "Overflow", "Density", "Personality", "Palette", "Alignment",
 	]);
+	const menu = menus.find((item) => item.items.some((row) => row.title === "Add tab"))!;
+	expect(menu.useNativeMenu).toBe(true);
+	expect(menu.separatorPositions).toEqual([3]);
+	expect(menus.every((item) => item.useNativeMenu)).toBe(true);
 	expect(menuChoice("Overflow", "Wrap — multiple rows").checked).toBe(true);
 	expect(menuChoice("Density", "Compact").checked).toBe(true);
 	expect(menuChoice("Personality", "Inherit (Button)").checked).toBe(true);
@@ -211,6 +215,7 @@ test("falls back to checked flat choices when submenus are unavailable", async (
 
 		const compact = menuItems.find((item) => item.title === "Density: Compact");
 		expect(compact?.checked).toBe(true);
+		expect(menuItems.every((item) => Boolean(item.icon))).toBe(true);
 		await menuItems.find((item) => item.title === "Position: Left")?.callback?.(
 			new MouseEvent("click"),
 		);
@@ -280,7 +285,7 @@ test("ignores repeated choices while a settings save is pending", async () => {
 	const container = document.body.appendChild(document.createElement("div"));
 	new TabBlockRenderChild(
 		{} as App, container, "Note.md", tabs, [], () => 0, {},
-		{ open: vi.fn(async () => save), registerPanel: vi.fn() },
+		{ open: vi.fn(async () => save), registerPanel: vi.fn(), labels: tabs.map((tab) => tab.label) },
 	).load();
 	const trigger = container.querySelector<HTMLButtonElement>('[role="tab"]')!;
 	openContextMenu(trigger);
@@ -301,7 +306,7 @@ test("does not save after the rendered block unloads", async () => {
 		{} as App, container, "Note.md", tabs, [], () => 0, {},
 		{
 			open: vi.fn(() => new Promise<SaveBlockSettings>((resolve) => { finishOpen = resolve; })),
-			registerPanel: vi.fn(),
+			registerPanel: vi.fn(), labels: tabs.map((tab) => tab.label),
 		},
 	);
 	child.load();
@@ -319,7 +324,7 @@ test("does nothing when the checked choice is selected", async () => {
 	const container = document.body.appendChild(document.createElement("div"));
 	new TabBlockRenderChild(
 		{} as App, container, "Note.md", tabs, [], () => 0, {},
-		{ open, registerPanel: vi.fn() },
+		{ open, registerPanel: vi.fn(), labels: tabs.map((tab) => tab.label) },
 	).load();
 	openContextMenu(container.querySelector<HTMLButtonElement>('[role="tab"]')!);
 	await menuChoice("Density", "Inherit (Default)").callback?.(
@@ -333,7 +338,7 @@ test("closes only menus that remain open when the block unloads", () => {
 	const container = document.body.appendChild(document.createElement("div"));
 	const child = new TabBlockRenderChild(
 		{} as App, container, "Note.md", tabs, [], () => 0, {},
-		{ open: vi.fn(async () => async () => {}), registerPanel: vi.fn() },
+		{ open: vi.fn(async () => async () => {}), registerPanel: vi.fn(), labels: tabs.map((tab) => tab.label) },
 	);
 	child.load();
 	const trigger = container.querySelector<HTMLButtonElement>('[role="tab"]')!;
@@ -981,6 +986,7 @@ test("preserves global Style Settings and adds the approved hierarchy", () => {
 		"tabsdown-accent-override": ["type: variable-color"],
 		"tabsdown-alignment": ["default: tabsdown-alignment-equal-width", "value: tabsdown-alignment-start", "value: tabsdown-alignment-center"],
 		"tabsdown-gap": ["default: 4", "min: 0", "step: 1", "format: px"],
+		"tabsdown-radius-mode": ["type: class-select", "default: tabsdown-radius-auto", "value: tabsdown-radius-custom"],
 		"tabsdown-radius": ["default: 4", "min: 0", "max: 24", "step: 1", "format: px"],
 		"tabsdown-horizontal-padding": ["default: 36", "min: 0", "max: 48", "step: 1", "format: px"],
 		"tabsdown-content-spacing": ["default: 12", "min: 0", "max: 48", "step: 1", "format: px"],
@@ -1010,6 +1016,68 @@ test("preserves global Style Settings and adds the approved hierarchy", () => {
 		expect(heading, title).toContain(`level: ${level}`);
 		expect(heading, title).toContain(`collapsed: ${collapsed}`);
 	}
+
+	const tabAppearance = styles.indexOf("id: tabsdown-tab-appearance-heading");
+	const radiusMode = styles.indexOf("id: tabsdown-radius-mode");
+	const radiusSlider = styles.indexOf("id: tabsdown-radius\n");
+	const layout = styles.indexOf("id: tabsdown-layout-heading");
+	expect(radiusMode).toBeGreaterThan(tabAppearance);
+	expect(radiusSlider).toBeGreaterThan(radiusMode);
+	expect(radiusSlider).toBeLessThan(layout);
+});
+
+test("customizes outer Button corners and keeps the theme default between buttons", () => {
+	const styles = readStyles();
+	const buttonEdges = matchingRuleBodies(
+		styles,
+		".tabsdown__tablist.tabsdown__tablist--button > .tabsdown__tab.tabsdown__tab",
+	);
+	expect(buttonEdges).toContain("border-radius: var(--radius-s)");
+	for (const corner of [
+		"start-start",
+		"start-end",
+		"end-start",
+		"end-end",
+	]) {
+		expect(buttonEdges).toContain(
+			`border-${corner}-radius: var(--tabsdown-button-radius-${corner}, var(--radius-s))`,
+		);
+	}
+
+	const horizontalStart = matchingRuleBodies(
+		styles,
+		".tabsdown__tablist:not(.tabsdown__tablist--column) > .tabsdown__tab--line-start",
+	);
+	const horizontalEnd = matchingRuleBodies(
+		styles,
+		".tabsdown__tablist:not(.tabsdown__tablist--column) > .tabsdown__tab--line-end",
+	);
+	const columnStart = matchingRuleBodies(
+		styles,
+		".tabsdown__tablist--column > .tabsdown__tab--line-start",
+	);
+	const columnEnd = matchingRuleBodies(
+		styles,
+		".tabsdown__tablist--column > .tabsdown__tab--line-end",
+	);
+	expect(horizontalStart).toContain("--tabsdown-button-radius-start-start: var(--tabsdown-resolved-radius)");
+	expect(horizontalStart).toContain("--tabsdown-button-radius-end-start: var(--tabsdown-resolved-radius)");
+	expect(horizontalEnd).toContain("--tabsdown-button-radius-start-end: var(--tabsdown-resolved-radius)");
+	expect(horizontalEnd).toContain("--tabsdown-button-radius-end-end: var(--tabsdown-resolved-radius)");
+	expect(columnStart).toContain("--tabsdown-button-radius-start-start: var(--tabsdown-resolved-radius)");
+	expect(columnStart).toContain("--tabsdown-button-radius-start-end: var(--tabsdown-resolved-radius)");
+	expect(columnEnd).toContain("--tabsdown-button-radius-end-start: var(--tabsdown-resolved-radius)");
+	expect(columnEnd).toContain("--tabsdown-button-radius-end-end: var(--tabsdown-resolved-radius)");
+
+	const rail = matchingRuleBodies(styles, "personality-rail");
+	expect(rail).toContain("border-radius: var(--tabsdown-resolved-radius)");
+	expect(rail).toContain("border-radius: var(--tabsdown-rail-tab-radius)");
+	expect(matchingRuleBodies(styles, ".tabsdown__tablist--rail > .tabsdown__tab")).toContain(
+		"corner-shape: inherit",
+	);
+	expect(matchingRuleBodies(styles, ".tabsdown__tablist")).toContain(
+		"--tabsdown-rail-tab-radius: max(0px, calc(var(--tabsdown-resolved-radius) - var(--tabsdown-rail-track-padding)))",
+	);
 });
 
 test("gives every position explicit inheritable appearance controls", () => {
@@ -1319,15 +1387,29 @@ test("renders separators as centered, non-layout elements", () => {
 	expect(styles).not.toContain("~ .tabsdown__tab");
 });
 
-test("reserves bolder formatted label metrics without changing selected tab width", () => {
+test("reserves the effective selected weight without changing selected tab width", () => {
 	const styles = readStyles();
 	const content = matchingRuleBodies(styles, ".tabsdown__tab-content");
-	const reserve = matchingRuleBodies(styles, ".tabsdown__tab-reserve");
+	const reserve = exactRuleBodies(styles, ".tabsdown__tab-reserve")[0] ?? "";
 	expect(content).toContain("display: inline-grid");
-	expect(reserve).toContain("font-weight: 700");
+	expect(reserve).toContain("font-weight: 600");
 	expect(reserve).toContain("visibility: hidden");
 	expect(reserve).toContain("grid-area: 1 / 1 / 2 / -1");
 	expect(reserve).not.toContain("block-size: 0");
+	for (const [setting, weight] of [
+		["tabsdown-selected-font-weight-thinner", "400"],
+		["tabsdown-selected-font-weight-bolder", "700"],
+		["tabsdown-selected-font-weight-bold", "700"],
+		["tabsdown-selected-font-weight-default", "600"],
+		["tabsdown-selected-font-weight-theme-default", "600"],
+		["tabsdown-selected-font-weight-medium", "600"],
+	] as const) {
+		const selectors = matchingSelectors(styles, `body.${setting}`);
+		expect(selectors, setting).toContain(".tabsdown__tab-reserve");
+		expect(matchingRuleBodies(styles, `body.${setting}`), setting).toContain(
+			`font-weight: ${weight}`,
+		);
+	}
 	expect(styles).toContain(".tabsdown__tab-reserve--icon");
 	expect(styles).toContain("@media (any-pointer: coarse)");
 });
@@ -1946,4 +2028,189 @@ test("resolves every Style Settings choice the menu can inherit", () => {
 	for (const source of ["is-mobile", "@container (max-width: 28rem)", "--nested-odd", "--nested-even"]) {
 		expect(resolved).toContain(source);
 	}
+});
+
+function editableBlock(save = vi.fn<SaveBlockSettings>(async () => {}), labels = ["One", "Two"]): {
+	container: HTMLElement;
+	child: TabBlockRenderChild;
+	save: typeof save;
+	button: HTMLButtonElement;
+} {
+	const container = document.body.appendChild(document.createElement("div"));
+	const child = new TabBlockRenderChild({} as App, container, "Note.md", tabs.slice(0, 2), [], () => 0, {}, {
+		labels, open: async () => save, registerPanel: vi.fn(),
+	});
+	child.load();
+	return { container, child, save, button: container.querySelector<HTMLButtonElement>('[role="tab"]')! };
+}
+
+function labelInput(): HTMLInputElement {
+	const input = document.querySelector<HTMLInputElement>(".tabsdown-label-editor__input");
+	if (!input) throw new Error("Expected inline label editor");
+	return input;
+}
+
+function labelKey(key: string, extra: KeyboardEventInit = {}): void {
+	labelInput().dispatchEvent(new KeyboardEvent("keydown", { key, bubbles: true, cancelable: true, ...extra }));
+}
+
+const settleLabel = () => new Promise((resolve) => window.setTimeout(resolve, 0));
+
+test("double-click replaces the tab button with a directly editable field", async () => {
+	const { child, button, save } = editableBlock(undefined, ["icon:code **One**", "Two"]);
+	button.dispatchEvent(new MouseEvent("dblclick", { bubbles: true }));
+	const input = labelInput();
+	expect(input.value).toBe("**One**");
+	expect(input.closest("button")).toBeNull();
+	expect(input.parentElement?.getAttribute("role")).toBe("tablist");
+	expect(button.isConnected).toBe(false);
+	expect(document.activeElement).toBe(input);
+	expect(input.selectionStart).toBe(0);
+	expect(input.selectionEnd).toBe(input.value.length);
+	input.value = "*Updated*";
+	labelKey("Enter");
+	labelKey("Enter");
+	await settleLabel();
+	expect(save).toHaveBeenCalledExactlyOnceWith({ type: "rename", index: 0, label: "icon:code *Updated*" });
+	expect(document.querySelector(".tabsdown-label-editor")).toBeNull();
+	expect(document.activeElement).toBe(button);
+	child.unload();
+});
+
+test("editing keeps the input native context menu and restores the original tab", () => {
+	const { child, button } = editableBlock();
+	button.dispatchEvent(new MouseEvent("dblclick", { bubbles: true }));
+	const event = new MouseEvent("contextmenu", { bubbles: true, cancelable: true });
+	labelInput().dispatchEvent(event);
+	expect(event.defaultPrevented).toBe(false);
+	expect(menuItems).toHaveLength(0);
+	labelKey("Escape");
+	expect(button.isConnected).toBe(true);
+	expect(button.classList.contains("tabsdown__tab--editing")).toBe(false);
+	child.unload();
+});
+
+test.each(["row", "column"])("editing preserves dimensions in a %s tab list", (direction) => {
+	const { child, button } = editableBlock();
+	button.parentElement!.style.flexDirection = direction;
+	vi.spyOn(button, "getBoundingClientRect").mockReturnValue({ width: 240, height: 36 } as DOMRect);
+	button.dispatchEvent(new MouseEvent("dblclick", { bubbles: true }));
+	const input = labelInput();
+	expect(input.style.width).toBe("240px");
+	expect(input.style.height).toBe("36px");
+	expect(input.style.flexBasis).toBe(direction === "column" ? "36px" : "240px");
+	child.unload();
+});
+
+test("renaming preserves icon metadata without exposing it and unchanged names do not save", async () => {
+	const { child, button, save } = editableBlock(undefined, ["icon:calendar-days   Days", "Two"]);
+	button.dispatchEvent(new MouseEvent("dblclick", { bubbles: true }));
+	expect(labelInput().value).toBe("Days");
+	labelKey("Enter");
+	await settleLabel();
+	expect(save).not.toHaveBeenCalled();
+	button.dispatchEvent(new MouseEvent("dblclick", { bubbles: true }));
+	labelInput().value = "Travel days";
+	labelKey("Enter");
+	await settleLabel();
+	expect(save).toHaveBeenCalledExactlyOnceWith({ type: "rename", index: 0, label: "icon:calendar-days   Travel days" });
+	child.unload();
+});
+
+test("Add tab is first and stages a draft until a valid label is saved", async () => {
+	const { container, child, save } = editableBlock();
+	openContextMenu(container);
+	const rootItems = menuItems.filter((item) => !item.parent);
+	expect(rootItems[0]?.title).toBe("Add tab");
+	expect(menuItems.every((item) => Boolean(item.icon))).toBe(true);
+	await rootItems[0]?.callback?.(new MouseEvent("click"));
+	expect(labelInput().value).toBe("");
+	expect(save).not.toHaveBeenCalled();
+	labelKey("Enter");
+	expect(labelInput().getAttribute("aria-invalid")).toBe("true");
+	expect(save).not.toHaveBeenCalled();
+	labelInput().value = "Third";
+	labelKey("Enter");
+	await settleLabel();
+	expect(save).toHaveBeenCalledExactlyOnceWith({ type: "add", label: "Third" });
+	expect(container.querySelectorAll("button")).toHaveLength(2);
+	child.unload();
+});
+
+test.each(["Escape", "blur"])("cancelling a draft with %s never writes source", async (action) => {
+	const { container, child, save } = editableBlock();
+	openContextMenu(container);
+	await menuItems.find((item) => item.title === "Add tab")?.callback?.(new MouseEvent("click"));
+	labelInput().value = "Unsaved";
+	if (action === "Escape") labelKey("Escape");
+	else labelInput().dispatchEvent(new FocusEvent("blur"));
+	await settleLabel();
+	expect(save).not.toHaveBeenCalled();
+	expect(document.querySelector(".tabsdown-label-editor")).toBeNull();
+	expect(container.querySelectorAll("button")).toHaveLength(2);
+	child.unload();
+});
+
+test("targeted Rename tab menu supports keyboard/touch access", async () => {
+	const { container, child, save } = editableBlock();
+	const second = container.querySelectorAll<HTMLButtonElement>("[role=tab]")[1]!;
+	openContextMenu(second);
+	await menuItems.find((item) => item.title === "Rename tab")?.callback?.(new MouseEvent("click"));
+	expect(labelInput().value).toBe("Two");
+	labelInput().value = "Changed";
+	labelKey("Enter", { isComposing: true });
+	await settleLabel();
+	expect(save).not.toHaveBeenCalled();
+	labelKey("Enter");
+	await settleLabel();
+	expect(save).toHaveBeenCalledExactlyOnceWith({ type: "rename", index: 1, label: "Changed" });
+	child.unload();
+});
+
+test("label validation errors stay accessible and allow retry", async () => {
+	const save = vi.fn<SaveBlockSettings>().mockRejectedValueOnce(new Error("Duplicate tab label."))
+		.mockResolvedValueOnce(undefined);
+	const { child, button } = editableBlock(save);
+	button.dispatchEvent(new MouseEvent("dblclick", { bubbles: true }));
+	labelInput().value = "Two";
+	labelKey("Enter");
+	await settleLabel();
+	expect(labelInput().getAttribute("aria-invalid")).toBe("true");
+	expect(document.getElementById(labelInput().getAttribute("aria-describedby")!)?.textContent)
+		.toBe("Duplicate tab label.");
+	labelInput().value = "Valid";
+	labelKey("Enter");
+	await settleLabel();
+	expect(save).toHaveBeenCalledTimes(2);
+	expect(document.querySelector(".tabsdown-label-editor")).toBeNull();
+	child.unload();
+});
+
+test("unchanged labels and ordinary tab clicks never save", async () => {
+	const { child, button, save } = editableBlock();
+	button.click();
+	expect(document.querySelector(".tabsdown-label-editor")).toBeNull();
+	button.dispatchEvent(new MouseEvent("dblclick", { bubbles: true }));
+	labelKey("Enter");
+	await settleLabel();
+	expect(save).not.toHaveBeenCalled();
+	child.unload();
+});
+
+test("unloading during label session preparation prevents writes and removes input", async () => {
+	let finish!: (save: SaveBlockSettings) => void;
+	const save = vi.fn<SaveBlockSettings>(async () => {});
+	const container = document.body.appendChild(document.createElement("div"));
+	const child = new TabBlockRenderChild({} as App, container, "Note.md", tabs, [], () => 0, {}, {
+		labels: ["One", "Two"], open: () => new Promise((resolve) => { finish = resolve; }), registerPanel: vi.fn(),
+	});
+	child.load();
+	container.querySelector("button")!.dispatchEvent(new MouseEvent("dblclick", { bubbles: true }));
+	labelInput().value = "New";
+	labelKey("Enter");
+	child.unload();
+	finish(save);
+	await settleLabel();
+	expect(save).not.toHaveBeenCalled();
+	expect(document.querySelector(".tabsdown-label-editor")).toBeNull();
 });

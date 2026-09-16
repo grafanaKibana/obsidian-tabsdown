@@ -106,6 +106,29 @@ settings:
     type: class-toggle
     default: false
   -
+    id: tabsdown-radius-mode
+    title: Corner radius
+    type: class-select
+    allowEmpty: false
+    default: tabsdown-radius-auto
+    options:
+      -
+        label: Auto
+        value: tabsdown-radius-auto
+      -
+        label: Custom
+        value: tabsdown-radius-custom
+  -
+    id: tabsdown-radius
+    title: Custom corner radius
+    description: Used when Corner radius is Custom.
+    type: variable-number-slider
+    default: 4
+    min: 0
+    max: 24
+    step: 1
+    format: px
+  -
     id: tabsdown-underline-thickness
     title: Underline thickness
     type: variable-number-slider
@@ -149,15 +172,6 @@ settings:
     default: 4
     min: 0
     max: 48
-    step: 1
-    format: px
-  -
-    id: tabsdown-radius
-    title: Corner radius
-    type: variable-number-slider
-    default: 4
-    min: 0
-    max: 24
     step: 1
     format: px
   -
@@ -532,6 +546,7 @@ settings:
 
 */
 .tabsdown {
+	--tabsdown-resolved-radius: var(--tabsdown-selected-radius, var(--radius-s));
 	--tabsdown-tab-padding-block: 0.5rem;
 	--tabsdown-tab-padding-inline: var(--tabsdown-horizontal-padding, 2.25rem);
 	--tabsdown-accent: var(--tabsdown-accent-override, var(--interactive-accent));
@@ -573,7 +588,12 @@ settings:
 	container-type: inline-size;
 }
 
+body.tabsdown-radius-custom {
+	--tabsdown-selected-radius: var(--tabsdown-radius, var(--radius-s));
+}
+
 .tabsdown__tablist {
+	--tabsdown-rail-tab-radius: max(0px, calc(var(--tabsdown-resolved-radius) - var(--tabsdown-rail-track-padding)));
 	display: flex;
 	align-items: stretch;
 	justify-content: flex-start;
@@ -702,7 +722,7 @@ body.tabsdown-nested-style-card .tabsdown--nested-even.tabsdown {
 	padding: var(--tabsdown-tab-padding-block)
 		var(--tabsdown-tab-padding-inline);
 	border: var(--border-width) solid var(--tabsdown-tab-border);
-	border-radius: var(--tabsdown-radius, var(--radius-s));
+	border-radius: var(--tabsdown-resolved-radius);
 	background-color: var(--tabsdown-tab-background);
 	color: var(--tabsdown-tab-color);
 	font-family: var(--font-interface);
@@ -715,6 +735,26 @@ body.tabsdown-nested-style-card .tabsdown--nested-even.tabsdown {
 		background-color var(--anim-duration-fast) var(--anim-motion-swing),
 		border-color var(--anim-duration-fast) var(--anim-motion-swing),
 		color var(--anim-duration-fast) var(--anim-motion-swing);
+}
+
+.tabsdown__tablist:not(.tabsdown__tablist--column) > .tabsdown__tab--line-start {
+	--tabsdown-button-radius-start-start: var(--tabsdown-resolved-radius);
+	--tabsdown-button-radius-end-start: var(--tabsdown-resolved-radius);
+}
+
+.tabsdown__tablist:not(.tabsdown__tablist--column) > .tabsdown__tab--line-end {
+	--tabsdown-button-radius-start-end: var(--tabsdown-resolved-radius);
+	--tabsdown-button-radius-end-end: var(--tabsdown-resolved-radius);
+}
+
+.tabsdown__tablist--column > .tabsdown__tab--line-start {
+	--tabsdown-button-radius-start-start: var(--tabsdown-resolved-radius);
+	--tabsdown-button-radius-start-end: var(--tabsdown-resolved-radius);
+}
+
+.tabsdown__tablist--column > .tabsdown__tab--line-end {
+	--tabsdown-button-radius-end-start: var(--tabsdown-resolved-radius);
+	--tabsdown-button-radius-end-end: var(--tabsdown-resolved-radius);
 }
 
 .tabsdown__tab[hidden] {
@@ -734,7 +774,7 @@ body.tabsdown-nested-style-card .tabsdown--nested-even.tabsdown {
 	grid-area: 1 / 1 / 2 / -1;
 	min-inline-size: 0;
 	overflow-wrap: anywhere;
-	font-weight: 700;
+	font-weight: 600;
 	visibility: hidden;
 }
 
@@ -1018,7 +1058,7 @@ body.tabsdown-right-personality-underline .tabsdown--right > .tabsdown__tablist 
 	max-inline-size: 100%;
 	padding: 0.75rem;
 	border: var(--border-width) solid var(--background-modifier-border);
-	border-radius: var(--tabsdown-radius, var(--radius-s));
+	border-radius: var(--radius-s);
 	background-color: var(--background-primary-alt);
 	color: var(--text-normal);
 	font-family: var(--font-interface);
@@ -1171,18 +1211,19 @@ body.tabsdown-personality-separator .tabsdown__tab[aria-expanded="true"] {
 body.tabsdown-personality-rail .tabsdown__tablist {
 	--tabsdown-tab-min-block-size: var(--tabsdown-rail-tab-min-block-size);
 	padding: var(--tabsdown-rail-track-padding);
-	border-radius: var(--tabsdown-radius, var(--radius-s));
+	border-radius: var(--tabsdown-resolved-radius);
 	background-color: var(--background-secondary);
 }
 
 body.tabsdown-personality-rail .tabsdown__tab {
 	padding-block: var(--tabsdown-rail-tab-padding-block);
+	border-radius: var(--tabsdown-rail-tab-radius);
 }
 
 body.tabsdown-personality-rail .tabsdown__tab[aria-selected="true"],
 body.tabsdown-personality-rail .tabsdown__tab[aria-expanded="true"] {
 	border-color: transparent;
-	border-radius: var(--tabsdown-radius, var(--radius-s));
+	border-radius: var(--tabsdown-rail-tab-radius);
 	background-color: var(--tabsdown-rail-selected-background);
 	color: var(--tabsdown-tab-selected-color);
 }
@@ -1208,23 +1249,29 @@ body.tabsdown-personality-rail .tabsdown__tab[aria-expanded="true"] {
 }
 
 body.tabsdown-selected-font-weight-thinner .tabsdown__tab[aria-selected="true"],
-body.tabsdown-selected-font-weight-thinner .tabsdown__tab[aria-expanded="true"] {
+body.tabsdown-selected-font-weight-thinner .tabsdown__tab[aria-expanded="true"],
+body.tabsdown-selected-font-weight-thinner .tabsdown__tab-reserve {
 	font-weight: 400;
 }
 
 body.tabsdown-selected-font-weight-bolder .tabsdown__tab[aria-selected="true"],
 body.tabsdown-selected-font-weight-bolder .tabsdown__tab[aria-expanded="true"],
+body.tabsdown-selected-font-weight-bolder .tabsdown__tab-reserve,
 body.tabsdown-selected-font-weight-bold .tabsdown__tab[aria-selected="true"],
-body.tabsdown-selected-font-weight-bold .tabsdown__tab[aria-expanded="true"] {
+body.tabsdown-selected-font-weight-bold .tabsdown__tab[aria-expanded="true"],
+body.tabsdown-selected-font-weight-bold .tabsdown__tab-reserve {
 	font-weight: 700;
 }
 
 body.tabsdown-selected-font-weight-default .tabsdown__tab[aria-selected="true"],
 body.tabsdown-selected-font-weight-default .tabsdown__tab[aria-expanded="true"],
+body.tabsdown-selected-font-weight-default .tabsdown__tab-reserve,
 body.tabsdown-selected-font-weight-theme-default .tabsdown__tab[aria-selected="true"],
 body.tabsdown-selected-font-weight-theme-default .tabsdown__tab[aria-expanded="true"],
+body.tabsdown-selected-font-weight-theme-default .tabsdown__tab-reserve,
 body.tabsdown-selected-font-weight-medium .tabsdown__tab[aria-selected="true"],
-body.tabsdown-selected-font-weight-medium .tabsdown__tab[aria-expanded="true"] {
+body.tabsdown-selected-font-weight-medium .tabsdown__tab[aria-expanded="true"],
+body.tabsdown-selected-font-weight-medium .tabsdown__tab-reserve {
 	font-weight: 600;
 }
 
@@ -1297,7 +1344,7 @@ body.tabsdown-top-personality-button .tabsdown--top > .tabsdown__tablist > .tabs
 	border-width: var(--border-width);
 	border-style: solid;
 	border-color: var(--tabsdown-tab-border);
-	border-radius: var(--tabsdown-radius, var(--radius-s));
+	border-radius: var(--tabsdown-resolved-radius);
 	background-color: var(--tabsdown-tab-background);
 	color: var(--tabsdown-tab-color);
 }
@@ -1306,7 +1353,7 @@ body.tabsdown-top-personality-button .tabsdown--top > .tabsdown__tablist > .tabs
 body.tabsdown-top-personality-button .tabsdown--top > .tabsdown__tablist > .tabsdown__tab[aria-expanded="true"] {
 	border-width: var(--border-width);
 	border-color: var(--tabsdown-tab-selected-border);
-	border-radius: var(--tabsdown-radius, var(--radius-s));
+	border-radius: var(--tabsdown-resolved-radius);
 	background-color: var(--tabsdown-tab-selected-background);
 	color: var(--tabsdown-tab-selected-color);
 }
@@ -1335,7 +1382,7 @@ body.tabsdown-top-personality-underline .tabsdown--top > .tabsdown__tablist > .t
 	body.tabsdown-top-personality-button .tabsdown--top > .tabsdown__tablist > .tabsdown__tab:hover {
 		border-width: var(--border-width);
 		border-color: var(--tabsdown-tab-hover-border);
-		border-radius: var(--tabsdown-radius, var(--radius-s));
+		border-radius: var(--tabsdown-resolved-radius);
 		background-color: var(--tabsdown-tab-hover-background);
 		color: var(--text-normal);
 	}
@@ -1431,7 +1478,7 @@ body.tabsdown-bottom-personality-button .tabsdown--bottom > .tabsdown__tablist >
 	border-width: var(--border-width);
 	border-style: solid;
 	border-color: var(--tabsdown-tab-border);
-	border-radius: var(--tabsdown-radius, var(--radius-s));
+	border-radius: var(--tabsdown-resolved-radius);
 	background-color: var(--tabsdown-tab-background);
 	color: var(--tabsdown-tab-color);
 }
@@ -1440,7 +1487,7 @@ body.tabsdown-bottom-personality-button .tabsdown--bottom > .tabsdown__tablist >
 body.tabsdown-bottom-personality-button .tabsdown--bottom > .tabsdown__tablist > .tabsdown__tab[aria-expanded="true"] {
 	border-width: var(--border-width);
 	border-color: var(--tabsdown-tab-selected-border);
-	border-radius: var(--tabsdown-radius, var(--radius-s));
+	border-radius: var(--tabsdown-resolved-radius);
 	background-color: var(--tabsdown-tab-selected-background);
 	color: var(--tabsdown-tab-selected-color);
 }
@@ -1469,7 +1516,7 @@ body.tabsdown-bottom-personality-underline .tabsdown--bottom > .tabsdown__tablis
 	body.tabsdown-bottom-personality-button .tabsdown--bottom > .tabsdown__tablist > .tabsdown__tab:hover {
 		border-width: var(--border-width);
 		border-color: var(--tabsdown-tab-hover-border);
-		border-radius: var(--tabsdown-radius, var(--radius-s));
+		border-radius: var(--tabsdown-resolved-radius);
 		background-color: var(--tabsdown-tab-hover-background);
 		color: var(--text-normal);
 	}
@@ -1565,7 +1612,7 @@ body.tabsdown-left-personality-button .tabsdown--left > .tabsdown__tablist > .ta
 	border-width: var(--border-width);
 	border-style: solid;
 	border-color: var(--tabsdown-tab-border);
-	border-radius: var(--tabsdown-radius, var(--radius-s));
+	border-radius: var(--tabsdown-resolved-radius);
 	background-color: var(--tabsdown-tab-background);
 	color: var(--tabsdown-tab-color);
 }
@@ -1574,7 +1621,7 @@ body.tabsdown-left-personality-button .tabsdown--left > .tabsdown__tablist > .ta
 body.tabsdown-left-personality-button .tabsdown--left > .tabsdown__tablist > .tabsdown__tab[aria-expanded="true"] {
 	border-width: var(--border-width);
 	border-color: var(--tabsdown-tab-selected-border);
-	border-radius: var(--tabsdown-radius, var(--radius-s));
+	border-radius: var(--tabsdown-resolved-radius);
 	background-color: var(--tabsdown-tab-selected-background);
 	color: var(--tabsdown-tab-selected-color);
 }
@@ -1603,7 +1650,7 @@ body.tabsdown-left-personality-underline .tabsdown--left > .tabsdown__tablist > 
 	body.tabsdown-left-personality-button .tabsdown--left > .tabsdown__tablist > .tabsdown__tab:hover {
 		border-width: var(--border-width);
 		border-color: var(--tabsdown-tab-hover-border);
-		border-radius: var(--tabsdown-radius, var(--radius-s));
+		border-radius: var(--tabsdown-resolved-radius);
 		background-color: var(--tabsdown-tab-hover-background);
 		color: var(--text-normal);
 	}
@@ -1715,7 +1762,7 @@ body.tabsdown-right-personality-button .tabsdown--right > .tabsdown__tablist > .
 	border-width: var(--border-width);
 	border-style: solid;
 	border-color: var(--tabsdown-tab-border);
-	border-radius: var(--tabsdown-radius, var(--radius-s));
+	border-radius: var(--tabsdown-resolved-radius);
 	background-color: var(--tabsdown-tab-background);
 	color: var(--tabsdown-tab-color);
 }
@@ -1724,7 +1771,7 @@ body.tabsdown-right-personality-button .tabsdown--right > .tabsdown__tablist > .
 body.tabsdown-right-personality-button .tabsdown--right > .tabsdown__tablist > .tabsdown__tab[aria-expanded="true"] {
 	border-width: var(--border-width);
 	border-color: var(--tabsdown-tab-selected-border);
-	border-radius: var(--tabsdown-radius, var(--radius-s));
+	border-radius: var(--tabsdown-resolved-radius);
 	background-color: var(--tabsdown-tab-selected-background);
 	color: var(--tabsdown-tab-selected-color);
 }
@@ -1753,7 +1800,7 @@ body.tabsdown-right-personality-underline .tabsdown--right > .tabsdown__tablist 
 	body.tabsdown-right-personality-button .tabsdown--right > .tabsdown__tablist > .tabsdown__tab:hover {
 		border-width: var(--border-width);
 		border-color: var(--tabsdown-tab-hover-border);
-		border-radius: var(--tabsdown-radius, var(--radius-s));
+		border-radius: var(--tabsdown-resolved-radius);
 		background-color: var(--tabsdown-tab-hover-background);
 		color: var(--text-normal);
 	}
@@ -1829,7 +1876,7 @@ body.tabsdown-left-personality-rail .tabsdown--left > .tabsdown__tablist,
 body.tabsdown-right-personality-rail .tabsdown--right > .tabsdown__tablist {
 	--tabsdown-tab-min-block-size: var(--tabsdown-rail-tab-min-block-size);
 	padding: var(--tabsdown-rail-track-padding);
-	border-radius: var(--tabsdown-radius, var(--radius-s));
+	border-radius: var(--tabsdown-resolved-radius);
 	background-color: var(--background-secondary);
 }
 
@@ -1838,6 +1885,7 @@ body.tabsdown-bottom-personality-rail .tabsdown--bottom > .tabsdown__tablist > .
 body.tabsdown-left-personality-rail .tabsdown--left > .tabsdown__tablist > .tabsdown__tab,
 body.tabsdown-right-personality-rail .tabsdown--right > .tabsdown__tablist > .tabsdown__tab {
 	padding-block: var(--tabsdown-rail-tab-padding-block);
+	border-radius: var(--tabsdown-rail-tab-radius);
 }
 
 body.tabsdown-top-personality-rail .tabsdown--top > .tabsdown__tablist > .tabsdown__tab[aria-selected="true"],
@@ -1849,7 +1897,7 @@ body.tabsdown-left-personality-rail .tabsdown--left > .tabsdown__tablist > .tabs
 body.tabsdown-right-personality-rail .tabsdown--right > .tabsdown__tablist > .tabsdown__tab[aria-selected="true"],
 body.tabsdown-right-personality-rail .tabsdown--right > .tabsdown__tablist > .tabsdown__tab[aria-expanded="true"] {
 	border-color: transparent;
-	border-radius: var(--tabsdown-radius, var(--radius-s));
+	border-radius: var(--tabsdown-rail-tab-radius);
 	background-color: var(--tabsdown-rail-selected-background);
 	color: var(--tabsdown-tab-selected-color);
 }
@@ -2070,7 +2118,7 @@ body .tabsdown.tabsdown--personality-button.tabsdown.tabsdown.tabsdown.tabsdown 
 	border-width: var(--border-width);
 	border-style: solid;
 	border-color: var(--tabsdown-tab-border);
-	border-radius: var(--tabsdown-radius, var(--radius-s));
+	border-radius: var(--tabsdown-resolved-radius);
 	background-color: var(--tabsdown-tab-background);
 	color: var(--tabsdown-tab-color);
 }
@@ -2140,18 +2188,19 @@ body .tabsdown.tabsdown--personality-rail.tabsdown.tabsdown.tabsdown.tabsdown > 
 body .tabsdown.tabsdown--personality-rail.tabsdown.tabsdown.tabsdown.tabsdown > .tabsdown__tablist {
 	--tabsdown-tab-min-block-size: var(--tabsdown-rail-tab-min-block-size);
 	padding: var(--tabsdown-rail-track-padding);
-	border-radius: var(--tabsdown-radius, var(--radius-s));
+	border-radius: var(--tabsdown-resolved-radius);
 	background-color: var(--background-secondary);
 }
 
 body .tabsdown.tabsdown--personality-rail.tabsdown.tabsdown.tabsdown.tabsdown > .tabsdown__tablist > .tabsdown__tab {
 	padding-block: var(--tabsdown-rail-tab-padding-block);
+	border-radius: var(--tabsdown-rail-tab-radius);
 }
 
 body .tabsdown.tabsdown--personality-rail.tabsdown.tabsdown.tabsdown.tabsdown > .tabsdown__tablist > .tabsdown__tab[aria-selected="true"],
 body .tabsdown.tabsdown--personality-rail.tabsdown.tabsdown.tabsdown.tabsdown > .tabsdown__tablist > .tabsdown__tab[aria-expanded="true"] {
 	border-color: transparent;
-	border-radius: var(--tabsdown-radius, var(--radius-s));
+	border-radius: var(--tabsdown-rail-tab-radius);
 	background-color: var(--tabsdown-rail-selected-background);
 	color: var(--tabsdown-tab-selected-color);
 }
@@ -2447,4 +2496,44 @@ body .tabsdown--nested-even.tabsdown.tabsdown {
 
 body.is-mobile .tabsdown.tabsdown.tabsdown.tabsdown:not(.tabsdown--mounted) > .tabsdown__tablist {
 	--tabsdown-resolved-density: compact;
+}
+
+/* Only outer Button corners use the configured radius. Inner corners keep the
+   theme default across wrapped rows, side lists, and inline label inputs. */
+body .tabsdown.tabsdown.tabsdown.tabsdown.tabsdown.tabsdown > .tabsdown__tablist.tabsdown__tablist--button > .tabsdown__tab.tabsdown__tab {
+	border-radius: var(--radius-s);
+	border-start-start-radius: var(--tabsdown-button-radius-start-start, var(--radius-s));
+	border-start-end-radius: var(--tabsdown-button-radius-start-end, var(--radius-s));
+	border-end-start-radius: var(--tabsdown-button-radius-end-start, var(--radius-s));
+	border-end-end-radius: var(--tabsdown-button-radius-end-end, var(--radius-s));
+}
+
+/* Native macOS buttons use a squircle; Rail tabs follow their track's curve. */
+.tabsdown__tablist--rail > .tabsdown__tab {
+	corner-shape: inherit;
+}
+
+.tabsdown__tab.tabsdown__tab--editing,
+.tabsdown__tab.tabsdown-label-editor__input {
+	transition: none;
+}
+
+.tabsdown__tab.tabsdown-label-editor__input {
+	min-inline-size: 0;
+	box-sizing: border-box;
+	max-inline-size: 100%;
+	margin: 0;
+	box-shadow: none;
+	cursor: text;
+}
+
+.tabsdown-label-editor__error {
+	padding: 0.25rem 0.5rem;
+	background-color: var(--background-modifier-error);
+	color: var(--text-on-accent);
+	font-size: var(--font-ui-smaller);
+}
+
+.tabsdown-label-editor__error:empty {
+	display: none;
 }

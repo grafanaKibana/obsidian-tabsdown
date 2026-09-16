@@ -4,9 +4,12 @@ import {
 	MarkdownRenderChild,
 	MarkdownRenderer,
 	Menu,
+	Notice,
 	setIcon,
 } from "obsidian";
 import { renderLabel } from "./label";
+import { DeleteTabModal } from "./delete-tab-modal";
+import { TabLabelEditor } from "./label-editor";
 import { trackPanelHeight, type PanelHeightTracker } from "./panel-height";
 import {
 	parseInlineLabel,
@@ -31,8 +34,15 @@ interface PanelState {
 }
 
 export interface BlockEditing {
+	labels: readonly string[];
 	open(trigger: HTMLElement, available: () => boolean): Promise<SaveBlockSettings>;
+	pendingFocus?(): {
+		focusIndex: number;
+		selectedIndex: number;
+		consume(): void;
+	} | undefined;
 	registerPanel(element: HTMLElement, tabIndex: number): void;
+	requestFocus?(focusIndex: number, selectedIndex: number): void;
 }
 
 let nextBlockId = 0;
@@ -79,6 +89,9 @@ export class TabBlockRenderChild extends MarkdownRenderChild {
 	private selectedIndex = 0;
 	private focusIndex = 0;
 	private disposed = false;
+	private labelEditor?: TabLabelEditor;
+	private draft?: HTMLElement;
+	private deleteDialog?: DeleteTabModal;
 
 	constructor(
 		private readonly app: App,
@@ -172,6 +185,13 @@ export class TabBlockRenderChild extends MarkdownRenderChild {
 				this.focusIndex = index;
 				this.updateState();
 			});
+			if (this.editing) {
+				this.registerDomEvent(button, "dblclick", (event) => {
+					event.preventDefault();
+					event.stopPropagation();
+					this.editLabel(button, this.editing!.open(button, () => !this.disposed), index);
+				});
+			}
 		});
 
 		const available = () => !this.disposed;
@@ -192,12 +212,120 @@ export class TabBlockRenderChild extends MarkdownRenderChild {
 						this.menus.add(menu);
 						menu.onHide(() => this.menus.delete(menu));
 					},
+					(trigger, save, index) => this.editLabel(trigger, save, index),
+					(trigger, save, index) => { void this.deleteTab(trigger, save, index); },
 				);
 		}
 		this.containerEl.append(tabList, panels);
-		this.separators = trackSeparators(tabList, this.buttons);
+		this.separators = trackSeparators(tabList, () => Array.from(tabList.children)
+			.filter((element): element is HTMLElement => element.classList.contains("tabsdown__tab")));
 		this.updateState();
-		this.ensureRendered(0);
+		const restorePendingFocus = (): boolean => {
+			const pending = this.editing?.pendingFocus?.();
+			if (!pending || !this.focusTab(pending.focusIndex, pending.selectedIndex)) return false;
+			pending.consume();
+			return true;
+		};
+		const restored = restorePendingFocus();
+		queueMicrotask(restorePendingFocus);
+		const view = this.containerEl.ownerDocument.defaultView;
+		if (view) {
+			const frame = view.requestAnimationFrame(restorePendingFocus);
+			this.register(() => view.cancelAnimationFrame(frame));
+		}
+		if (!restored) this.ensureRendered(0);
+	}
+
+	private editLabel(trigger: HTMLElement, prepared: Promise<SaveBlockSettings>, index?: number): void {
+		// Attach rejection handling immediately, even if editing is cancelled before Enter.
+		const ready = prepared.then((save) => ({ save }), (error: unknown) => ({ error }));
+		if (this.disposed || !this.editing) return;
+		this.closeLabelEditor();
+		let anchor = index === undefined ? undefined : this.buttons[index];
+		if (index !== undefined && !anchor) return;
+		if (!anchor) {
+			const list = this.containerEl.querySelector<HTMLElement>(":scope > .tabsdown__tablist")!;
+			const draft = list.createEl("button", { cls: "tabsdown__tab" });
+			draft.type = "button";
+			draft.tabIndex = -1;
+			draft.id = `${this.blockId}-draft`;
+			draft.textContent = "New tab";
+			draft.setAttribute("aria-hidden", "true");
+			this.draft = draft;
+			anchor = draft;
+			draft.scrollIntoView?.({ block: "nearest", inline: "nearest", behavior: "instant" });
+		}
+		const rawLabel = index === undefined ? "" : this.editing.labels[index]!;
+		const iconPrefix = /^icon:\S+\s*/.exec(rawLabel)?.[0] ?? "";
+		const editor = new TabLabelEditor(anchor, rawLabel.slice(iconPrefix.length),
+			index === undefined, async (label) => {
+				const result = await ready;
+				if ("error" in result) throw result.error;
+				if (this.disposed || this.labelEditor !== editor) return;
+				this.editing?.requestFocus?.(index ?? this.focusIndex, this.selectedIndex);
+				await result.save(index === undefined ? { type: "add", label } : { type: "rename", index, label: iconPrefix + label });
+			}, (restoreFocus) => {
+				this.closeLabelEditor();
+				if (restoreFocus && !this.disposed) {
+					const target = index === undefined ? this.buttons[this.focusIndex] : this.buttons[index];
+					(target ?? trigger).focus({ preventScroll: true });
+				}
+			});
+		this.labelEditor = editor;
+		this.addChild(editor);
+	}
+
+	private async deleteTab(trigger: HTMLElement, prepared: Promise<SaveBlockSettings>, index: number): Promise<void> {
+		const ready = prepared.then((save) => ({ save }), (error: unknown) => ({ error }));
+		if (this.disposed || !this.editing || this.buttons.length <= 2) return;
+		this.closeLabelEditor();
+		this.deleteDialog?.close();
+		const dialog = new DeleteTabModal(this.app, this.editing.labels[index]!);
+		this.deleteDialog = dialog;
+		const confirmed = await dialog.confirm();
+		if (this.deleteDialog !== dialog) return;
+		this.deleteDialog = undefined;
+		if (this.disposed) return;
+		if (!confirmed) {
+			trigger.focus({ preventScroll: true });
+			return;
+		}
+		try {
+			const result = await ready;
+			if ("error" in result) throw result.error;
+			if (this.disposed) return;
+			const remap = (current: number): number => current > index ? current - 1
+				: current === index ? Math.min(index, this.buttons.length - 2) : current;
+			this.editing.requestFocus?.(remap(this.focusIndex), remap(this.selectedIndex));
+			await result.save({ type: "delete", index });
+		} catch (error) {
+			new Notice(errorMessage(error));
+			if (!this.disposed) trigger.focus({ preventScroll: true });
+		}
+	}
+
+	focusTab(focusIndex: number, selectedIndex: number): boolean {
+		const button = this.buttons[focusIndex];
+		if (
+			this.disposed ||
+			!this.containerEl.isConnected ||
+			!button ||
+			!this.panels[selectedIndex]
+		) return false;
+		this.focusIndex = focusIndex;
+		this.selectedIndex = selectedIndex;
+		this.updateState();
+		this.ensureRendered(selectedIndex);
+		button.focus({ preventScroll: true });
+		return button.ownerDocument.activeElement === button;
+	}
+
+	private closeLabelEditor(): void {
+		const editor = this.labelEditor;
+		this.labelEditor = undefined;
+		if (editor) this.removeChild(editor);
+		this.draft?.remove();
+		this.draft = undefined;
 	}
 
 	private applyNestingClass(): void {
@@ -230,6 +358,9 @@ export class TabBlockRenderChild extends MarkdownRenderChild {
 
 	onunload(): void {
 		this.disposed = true;
+		this.deleteDialog?.close();
+		this.deleteDialog = undefined;
+		this.closeLabelEditor();
 		for (const menu of this.menus) menu.close();
 		this.menus.clear();
 		this.height?.destroy();
