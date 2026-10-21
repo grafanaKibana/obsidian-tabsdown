@@ -2537,3 +2537,57 @@ body .tabsdown.tabsdown.tabsdown.tabsdown.tabsdown.tabsdown > .tabsdown__tablist
 .tabsdown-label-editor__error:empty {
 	display: none;
 }
+
+/* The active Markdown body uses Obsidian's public editor and theme tokens. */
+.tabsdown-marker-widget {
+	min-inline-size: 0;
+	padding-block: var(--size-4-2);
+}
+
+.tabsdown-marker-widget .tabsdown__panel {
+	min-block-size: 1.5em;
+}
+
+.tabsdown-inline-editor {
+	min-inline-size: 0;
+	inline-size: 100%;
+}
+
+.tabsdown-inline-editor .cm-editor {
+	color: var(--text-normal);
+	font-family: var(--font-text);
+	font-size: var(--font-text-size);
+	line-height: var(--line-height-normal);
+}
+
+.tabsdown-inline-editor .cm-scroller {
+	overflow: visible;
+	font-family: inherit;
+	line-height: inherit;
+}
+
+.tabsdown-inline-editor .cm-content {
+	min-block-size: 1.5em;
+	padding: 0;
+	caret-color: var(--caret-color, var(--text-normal));
+}
+
+.tabsdown-inline-editor .cm-line {
+	padding: 0;
+}
+
+.tabsdown-inline-editor .cm-editor.cm-focused {
+	outline: none;
+}
+
+.tabsdown-marker-widget:focus-visible {
+	outline: var(--border-width) solid var(--background-modifier-border-focus);
+	outline-offset: var(--border-width);
+}
+
+/* Obsidian themes can override the browser's built-in [hidden] display rule. */
+.tabsdown__panel.tabsdown__panel > [hidden],
+.tabsdown-marker-reading.tabsdown-marker-reading[hidden],
+.tabsdown-marker-hidden.tabsdown-marker-hidden.tabsdown-marker-hidden {
+	display: none;
+}

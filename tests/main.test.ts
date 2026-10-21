@@ -110,11 +110,25 @@ function renderedBlocks(container: HTMLElement): HTMLElement[] {
 	return [container, ...nested];
 }
 
+// Obsidian preserves inert HTML slots while parsing the surrounding Markdown.
+function renderMarkdownFragment(markdown: string, element: HTMLElement): void {
+	element.replaceChildren();
+	const slots = /<div data-tabsdown-placeholder="([^"]+)"><\/div>/g;
+	let cursor = 0;
+	for (const match of markdown.matchAll(slots)) {
+		element.append(markdown.slice(cursor, match.index));
+		const slot = element.appendChild(document.createElement("div"));
+		slot.dataset.tabsdownPlaceholder = match[1];
+		cursor = match.index + match[0].length;
+	}
+	element.append(markdown.slice(cursor));
+}
+
 beforeEach(() => {
 	processorRegistrationMock.mockReset();
 	renderMock.mockReset();
 	renderMock.mockImplementation(async (_app, markdown, element) => {
-		element.textContent = markdown;
+		renderMarkdownFragment(markdown, element);
 	});
 	menuItems.splice(0);
 	menuShowAtMouseEventMock.mockReset();
@@ -386,7 +400,7 @@ test("Add tab targets the exact nested block editor range", async () => {
 	const handler = processorRegistrationMock.mock.calls[0]?.[1];
 	if (!handler) throw new Error("Expected processor");
 	renderMock.mockImplementation(async (_app, markdown, element) => {
-		element.textContent = markdown;
+		renderMarkdownFragment(markdown, element);
 		if (!markdown.includes(block)) return;
 		const nested = element.appendChild(document.createElement("div"));
 		void handler(inner, nested, {
@@ -713,7 +727,7 @@ test("writes the exact CRLF nested callout range when the processor omits its bo
 	const handler = processorRegistrationMock.mock.calls[0]?.[1];
 	if (!handler) throw new Error("Expected processor");
 	renderMock.mockImplementation(async (_app, markdown, element) => {
-		element.textContent = markdown;
+		renderMarkdownFragment(markdown, element);
 		if (!markdown.includes("> ````tabsdown")) return;
 		const nested = element.appendChild(document.createElement("div"));
 		void handler(inner.slice(0, -1), nested, {
@@ -762,7 +776,7 @@ test("edits a transcluded block through its own source file", async () => {
 	const handler = processorRegistrationMock.mock.calls[0]?.[1];
 	if (!handler) throw new Error("Expected processor");
 	renderMock.mockImplementation(async (_app, markdown, element) => {
-		element.textContent = markdown;
+		renderMarkdownFragment(markdown, element);
 		if (!markdown.includes("![[Embedded.md]]")) return;
 		const embedded = element.appendChild(document.createElement("div"));
 		void handler(embeddedSource, embedded, {
@@ -804,7 +818,7 @@ test("edits a same-file transcluded block through its own rendered section", asy
 	const handler = processorRegistrationMock.mock.calls[0]?.[1];
 	if (!handler) throw new Error("Expected processor");
 	renderMock.mockImplementation(async (_app, markdown, element) => {
-		element.textContent = markdown;
+		renderMarkdownFragment(markdown, element);
 		if (!markdown.includes("![[#Embedded]]")) return;
 		const embedded = element.appendChild(document.createElement("div"));
 		void handler(embeddedSource, embedded, {
@@ -855,7 +869,7 @@ test("edits the first identical nested block after a structural marker in a stat
 	const handler = processorRegistrationMock.mock.calls[0]?.[1];
 	if (!handler) throw new Error("Expected processor");
 	renderMock.mockImplementation(async (_app, markdown, element) => {
-		element.textContent = markdown;
+		renderMarkdownFragment(markdown, element);
 		if (!markdown.includes(`${block}\n${block}`)) return;
 		for (let index = 0; index < 2; index += 1) {
 			const nested = element.appendChild(document.createElement("div"));
@@ -909,7 +923,7 @@ test("edits the second identical nested block after a structural tab inside a st
 	const handler = processorRegistrationMock.mock.calls[0]?.[1];
 	if (!handler) throw new Error("Expected processor");
 	renderMock.mockImplementation(async (_app, markdown, element) => {
-		element.textContent = markdown;
+		renderMarkdownFragment(markdown, element);
 		if (!markdown.includes(`${block}\n${block}`)) return;
 		for (let index = 0; index < 2; index += 1) {
 			const nested = element.appendChild(document.createElement("div"));
@@ -957,7 +971,7 @@ test.each([
 		const handler = processorRegistrationMock.mock.calls[0]?.[1];
 		if (!handler) throw new Error("Expected processor");
 		renderMock.mockImplementation(async (_app, markdown, element) => {
-			element.textContent = markdown;
+			renderMarkdownFragment(markdown, element);
 			if (!markdown.includes(`${block}\n${block}`)) return;
 			const nested = [document.createElement("div"), document.createElement("div")];
 			element.append(...nested);
@@ -1535,7 +1549,7 @@ test("edits a nested block under an unreported ancestor without opening the ance
 	const handler = processorRegistrationMock.mock.calls[0]?.[1];
 	if (!handler) throw new Error("Expected processor");
 	renderMock.mockImplementation(async (_app, markdown, element) => {
-		element.textContent = markdown;
+		renderMarkdownFragment(markdown, element);
 		if (!markdown.includes(block)) return;
 		const nested = element.appendChild(document.createElement("div"));
 		void handler(inner, nested, {
@@ -1564,4 +1578,81 @@ test("edits a nested block under an unreported ancestor without opening the ance
 		{ line: 6, ch: 0 },
 		{ line: 7, ch: 0 },
 	);
+});
+
+test.each([
+	["fenced", ""],
+	["fenced", "> "],
+	["markers", ""],
+	["markers", "- "],
+] as const)("renders %s layouts within %j in the same Markdown parse as surrounding references", async (syntax, prefix) => {
+	const lines = syntax === "fenced"
+		? ["~~~tabsdown", "tab: Nested one", "Nested A", "tab: Nested two", "Nested B", "~~~"]
+		: ["%% tabs %%", "%% tab: Nested one %%", "Nested A", "%% tab: Nested two %%", "Nested B", "%% endtabs %%"];
+	const nested = lines.map((line, index) =>
+		(prefix === "- " && index > 0 ? "  " : prefix) + line).join("\n");
+	const before = "A [reference][target] and a footnote[^note].";
+	const after = "[target]: https://example.com/reference\n[^note]: A complete footnote.";
+	const source = `tab: Outer\n${before}\n\n${nested}\n\n${after}\ntab: Last\nLast body\n`;
+	const { plugin } = writablePlugin(`~~~~tabsdown\n${source}~~~~`, 1);
+	const container = await renderWritableBlock(plugin, source);
+	const calls = renderMock.mock.calls.filter((call) => call[1].includes(before));
+
+	expect(calls).toHaveLength(1);
+	const markdown = calls[0]![1];
+	expect(markdown).toContain(after);
+	expect(markdown).toContain(`${prefix}<div data-tabsdown-placeholder="`);
+	expect(markdown).not.toContain(nested);
+	expect(renderedBlocks(container)).toHaveLength(2);
+	expect(container.querySelector("[data-tabsdown-placeholder]")).toBeNull();
+});
+
+test("assigns identical replacement slots to their original nested source occurrences", async () => {
+	const inner = "tab: Nested one\nNested A\ntab: Nested two\nNested B\n";
+	const nested = `~~~tabsdown\n${inner}~~~`;
+	const source = `tab: Outer\nBefore\n\n${nested}\n\nBetween\n\n${nested}\n\nAfter\ntab: Last\nLast body\n`;
+	const text = `~~~~tabsdown\n${source}~~~~`;
+	const { plugin, editors } = writablePlugin(text, 1);
+	const container = await renderWritableBlock(plugin, source);
+	const blocks = renderedBlocks(container);
+	expect(blocks).toHaveLength(3);
+	openContextMenu(blocks[2]!);
+	await selectMenuChoice();
+
+	const secondInner = text.indexOf(inner, text.indexOf(inner) + inner.length);
+	const line = text.slice(0, secondInner).split("\n").length - 1;
+	expect(editors[0]?.replaceRange).toHaveBeenCalledExactlyOnceWith(
+		"config: density=compact\n", { line, ch: 0 }, { line, ch: 0 },
+	);
+	expect(noticeMock).not.toHaveBeenCalled();
+});
+
+test("does not mount replacement layouts after their Markdown owner is unloaded", async () => {
+	const source = "tab: Outer\n~~~tabsdown\ntab: Nested one\nA\ntab: Nested two\nB\n~~~\ntab: Last\nDone\n";
+	const { plugin } = writablePlugin(`~~~~tabsdown\n${source}~~~~`, 1);
+	let release!: () => void;
+	const pending = new Promise<void>((resolve) => { release = resolve; });
+	renderMock.mockImplementation(async (_app, markdown, element) => {
+		renderMarkdownFragment(markdown, element);
+		await pending;
+	});
+	plugin.onload();
+	const handler = processorRegistrationMock.mock.calls[0]![1];
+	const container = document.body.appendChild(document.createElement("div"));
+	const children: Array<{ load(): void; unload(): void }> = [];
+	void handler(source, container, {
+		sourcePath: "Note.md",
+		addChild: (child: { load(): void; unload(): void }) => {
+			children.push(child);
+			child.load();
+		},
+		getSectionInfo: () => ({ lineStart: 0, lineEnd: 9, text: source }),
+	});
+	await flush();
+	children[0]!.unload();
+	release();
+	await flush();
+
+	expect(renderMock).toHaveBeenCalledOnce();
+	expect(container.querySelector(".tabsdown")).toBeNull();
 });

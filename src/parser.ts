@@ -1,3 +1,5 @@
+import { commentMarkers, type TabsSyntax } from "./syntax";
+export type { TabsSyntax } from "./syntax";
 import {
 	parseConfigToken,
 	type KeyedConfigName,
@@ -180,7 +182,10 @@ export function inlineLabelText(tokens: readonly InlineLabelToken[]): string {
 	return tokens.map((token) => token.text).join("");
 }
 
-export function parseTabs(source: string): TabsParseResult {
+export function parseTabs(source: string, syntax: TabsSyntax = "fenced"): TabsParseResult {
+	const controls = commentMarkers(source);
+	const markers = new Map(controls.map((marker) => [source.slice(0, marker.from).split("\n").length, marker]));
+	let markerDepth = 0;
 	const tabs: ParsedTab[] = [];
 	const configuration: TabConfiguration[] = [];
 	const options: TabsdownConfig = {};
@@ -207,6 +212,13 @@ export function parseTabs(source: string): TabsParseResult {
 		const line = hasCarriageReturn ? rawLine.slice(0, -1) : rawLine;
 		const ending = hasNewline ? (hasCarriageReturn ? "\r\n" : "\n") : "";
 		const lineNumber = index + 1;
+		const control = markers.get(lineNumber);
+		const nestedMarker = markerDepth > 0 || control?.kind === "tabs";
+		if (control?.kind === "tabs") markerDepth += 1;
+		if (control?.kind === "endtabs" && markerDepth > 0) markerDepth -= 1;
+		const structural = syntax === "markers" && !nestedMarker && markerDepth === 0 &&
+			(control?.kind === "tab" || control?.kind === "config") ? control : undefined;
+		const markerLine = structural ? `${structural.kind}: ${structural.value}` : line;
 
 		const fenceMatch = parseFenceLine(line);
 		const fenceRun = fenceMatch?.run;
@@ -226,8 +238,8 @@ export function parseTabs(source: string): TabsParseResult {
 			nestedLine = lineNumber;
 		}
 
-		if (!nested && current === undefined && line.startsWith(configurationPrefix)) {
-			const values = line
+		if (!nested && !nestedMarker && current === undefined && (syntax === "fenced" ? line.startsWith(configurationPrefix) : structural?.kind === "config")) {
+			const values = markerLine
 				.slice(configurationPrefix.length)
 				.split(",")
 				.map((value) => value.trim());
@@ -285,8 +297,8 @@ export function parseTabs(source: string): TabsParseResult {
 			continue;
 		}
 
-		if (!nested && line.startsWith(markerPrefix)) {
-			const marker = line.slice(markerPrefix.length).trim();
+		if (!nested && !nestedMarker && (syntax === "fenced" ? line.startsWith(markerPrefix) : structural?.kind === "tab")) {
+			const marker = markerLine.slice(markerPrefix.length).trim();
 			const iconMatch = iconToken.exec(marker);
 			const icon = iconMatch?.[1];
 			let label = iconMatch ? marker.slice(iconMatch[0].length) : marker;
@@ -323,14 +335,14 @@ export function parseTabs(source: string): TabsParseResult {
 		}
 
 		// Nested source stays verbatim; the inner block unescapes its own markers.
-		current.body += !nested && line.startsWith(`\\${markerPrefix}`)
+		current.body += syntax === "fenced" && !nested && !nestedMarker && line.startsWith(`\\${markerPrefix}`)
 			? `${line.slice(1)}${ending}`
 			: `${line}${ending}`;
 	}
 
 	// Checked before the tab count, because an unclosed nested block swallows every
 	// marker after it and would otherwise surface as a missing tab.
-	if (nested) {
+	if (nested || markerDepth > 0) {
 		return fail(
 			"unclosed-nested-block",
 			"A nested tabs block is never closed.",

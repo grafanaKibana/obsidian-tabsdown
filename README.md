@@ -1,170 +1,65 @@
 # Tabsdown
 
-Tabsdown turns ordinary Markdown into theme-native tabs in Obsidian. Tabs can contain notes, queries, embeds, callouts, math, Mermaid diagrams, and compatible community-plugin blocks.
+Theme-native Markdown tabs for Obsidian. Works in Reading View and Live Preview on desktop and mobile.
 
-![](docs/assets/tabsdown-showcase.gif)
+![Tabsdown: theme-native tabs with nested Markdown content.](docs/assets/tabsdown-showcase.gif)
 
-## What it does
+- **Write in place:** edit the active tab’s Markdown in Live Preview, with the note’s Undo/Redo and keyboard navigation.
+- **Choose your syntax:** comment markers or fenced code blocks, with the same features.
+- **Shape your tabs:** nest layouts, format labels, add Lucide icons, and place the tab list on any side.
+- **Edit your layout:** add, rename, or delete tabs and change block settings from context menus.
 
-- Keeps each tab set in a fenced `tabsdown` block, so the note stays readable Markdown.
-- Works in Reading View and Live Preview on desktop and mobile.
-- Supports nested tabs, formatted labels, Lucide icons, and tab lists on any side.
-- Uses Obsidian's Markdown renderer, so links, embeds, and compatible plugin blocks keep working.
-- Matches the active theme and can be adjusted with Style Settings or CSS snippets.
+## Get started
 
-## Syntax
+Paste this into a note, keeping each marker on its own line:
 
-Start each tab with a column-zero `tab: <label>` marker. A block needs at least two non-empty, unique labels. Add optional block settings as comma-separated `property=value` entries on a column-zero `config:` line before the first tab, or right-click the block in Reading View or Live Preview and choose directly from the Position, Overflow, Density, Personality, Palette, and Alignment submenus.
+```markdown
+%% tabs %%
+%% tab: Overview %%
+Ordinary **Markdown**, links, and lists.
 
-The context-menu action is available only when the rendered block has a writable backing Markdown file.
-
-### Add, rename, and delete tabs
-
-- Right-click a block and choose **Add tab** to append a tab with an empty body.
-- Double-click a tab to rename it, or right-click its label and choose **Rename tab**.
-- Right-click a tab and choose **Delete tab** to remove it and its contents after confirmation. Delete is disabled when only two tabs remain.
-- Enter saves the label. Escape or clicking outside cancels. A new tab is saved only after you enter a non-empty, unique label.
-- The editor shows the name, including Markdown formatting. Any `icon:` prefix stays hidden and is preserved when saving.
-
-These actions update the backing Markdown, including nested and embedded blocks. If the note changes while a label is being edited, the save stops to avoid overwriting other changes. Ordinary tab switching never edits the note.
-
-**Add tab** appears first in the context menu. Tab actions are separated from the block's style settings. Menus use Obsidian's platform-native behavior. Menu icons appear where Obsidian supports them; its current native macOS menu bridge omits icons.
-
-### Writing a block
-
-`````markdown
-````tabsdown
-tab: Greedy
-
-Greedy chooses the largest usable coin.
-
-tab: Dynamic programming
-
-```dataview
-TABLE file.mtime
-FROM "Algorithms"
+%% tab: Details %%
+More content.
+%% endtabs %%
 ```
-````
-`````
 
-Use matching backtick or tilde fences. The outer fence must be longer than any matching fence inside it. The example uses four backticks outside and three around the Dataview query. Increase the outer fence again if a tab body contains a longer fence.
+Use at least two unique, non-empty labels. Tab bodies can contain ordinary Markdown, embeds, queries, callouts, math, Mermaid diagrams, and nested layouts. Compatible plugin blocks use Obsidian’s Markdown renderer.
 
-````markdown
-~~~tabsdown
-config: position=left, layout=multi, density=compact, personality=rail, palette=secondary, alignment=center
+In Live Preview, click the active body or focus its tab and press Down to edit. Arrows enter and leave the layout; Cmd/Ctrl+A selects the active body’s text, Undo/Redo uses the note’s history, and Escape restores the rendered body. Switching tabs keeps your edits. Source Mode exposes all markers and fences.
 
-tab: Python
-print("Hello Tabsdown")
+The active body uses a plain Markdown editor, without Obsidian’s rich Live Preview or third-party suggestions. Incomplete layout syntax may reveal the note’s source. If the same note is open in multiple editing panes, close the extra editor before editing a tab.
 
-tab: JavaScript
-console.log("Hello Tabsdown");
-~~~
-````
+- **Authoring:** right-click a block to **Add tab**, double-click a label to rename it, or choose **Delete tab** from its context menu. Deletion requires confirmation and is disabled when two tabs remain. Enter saves a unique, non-empty label; Escape cancels. Switching tabs alone never changes the note.
+- **Settings:** use the block’s context menu, or add `%% config: position=left, personality=rail %%` before the first tab. Options include position, overflow, density, personality, palette, and alignment; [Style Settings](docs/style-settings.md) provides global defaults.
+- **Icons and labels:** use `%% tab: icon:code Python %%` for a bundled [Lucide](https://lucide.dev/icons/) icon. Labels support bold, italic, strikethrough, and inline code; other Markdown stays literal.
+- **Nesting:** both formats can nest inside each other. Each layout keeps its own labels, settings, and active tab.
 
-`position=top|left|right|bottom` places the tab list and `layout=one|multi` keeps labels on one scrollable line or allows wrapping. Other overrides are `density=default|compact`, `personality=button|underline|separator|rail`, `palette=primary|secondary`, and `alignment=start|center|equal-width`. The example is the canonical form saved by the menu. Choices update Markdown immediately and stop without overwriting when the rendered block no longer matches the note.
+See the [marker and editing examples](demo/Marker%20tabs.md), [tab authoring examples](demo/Tab%20authoring.md), and [demo test matrix](demo/Tabsdown%20test%20matrix.md).
 
-Omitted values inherit in this order: explicit block override, automatic Compact density on mobile or at a container width of 28rem or less, position Style Settings, global Style Settings, then the built-in fallback. Explicit Default or Compact density stays authoritative on every device and width. The first tab starts active. Empty tab bodies are valid. To render a literal marker-looking line, escape it as `\tab:`.
+## Prefer code blocks?
 
-### Icons
-
-Start a label with `icon:<name>` to put one of Obsidian's bundled [Lucide](https://lucide.dev/icons/) icons before it:
+Use a fenced `tabsdown` block with column-zero `tab:` markers:
 
 ````markdown
 ```tabsdown
-tab: icon:code Python
-tab: icon:file-text Notes
+tab: Overview
+Ordinary **Markdown**, links, and lists.
+
+tab: Details
+More content.
 ```
 ````
 
-An unknown icon name renders no icon, and every tab still needs a label. Escape a literal label as `tab: \icon:name`.
-
-### Label formatting
-
-Labels support exactly `**bold**`, `*italic*`, `~~strikethrough~~`, and backtick inline code. The same formatting works after an `icon:<name>` prefix and in public `mountTabs` labels. Multiple non-overlapping formats can share one label.
-
-Links, wikilinks, images, raw HTML, headings, lists, and other Markdown stay visible as literal text. Unmatched, nested, overlapping, empty, or whitespace-only delimiter runs also stay literal; labels never create links or other interactive descendants.
-
-### Nested tabs
-
-A tab body can hold another `tabsdown` block, as long as its fence is shorter than the one around it:
-
-`````markdown
-````tabsdown
-tab: Backend
-
-```tabsdown
-tab: Python
-tab: Go
-```
-
-tab: Frontend
-`````
-
-Markers inside a nested block belong to that block, so the inner `tab:` lines above do not split the outer one and need no escaping. Each level places its own tab list and keeps its own active tab. A `config:` line applies only to the level that declares it.
-
-## Obsidian modes
-
-| Mode | Behavior |
-| --- | --- |
-| Reading View | Interactive tabs on desktop and mobile. Switching tabs never edits the note. |
-| Live Preview | Interactive tabs while the cursor is outside the block; fenced source while editing inside it. |
-| Source Mode | Raw fenced Markdown only. |
-
-## Installation
-
-### Community plugins
-
-Use this method after Tabsdown is listed in Obsidian's Community Plugins directory:
-
-1. Open **Settings → Community plugins**.
-2. Select **Browse**, search for **Tabsdown**, then select **Install**.
-3. Select **Enable**.
-
-### BRAT
-
-Published releases and prereleases can be installed with [BRAT](https://github.com/TfTHacker/obsidian42-brat):
-
-1. Install and enable **Obsidian42 - BRAT** from Community Plugins.
-2. Run **BRAT: Add a beta plugin for testing** from the command palette.
-3. Enter `grafanaKibana/obsidian-tabsdown`.
-4. Enable **Tabsdown** under **Settings → Community plugins**.
-
-BRAT can install only a published release or prerelease, not an unpublished draft.
-
-### Manual installation
-
-1. Download `main.js`, `manifest.json`, and `styles.css` from the same [GitHub release](https://github.com/grafanaKibana/obsidian-tabsdown/releases).
-2. Create `<Vault>/.obsidian/plugins/tabsdown/`.
-3. Copy the three downloaded files directly into that directory.
-4. Reload Obsidian.
-5. Enable **Tabsdown** under **Settings → Community plugins**.
-
-Do not mix assets from different releases.
+Use matching backtick or tilde fences, with an outer fence longer than any matching fences inside it. Fenced blocks support the same editing, authoring, icons, and nesting. Put settings on a column-zero `config:` line before the first tab.
 
 ## Guides
 
-- [Publish Tabsdown blocks with Quartz](docs/quartz.md)
-- [Embed plugin-owned panels with `mountTabs`](docs/embedding-tabs.md)
-- [Configure Tabsdown with Style Settings](docs/style-settings.md)
-- [Customize Tabsdown with CSS snippets](docs/css-snippets.md)
-- [Generate Tabsdown blocks with Templater](docs/templater.md)
+[Style Settings](docs/style-settings.md) · [CSS snippets](docs/css-snippets.md) · [Quartz publishing](docs/quartz.md) · [Templater](docs/templater.md) · [Plugin API: `mountTabs`](docs/embedding-tabs.md)
 
-## Troubleshooting
+## Install
 
-- **Fenced source instead of tabs:** Enable Tabsdown, switch to Reading View, or move the cursor outside the block in Live Preview.
-- **Diagnostic shown:** Check that `tab:` markers start at column zero, labels are unique, and the block has at least two tabs.
-- **An inner code block closes Tabsdown:** Make the outer fence longer than every fence inside it, or use tildes.
-- **An embed or plugin block fails:** Test the same Markdown outside Tabsdown first.
-- **Still stuck:** [Open an issue](https://github.com/grafanaKibana/obsidian-tabsdown/issues) with the source block, Obsidian version, theme, and any related plugins.
+Install with [BRAT](https://github.com/TfTHacker/obsidian42-brat) using `grafanaKibana/obsidian-tabsdown`, or copy `main.js`, `manifest.json`, and `styles.css` from the same [release](https://github.com/grafanaKibana/obsidian-tabsdown/releases) into `<Vault>/.obsidian/plugins/tabsdown/`. Reload Obsidian and enable **Tabsdown**.
 
-## Development and releases
+Runs locally on desktop and mobile, with no network requests, telemetry, or account.
 
-- [Contributing and local development](CONTRIBUTING.md)
-- [Issues](https://github.com/grafanaKibana/obsidian-tabsdown/issues)
-- [Releases and changelog](https://github.com/grafanaKibana/obsidian-tabsdown/releases)
-
-Tabsdown runs entirely inside Obsidian and makes no network requests. It collects no telemetry, requires no account or payment, shows no advertising, accesses only files inside the vault, and includes no closed-source components.
-
-## License
-
-[MIT](LICENSE)
+[Report an issue](https://github.com/grafanaKibana/obsidian-tabsdown/issues) · [Contributing](CONTRIBUTING.md) · [MIT license](LICENSE)

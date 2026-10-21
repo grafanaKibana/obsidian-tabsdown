@@ -8,3 +8,4 @@ data.json
 .idea/
 .vscode/
 *.iml
+.impeccable/
