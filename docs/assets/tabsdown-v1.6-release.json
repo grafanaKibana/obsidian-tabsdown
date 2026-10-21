@@ -1,0 +1,38 @@
+{
+  "title": "Tabsdown 1.6.0 — Markdown tabs for Obsidian",
+  "tool": "Repository-authored SVG geometry and embedded Geist typography; Chromium PNG export",
+  "source": "docs/assets/tabsdown-v1.6-release.svg",
+  "reference": {
+    "repository": "grafanaKibana/obsidian-colsdown",
+    "path": "docs/assets/colsdown-v1-release.svg",
+    "revision": "6029ab60e930191daf26c6e2f2c6b3fececece6161"
+  },
+  "description": "Adapts the approved Colsdown modular poster to Tabsdown: marker/fenced syntax, nested tabs, adding and styling tabs, and direct editing. The diagrams are illustrative, not Obsidian screenshots.",
+  "dimensions": {
+    "width": 1448,
+    "height": 1086
+  },
+  "typography": {
+    "family": "Geist",
+    "title": 136,
+    "subtitle": 42,
+    "version": 64,
+    "feature": 56,
+    "featureWeight": 700
+  },
+  "colors": {
+    "paper": "#f4f0e7",
+    "ink": "#241a35",
+    "purple": "#7853ce",
+    "lavender": "#c9b8ef",
+    "lime": "#d5e8a5",
+    "orange": "#ff9b68"
+  },
+  "shadow": {
+    "dx": 0,
+    "dy": 6,
+    "stdDeviation": 8,
+    "color": "#241a35",
+    "opacity": 0.13
+  }
+}
