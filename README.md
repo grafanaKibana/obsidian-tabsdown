@@ -2,7 +2,7 @@
 
 Theme-native Markdown tabs for Obsidian. Works in Reading View and Live Preview on desktop and mobile.
 
-![Tabsdown 1.6.0: marker or fenced syntax, nested tabs, tab customization, and in-place Markdown editing.](docs/assets/tabsdown-v1.6-release.png)
+![Tabsdown 1.6.0: notes, checklists and code in tabs, nested layouts, tab customization, and in-place Markdown editing.](docs/assets/tabsdown-v1.6-release.png)
 
 - **Write in place:** edit the active tab’s Markdown in Live Preview, with the note’s Undo/Redo and keyboard navigation.
 - **Choose your syntax:** comment markers or fenced code blocks, with the same features.

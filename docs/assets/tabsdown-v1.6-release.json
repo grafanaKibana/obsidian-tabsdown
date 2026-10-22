@@ -7,7 +7,7 @@
     "path": "docs/assets/colsdown-v1-release.svg",
     "revision": "6029ab60e930191daf26c6e2f2c6b3fececece6161"
   },
-  "description": "Adapts the approved Colsdown modular poster to Tabsdown: marker/fenced syntax, nested tabs, adding and styling tabs, and direct editing. The diagrams are illustrative, not Obsidian screenshots.",
+  "description": "Adapts the approved Colsdown modular poster to Tabsdown: notes, checklists and code in tabs, nested tabs, adding and styling tabs, and direct editing. The diagrams are illustrative, not Obsidian screenshots.",
   "dimensions": {
     "width": 1448,
     "height": 1086
