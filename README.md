@@ -2,7 +2,7 @@
 
 Theme-native Markdown tabs for Obsidian. Works in Reading View and Live Preview on desktop and mobile.
 
-![Tabsdown 1.6.0: notes, checklists and code in tabs, nested layouts, tab customization, and in-place Markdown editing.](docs/assets/tabsdown-v1.6-release.png)
+![Tabsdown 1.6.0: notes, checklists and code in tabs, nested layouts, styling tabs, and in-place Markdown editing.](docs/assets/tabsdown-v1.6-release.png)
 
 - **Write in place:** edit the active tab’s Markdown in Live Preview, with the note’s Undo/Redo and keyboard navigation.
 - **Choose your syntax:** comment markers or fenced code blocks, with the same features.
@@ -41,8 +41,6 @@ The active body uses a plain Markdown editor, without Obsidian’s rich Live Pre
 - **Icons and labels:** use `%% tab: icon:code Python %%` for a bundled [Lucide](https://lucide.dev/icons/) icon. Labels support bold, italic, strikethrough, and inline code; other Markdown stays literal.
 - **Nesting:** both formats can nest inside each other. Each layout keeps its own labels, settings, and active tab.
 
-See the [marker and editing examples](demo/Marker%20tabs.md), [tab authoring examples](demo/Tab%20authoring.md), and [demo test matrix](demo/Tabsdown%20test%20matrix.md).
-
 ## Prefer code blocks?
 
 Use a fenced `tabsdown` block with column-zero `tab:` markers:
@@ -60,6 +58,8 @@ More content.
 Use matching backtick or tilde fences, with an outer fence longer than any matching fences inside it. Fenced blocks support the same editing, authoring, icons, and nesting. Put settings on a column-zero `config:` line before the first tab.
 
 ## Guides
+
+[Marker and editing examples](demo/Marker%20tabs.md) · [Tab authoring examples](demo/Tab%20authoring.md) · [Demo test matrix](demo/Tabsdown%20test%20matrix.md)
 
 [Style Settings](docs/style-settings.md) · [CSS snippets](docs/css-snippets.md) · [Quartz publishing](docs/quartz.md) · [Templater](docs/templater.md) · [Plugin API: `mountTabs`](docs/embedding-tabs.md)
 
