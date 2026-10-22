@@ -2542,6 +2542,12 @@ body .tabsdown.tabsdown.tabsdown.tabsdown.tabsdown.tabsdown > .tabsdown__tablist
 .tabsdown-marker-widget {
 	min-inline-size: 0;
 	padding-block: var(--size-4-2);
+	white-space: normal;
+}
+
+/* Undo the source editor's margin reset for rendered Markdown callouts. */
+.tabsdown-marker-widget.markdown-rendered .callout {
+	margin: 1em 0;
 }
 
 .tabsdown-marker-widget .tabsdown__panel {

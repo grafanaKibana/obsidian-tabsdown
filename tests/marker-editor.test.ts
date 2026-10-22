@@ -2,6 +2,9 @@
 import { ChangeSet, Compartment, EditorState, type Extension } from "@codemirror/state";
 // eslint-disable-next-line import/no-extraneous-dependencies -- Obsidian supplies the public CM6 runtime under test.
 import { EditorView } from "@codemirror/view";
+import { readFileSync } from "node:fs";
+import { dirname, resolve } from "node:path";
+import { fileURLToPath } from "node:url";
 import type { App, PluginManifest } from "obsidian";
 import { afterEach, beforeEach, describe, expect, test, vi } from "vitest";
 import TabsdownPlugin from "../src/main";
@@ -199,6 +202,48 @@ test("Source Mode exposes Markdown and mounts no tabs widget", async () => {
 	const fixture = await setup(marker, { live: false });
 	expect(fixture.widget()).toBeNull();
 	expect(fixture.view.state.doc.toString()).toBe(marker);
+});
+
+test("rendered tab bodies use Reading View whitespace and Markdown styling while the editor preserves Markdown whitespace", async () => {
+	const style = document.head.appendChild(document.createElement("style"));
+	// Obsidian scopes native Markdown list indentation to .markdown-rendered.
+	// The host editor preserves source whitespace; rendered bodies must not.
+	style.textContent = `
+		.markdown-rendered ul { padding-inline-start: 30px; }
+		.callout { margin: 1em 0; }
+		.markdown-source-view.mod-cm6 .callout { margin: 0; }
+	` + readFileSync(resolve(dirname(fileURLToPath(import.meta.url)), "../styles.css"), "utf8");
+	cleanups.push(() => style.remove());
+	renderMock.mockImplementation(async (_app, _markdown, element) => {
+		element.appendChild(document.createElement("p")).textContent = "A paragraph.";
+		const list = element.appendChild(document.createElement("ul"));
+		list.appendChild(document.createElement("li")).textContent = "A list item.";
+		element.appendChild(document.createElement("div")).className = "callout";
+	});
+	const fixture = await setup(marker.replace("First", "A paragraph.\n\n- A list item."));
+	fixture.parent.classList.add("markdown-source-view", "mod-cm6");
+	fixture.view.contentDOM.style.whiteSpace = "break-spaces";
+	const hostCallout = fixture.parent.appendChild(document.createElement("div"));
+	hostCallout.className = "callout";
+	const reading = document.body.appendChild(document.createElement("div"));
+	reading.className = "markdown-rendered";
+	const readingList = reading.appendChild(document.createElement("ul"));
+	const readingCallout = reading.appendChild(document.createElement("div"));
+	readingCallout.className = "callout";
+	cleanups.push(() => reading.remove());
+
+	expect(getComputedStyle(fixture.view.contentDOM).whiteSpace).toBe("break-spaces");
+	expect(getComputedStyle(fixture.widget()).whiteSpace).toBe("normal");
+	expect(getComputedStyle(fixture.panel().querySelector("ul")!).paddingInlineStart)
+		.toBe(getComputedStyle(readingList).paddingInlineStart);
+	expect(getComputedStyle(readingList).paddingInlineStart).toBe("30px");
+	expect(getComputedStyle(fixture.panel().querySelector(".callout")!).margin)
+		.toBe(getComputedStyle(readingCallout).margin);
+	expect(getComputedStyle(readingCallout).marginTop).not.toBe("0px");
+	expect(getComputedStyle(hostCallout).margin).toBe("0px");
+	fixture.panel().querySelector("p")!.click();
+	expect(["pre-wrap", "break-spaces"]).toContain(getComputedStyle(fixture.child().contentDOM).whiteSpace);
+	expect(fixture.child().state.doc.toString()).toBe("A paragraph.\n\n- A list item.");
 });
 
 test("read-only Live Preview renders tabs but refuses in-place editing", async () => {

@@ -325,7 +325,7 @@ class MarkerWidget extends WidgetType {
 		return mounted?.inline.sync(this.region, this.snapshot, this.transaction) ?? false;
 	}
 	toDOM(view: EditorView): HTMLElement {
-		const element = view.dom.ownerDocument.adoptNode(createDiv({ cls: "tabsdown-marker-widget" }));
+		const element = view.dom.ownerDocument.adoptNode(createDiv({ cls: "tabsdown-marker-widget markdown-rendered" }));
 		element.tabIndex = 0;
 		element.setAttribute("role", "group");
 		element.setAttribute("aria-label", "Tabbed Markdown");
