@@ -8,6 +8,7 @@ import { fileURLToPath } from "node:url";
 import type { App, PluginManifest } from "obsidian";
 import { afterEach, beforeEach, describe, expect, test, vi } from "vitest";
 import TabsdownPlugin from "../src/main";
+import * as sourceDiscovery from "../src/source";
 import { editorInfoEffect, editorInfoField, editorLivePreviewField, MarkdownView, renderMock, TFile } from "./obsidian.mock";
 import { stubResizeObserver } from "./panel-size";
 
@@ -202,6 +203,37 @@ test("Source Mode exposes Markdown and mounts no tabs widget", async () => {
 	const fixture = await setup(marker, { live: false });
 	expect(fixture.widget()).toBeNull();
 	expect(fixture.view.state.doc.toString()).toBe(marker);
+});
+
+test("Enter in the final body of an unclosed fence keeps the newline and caret", async () => {
+	const source = "```tabsdown\ntab: One\nAlpha\ntab: Two\nBeta";
+	const fixture = await setup(source);
+	fixture.parent.querySelectorAll<HTMLElement>('[role="tab"]')[1]!.click();
+	fixture.panel(1).querySelector("p")!.click();
+	const child = fixture.child();
+	child.dispatch({ selection: { anchor: child.state.doc.length } });
+	key(child.contentDOM, "Enter");
+	expect(fixture.child()).toBe(child);
+	expect(child.state.doc.toString()).toBe("Beta\n");
+	expect(child.state.selection.main.head).toBe(5);
+	expect(fixture.view.state.doc.toString()).toBe(source + "\n");
+	child.dispatch({ changes: { from: 5, insert: "Next" }, selection: { anchor: 9 } });
+	expect(child.state.doc.toString()).toBe("Beta\nNext");
+	expect(fixture.view.state.doc.toString()).toBe(source + "\nNext");
+});
+
+test.each(["markers", "fenced"] as const)("editing a blank-first %s body retains list membership", async (syntax) => {
+	const rows = syntax === "markers"
+		? ["- %% tabs %%", "  %% tab: One %%", "", "  Alpha", "", "  %% tab: Two %%", "  Beta", "  %% endtabs %%"]
+		: ["- ```tabsdown", "  tab: One", "", "  Alpha", "", "  tab: Two", "  Beta", "  ```"];
+	const fixture = await setup(rows.join("\n"));
+	fixture.panel().querySelector("p")!.click();
+	const child = fixture.child();
+	child.dispatch({ changes: { from: 0, to: child.state.doc.length, insert: "\nNew\nBody\n" } });
+	expect(fixture.child()).toBe(child);
+	expect(child.state.doc.toString()).toBe("\nNew\nBody\n");
+	expect(fixture.view.state.doc.toString()).toContain("\n  New\n  Body\n");
+	expect(fixture.parent.querySelectorAll('[role="tab"]')).toHaveLength(2);
 });
 
 test("rendered tab bodies use Reading View whitespace and Markdown styling while the editor preserves Markdown whitespace", async () => {
@@ -632,4 +664,36 @@ test("a quoted nested zero-line final body keeps the same editor while adding it
 	const expected = source.replace("> tab: Inner two\n", "> tab: Inner two\n> xy\n");
 	expect(fixture.view.state.doc.toString()).toBe(expected);
 	expect(fixture.view.state.selection.main.head).toBe(expected.indexOf("xy\n") + 2);
+});
+
+test("mounted widgets share discovery across registration, synchronization and selection-only states", async () => {
+	const source = Array.from({ length: 3 }, (_, index) => marker.replace("First", `Body ${index}`)).join("\n\n");
+	const discovery = vi.spyOn(sourceDiscovery, "sourceBlocks");
+	try {
+		const fixture = await setup(source);
+		const widgets = Array.from(fixture.parent.querySelectorAll<HTMLElement>(".tabsdown-marker-widget"));
+		expect(widgets).toHaveLength(3);
+		const scans = (text: string) => discovery.mock.calls.filter(([value, options]) => value === text && !options?.fragment).length;
+		expect(scans(source)).toBe(1);
+		fixture.view.dispatch({ selection: { anchor: 1 } });
+		expect(scans(source)).toBe(1);
+		const next = source.replace("Body 0", "Updated body 0");
+		const from = source.indexOf("Body 0");
+		fixture.view.dispatch({ changes: { from, to: from + 6, insert: "Updated body 0" } });
+		await settle();
+		expect(Array.from(fixture.parent.querySelectorAll(".tabsdown-marker-widget"))).toEqual(widgets);
+		expect(scans(source)).toBe(1);
+		expect(scans(next)).toBe(1);
+		fixture.setReadOnly(true);
+		fixture.setReadOnly(false);
+		expect(scans(next)).toBe(1);
+		key(widgets[0]!, "Enter");
+		const child = fixture.child();
+		child.dispatch({ changes: { from: 0, insert: "Typed " } });
+		const typed = next.replace("Updated body 0", "Typed Updated body 0");
+		expect(fixture.view.state.doc.toString()).toBe(typed);
+		expect(fixture.child()).toBe(child);
+		expect(scans(next)).toBe(1);
+		expect(scans(typed)).toBe(1);
+	} finally { discovery.mockRestore(); }
 });

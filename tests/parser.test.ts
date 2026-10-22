@@ -1,6 +1,7 @@
 import { describe, expect, test } from "vitest";
 
 import { inlineLabelText, parseInlineLabel, parseTabs } from "../src/parser";
+import { commentMarkers } from "../src/syntax";
 
 describe("parseInlineLabel", () => {
 	test.each([
@@ -613,4 +614,137 @@ describe("parseTabs", () => {
 			},
 		});
 	});
+});
+
+
+describe("marker literal contexts", () => {
+	test.each([
+		"# Heading",
+		"---",
+		"===",
+		"***",
+		"- Item",
+		"1. Item",
+		"> Quote",
+		"```text\ncode\n```",
+		"~~~text\ncode\n~~~",
+		"<div>\nHTML\n</div>\n",
+		"<!-- HTML -->",
+		"$$\nformula\n$$",
+	])("does not join backticks across block boundary %j", (boundary) => {
+		const firstBody = `A literal \` backtick.\n${boundary}\n`;
+		const secondBody = "Another literal ` backtick.";
+		expect(parseTabs(`%% tab: One %%\n${firstBody}%% tab: Two %%\n${secondBody}`, "markers")).toEqual({
+			ok: true,
+			tabs: [{ label: "One", body: firstBody }, { label: "Two", body: secondBody }],
+		});
+	});
+
+	test("does not join an ATX heading's code opener to the following paragraph", () => {
+		expect(parseTabs("%% tab: One %%\n# A literal `\n%% tab: Two %%\nAnother `", "markers")).toMatchObject({
+			ok: true, tabs: [{ label: "One" }, { label: "Two" }],
+		});
+	});
+
+	test("keeps comments after an unmatched backtick open across block boundaries", () => {
+		const body = "A literal ` and %% a comment\n# Heading\n%% tab: Hidden %%\nAnother ` closes no code span\n%%\n";
+		expect(parseTabs(`%% tab: One %%\n${body}%% tab: Two %%`, "markers")).toEqual({
+			ok: true, tabs: [{ label: "One", body }, { label: "Two", body: "" }],
+		});
+	});
+
+	test.each(["`", "``"])("preserves uninterrupted multiline %s code spans", (run) => {
+		const body = `${run}literal\n%% tab: Hidden %%\nmore ${run}\n`;
+		expect(parseTabs(`%% tab: One %%\n${body}%% tab: Two %%`, "markers")).toEqual({
+			ok: true, tabs: [{ label: "One", body }, { label: "Two", body: "" }],
+		});
+	});
+
+	test.each(["2. Item", "+", "#not-a-heading", "<span>", "---not-a-break", "-_-*"])("keeps non-interrupting %j inside a multiline code span", (line) => {
+		const body = `A \` code span\n${line}\n%% tab: Hidden %%\nends here \`\n`;
+		expect(parseTabs(`%% tab: One %%\n${body}%% tab: Two %%`, "markers")).toEqual({
+			ok: true, tabs: [{ label: "One", body }, { label: "Two", body: "" }],
+		});
+	});
+	test("does not join backticks across a table header boundary", () => {
+		const body = "A literal ` | Column\n--- | ---\nValue | cell\n";
+		expect(parseTabs(`%% tab: One %%\n${body}%% tab: Two %%\nAnother \``, "markers")).toEqual({
+			ok: true, tabs: [{ label: "One", body }, { label: "Two", body: "Another `" }],
+		});
+	});
+
+	test("keeps mismatched table delimiters inside a multiline code span", () => {
+		const body = "A ` code | span\n--- | --- | ---\n%% tab: Hidden %%\nends here `\n";
+		expect(parseTabs(`%% tab: One %%\n${body}%% tab: Two %%`, "markers")).toEqual({
+			ok: true, tabs: [{ label: "One", body }, { label: "Two", body: "" }],
+		});
+	});
+
+	test("does not let an unmatched heading backtick hide a comment opener", () => {
+		const body = "# A literal ` and %% a comment\n%% tab: Hidden %%\nAnother ` closes no code span\n%%\n";
+		expect(parseTabs(`%% tab: One %%\n${body}%% tab: Two %%`, "markers")).toEqual({
+			ok: true, tabs: [{ label: "One", body }, { label: "Two", body: "" }],
+		});
+	});
+
+});
+
+
+describe("contained marker layouts", () => {
+	test.each([
+		{ opener: "- ", continuation: "  " },
+		{ opener: "> ", continuation: "> " },
+		{ opener: "> - ", continuation: ">   " },
+		{ opener: "- > ", continuation: "  > " },
+	])("retains nested ownership under $opener", ({ opener, continuation }) => {
+		for (const syntax of ["markers", "fenced"] as const) {
+			for (const ending of ["\n", "\r\n"]) {
+				const marker = (label: string) => syntax === "markers" ? `%% tab: ${label} %%` : `tab: ${label}`;
+				const body = [opener + "%% tabs %%", ...[
+					"%% tab: Inner one %%", "A", "%% tab: Inner two %%", "B", "%% endtabs %%",
+				].map((line) => continuation + line), ""].join(ending);
+				expect(parseTabs(`${marker("One")}${ending}${body}${marker("Two")}`, syntax)).toEqual({
+					ok: true, tabs: [{ label: "One", body }, { label: "Two", body: "" }],
+				});
+			}
+		}
+	});
+
+	test.each([
+		{ literal: ["```text", "%% endtabs %%", "%% tabs %%", "```"] },
+		{ literal: ["<div>", "%% endtabs %%", "%% tabs %%", "</div>", ""] },
+		{ literal: ["`literal", "%% endtabs %%", "%% tabs %%", "ends`"] },
+	])("ignores literal nested controls in $literal", ({ literal }) => {
+		const body = ["- %% tabs %%", ...[
+			"%% tab: Inner one %%", ...literal, "%% tab: Inner two %%", "B", "%% endtabs %%",
+		].map((line) => "  " + line), ""].join("\n");
+		expect(parseTabs(`%% tab: One %%\n${body}%% tab: Two %%`, "markers")).toEqual({
+			ok: true, tabs: [{ label: "One", body }, { label: "Two", body: "" }],
+		});
+	});
+
+	test("does not promote tab-looking list content after a contained layout", () => {
+		const body = "- %% tabs %%\n  %% tab: Inner one %%\n  A\n  %% tab: Inner two %%\n  B\n  %% endtabs %%\n  %% tab: Not outer %%\n";
+		expect(parseTabs(`%% tab: One %%\n${body}%% tab: Two %%`, "markers")).toEqual({
+			ok: true, tabs: [{ label: "One", body }, { label: "Two", body: "" }],
+		});
+	});
+
+	test("leaves an unclosed contained layout invalid instead of stealing an outer label", () => {
+		expect(parseTabs("%% tab: One %%\n- %% tabs %%\n  %% tab: Inner one %%\n  A\n%% tab: Two %%", "markers")).toMatchObject({
+			ok: false,
+		});
+	});
+	test.each(["\n", "\r\n"])("keeps contained marker value offsets in the original %j source", (ending) => {
+		const source = ["%% tab: Outer %%", "- %% tabs %%", "  %% tab: Inner one %%", "  A", "  %% tab: Inner two %%", "  B", "  %% endtabs %%", "%% tab: Other %%"].join(ending);
+		for (const marker of commentMarkers(source)) {
+			expect(source.slice(marker.valueFrom, marker.valueTo)).toBe(marker.value);
+			expect(source.slice(0, marker.from)).toMatch(/(?:^|\n)$/);
+		}
+	});
+
+	test.each(["-     ", "-\t  "])("keeps over-indented list content literal after %j", (prefix) => {
+		expect(commentMarkers(`${prefix}%% tabs %%\n`)).toEqual([]);
+	});
+
 });

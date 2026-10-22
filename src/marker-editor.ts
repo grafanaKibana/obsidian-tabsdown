@@ -1,5 +1,5 @@
 // eslint-disable-next-line import/no-extraneous-dependencies -- Obsidian supplies its public CM6 runtime; esbuild keeps it external.
-import { Annotation, EditorSelection, EditorState, Prec, StateField, Transaction, type Extension } from "@codemirror/state";
+import { Annotation, EditorSelection, EditorState, Prec, StateField, Transaction, type Extension, type Text } from "@codemirror/state";
 // eslint-disable-next-line import/no-extraneous-dependencies -- Obsidian supplies its public CM6 runtime; esbuild keeps it external.
 import { Decoration, Direction, EditorView, WidgetType, keymap, type DecorationSet } from "@codemirror/view";
 import { editorInfoField, editorLivePreviewField, MarkdownRenderChild, MarkdownView, Notice, Scope, type MarkdownPostProcessorContext, type Plugin, type TFile } from "obsidian";
@@ -29,6 +29,25 @@ interface ActiveBody {
 }
 
 const inlineBodyEdit = Annotation.define<InlineEditing>();
+
+interface SourceDiscovery {
+	snapshot: string;
+	blocks: SourceBlock[];
+}
+
+// Selection-only states share their immutable document. Entries disappear with
+// that document rather than retaining every authored version in a string cache.
+const documentDiscovery = new WeakMap<Text, SourceDiscovery>();
+const discoveredSource = Annotation.define<SourceDiscovery>();
+function discover(state: EditorState, supplied?: SourceDiscovery): SourceDiscovery {
+	let discovery = documentDiscovery.get(state.doc);
+	if (!discovery) {
+		const snapshot = state.doc.toString();
+		discovery = supplied?.snapshot === snapshot ? supplied : { snapshot, blocks: sourceBlocks(snapshot) };
+		documentDiscovery.set(state.doc, discovery);
+	}
+	return discovery;
+}
 
 function sameLocator(a: BlockLocator, b: BlockLocator): boolean {
 	return a.lineStart === b.lineStart && a.nestedOffsets.length === b.nestedOffsets.length &&
@@ -68,6 +87,7 @@ export class InlineEditing {
 		readonly element: HTMLElement,
 		public region: SourceBlock,
 		public snapshot: string,
+		private discovery: SourceDiscovery,
 	) {
 		this.file = view.state.field(editorInfoField, false)?.file ?? null;
 	}
@@ -79,7 +99,7 @@ export class InlineEditing {
 				leaf.view instanceof MarkdownView && leaf.view.file === this.file && leaf.view.getMode() === "source").length <= 1;
 	}
 	registerBlock(locator: BlockLocator | undefined): Projection | undefined {
-		const region = locator && sourceBlocks(this.snapshot).find((block) => sameLocator(block.locator, locator));
+		const region = locator && this.discovery.blocks.find((block) => sameLocator(block.locator, locator));
 		if (!region) return undefined;
 		const projection: Projection = {
 			region, panels: new Map(),
@@ -98,7 +118,7 @@ export class InlineEditing {
 		};
 		return projection;
 	}
-	sync(region: SourceBlock, snapshot: string, transaction?: Transaction): boolean {
+	sync(region: SourceBlock, snapshot: string, discovery: SourceDiscovery, transaction?: Transaction): boolean {
 		if (this.disposed || this.view.state.field(editorInfoField, false)?.file !== this.file) return false;
 		if (this.view.state.facet(EditorState.readOnly) && this.active) {
 			const active = this.active;
@@ -107,8 +127,8 @@ export class InlineEditing {
 		}
 		if (snapshot !== this.snapshot) {
 			if (!this.ready || !transaction || transaction.startState.doc.toString() !== this.snapshot) return false;
-			const previous = sourceBlocks(this.snapshot).filter((block) => block.start >= this.region.start && block.end <= this.region.end);
-			const next = sourceBlocks(snapshot).filter((block) => block.start >= region.start && block.end <= region.end);
+			const previous = this.discovery.blocks.filter((block) => block.start >= this.region.start && block.end <= this.region.end);
+			const next = discovery.blocks.filter((block) => block.start >= region.start && block.end <= region.end);
 			if (previous.length !== next.length || previous.some((block, index) =>
 				structure(block) !== structure(next[index]!) || transaction.changes.mapPos(block.start, 1) !== next[index]!.start)) return false;
 			const updates = [...this.projections].map((projection) => ({ projection,
@@ -131,6 +151,7 @@ export class InlineEditing {
 				}
 			}
 			this.snapshot = snapshot;
+			this.discovery = discovery;
 			this.region = region;
 			for (const update of updates) update.projection.region = update.region!;
 			for (const { projection } of updates) {
@@ -263,7 +284,8 @@ export class InlineEditing {
 						const snapshot = captureBlock(this.snapshot, projection.region.locator, projection.region.source);
 						const edit = minimalEdit(this.snapshot, rewriteTabBody(this.snapshot, snapshot, index, transaction.state.doc.toString()));
 						const nextText = applySourceEdit(this.snapshot, edit);
-						const next = sourceBlocks(nextText).find((block) => block.start === projection.region.start);
+						const nextDiscovery = { snapshot: nextText, blocks: sourceBlocks(nextText) };
+						const next = nextDiscovery.blocks.find((block) => block.start === projection.region.start);
 						const captured = next && captureBlock(nextText, next.locator, next.source);
 						const selection = transaction.state.selection.main;
 						const position = (offset: number): number => captured
@@ -271,7 +293,7 @@ export class InlineEditing {
 							: edit.from + edit.replacement.length;
 						this.view.dispatch({ changes: { from: edit.from, to: edit.to, insert: edit.replacement },
 							selection: { anchor: position(selection.anchor), head: position(selection.head) },
-							annotations: [Transaction.userEvent.of(transaction.annotation(Transaction.userEvent) ?? "input"), inlineBodyEdit.of(this)],
+							annotations: [Transaction.userEvent.of(transaction.annotation(Transaction.userEvent) ?? "input"), inlineBodyEdit.of(this), discoveredSource.of(nextDiscovery)],
 						});
 						if (this.disposed) this.view.focus();
 					} catch (error) {
@@ -316,13 +338,14 @@ class MarkerWidget extends WidgetType {
 	constructor(private readonly plugin: Plugin, readonly region: SourceBlock, readonly snapshot: string,
 		private readonly renderBlock: EditorBlockRenderer, private readonly file: TFile,
 		private readonly readOnly: boolean,
+		private readonly discovery: SourceDiscovery,
 		private readonly transaction?: Transaction) { super(); }
 	eq(other: MarkerWidget): boolean {
 		return this.file === other.file && this.readOnly === other.readOnly && this.snapshot === other.snapshot && this.region.start === other.region.start;
 	}
 	updateDOM(element: HTMLElement): boolean {
 		const mounted = mountedWidgets.get(element);
-		return mounted?.inline.sync(this.region, this.snapshot, this.transaction) ?? false;
+		return mounted?.inline.sync(this.region, this.snapshot, this.discovery, this.transaction) ?? false;
 	}
 	toDOM(view: EditorView): HTMLElement {
 		const element = view.dom.ownerDocument.adoptNode(createDiv({ cls: "tabsdown-marker-widget markdown-rendered" }));
@@ -330,7 +353,7 @@ class MarkerWidget extends WidgetType {
 		element.setAttribute("role", "group");
 		element.setAttribute("aria-label", "Tabbed Markdown");
 		const owner = this.plugin.addChild(new MarkdownRenderChild(element));
-		const inline = new InlineEditing(this.plugin, view, element, this.region, this.snapshot);
+		const inline = new InlineEditing(this.plugin, view, element, this.region, this.snapshot, this.discovery);
 		mountedWidgets.set(element, { inline, owner });
 		owner.register(() => { inline.dispose(); mountedWidgets.delete(element); });
 		const path = view.state.field(editorInfoField, false)?.file?.path ?? "";
@@ -375,10 +398,11 @@ class MarkerWidget extends WidgetType {
 export function markerEditorExtension(plugin: Plugin, renderBlock: EditorBlockRenderer): Extension {
 	const decorations = (state: EditorState, transaction?: Transaction): DecorationSet => {
 		if (!state.field(editorLivePreviewField, false) || !state.field(editorInfoField, false)?.file) return Decoration.none;
-		const snapshot = state.doc.toString();
+		const discovery = discover(state, transaction?.annotation(discoveredSource));
+		const { snapshot, blocks } = discovery;
 		const file = state.field(editorInfoField).file!;
-		return Decoration.set(sourceBlocks(snapshot).filter((block) => block.locator.nestedOffsets.length === 0 && parseTabs(block.source, block.syntax).ok)
-			.map((region) => Decoration.replace({ block: true, widget: new MarkerWidget(plugin, region, snapshot, renderBlock, file, state.facet(EditorState.readOnly), transaction) })
+		return Decoration.set(blocks.filter((block) => block.locator.nestedOffsets.length === 0 && parseTabs(block.source, block.syntax).ok)
+			.map((region) => Decoration.replace({ block: true, widget: new MarkerWidget(plugin, region, snapshot, renderBlock, file, state.facet(EditorState.readOnly), discovery, transaction) })
 				.range(region.start, region.end)));
 	};
 	const enter = (view: EditorView, key: string): boolean => {

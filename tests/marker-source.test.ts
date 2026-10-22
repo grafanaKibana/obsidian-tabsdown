@@ -130,6 +130,61 @@ describe("comment marker source", () => {
 			});
 		}
 	}
+	for (const syntax of ["markers", "fenced"] as const) {
+		for (const newline of ["\n", "\r\n"]) {
+			test(`retains list membership when a ${syntax} body starts on an unindented blank line (${JSON.stringify(newline)})`, () => {
+				const opening = syntax === "markers" ? "%% tabs %%" : "```tabsdown";
+				const closing = syntax === "markers" ? "%% endtabs %%" : "```";
+				const tab = (label: string) => syntax === "markers" ? `%% tab: ${label} %%` : `tab: ${label}`;
+				const rows = [`- ${opening}`, `  ${tab("One")}`, "", "  Alpha", `  ${tab("Two")}`, "  Beta", `  ${closing}`];
+				const text = rows.join(newline);
+				for (const body of ["\nNew\nBody", "New\nBody"]) {
+					const saved = applySourceEdit(text, rewriteTabBody(text, snapshot(text), 0, body));
+					const expected = [...rows.slice(0, 2), ...body.split("\n").map((line) => line ? `  ${line}` : ""), ...rows.slice(4)].join(newline);
+					expect(saved).toBe(expected);
+					expect(sourceBlocks(saved)[0]?.bodyRanges.map((range) => range.text)).toEqual([body, "Beta"]);
+				}
+			});
+		}
+	}
+	for (const container of ["plain", "quote", "list"] as const) {
+		for (const newline of ["\n", "\r\n"]) {
+			test(`keeps authored EOF newlines in unclosed ${container} fences (${JSON.stringify(newline)})`, () => {
+				const prefix = container === "quote" ? "> " : container === "list" ? "  " : "";
+				const first = container === "list" ? "- " : prefix;
+				const text = first + "```tabsdown" + newline + prefix + "tab: One" + newline + prefix + "Alpha" + newline + prefix + "tab: Two" + newline + prefix + "Beta";
+				const entered = applySourceEdit(text, rewriteTabBody(text, snapshot(text), 1, "Beta\n"));
+				expect(entered).toBe(text + newline + prefix);
+				expect(sourceBlocks(entered)[0]?.bodyRanges[1]?.text).toBe("Beta\n");
+				expect(tabBodyPosition(entered, snapshot(entered), 1, 5)).toBe(entered.length);
+				const typed = applySourceEdit(entered, rewriteTabBody(entered, snapshot(entered), 1, "Beta\nNext"));
+				expect(typed).toBe(text + newline + prefix + "Next");
+				expect(sourceBlocks(typed)[0]?.bodyRanges[1]?.text).toBe("Beta\nNext");
+			});
+		}
+	}
+	for (const syntax of ["markers", "fenced"] as const) {
+		for (const container of ["- ", "> ", "> - "]) {
+			for (const newline of ["\n", "\r\n"]) {
+				test(`owns nested marker controls inside ${JSON.stringify(container)} in ${syntax} (${JSON.stringify(newline)})`, () => {
+					const continuation = container.replace("-", " ");
+					const nested = ["%% tabs %%", "%% tab: Inner one %%", "Nested A", "%% tab: Inner two %%", "Nested B", "%% endtabs %%"].map((line, index) => (index ? continuation : container) + line);
+					const opening = syntax === "markers" ? "%% tabs %%" : "```tabsdown";
+					const closing = syntax === "markers" ? "%% endtabs %%" : "```";
+					const tab = (label: string) => syntax === "markers" ? `%% tab: ${label} %%` : `tab: ${label}`;
+					const text = [opening, tab("Outer one"), ...nested, tab("Outer two"), "Outside B", closing].join(newline);
+					const blocks = sourceBlocks(text);
+					expect(blocks).toHaveLength(2);
+					expect(blocks[0]?.end).toBe(text.length);
+					expect(blocks[0]?.bodyRanges.map((range) => range.text)).toEqual([nested.join("\n"), "Outside B"]);
+					expect(blocks[1]?.locator.nestedOffsets).toHaveLength(1);
+					const saved = applySourceEdit(text, rewriteTabBody(text, snapshot(text, 1), 1, "Changed\nChild"));
+					expect(saved).toBe(text.replace("Nested B", "Changed" + newline + continuation + "Child"));
+					expect(sourceBlocks(saved)).toHaveLength(2);
+				});
+			}
+		}
+	}
 	test("rejects stale writes and duplicate labels", () => {
 		expect(() => rewriteTabBody(layout + "x", snapshot(layout), 0, "New")).toThrow();
 		expect(parseTabs(inner.replace("Two", "One"), "markers")).toMatchObject({ ok: false, diagnostic: { code: "duplicate-label" } });

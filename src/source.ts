@@ -42,6 +42,7 @@ interface FenceBlock {
 	closeEnd: number;
 	prefix: string;
 	innerHasLine: boolean;
+	closed: boolean;
 }
 
 interface SourceLine {
@@ -552,7 +553,7 @@ function htmlBlockEnd(
 	return sourceLines.length - 1;
 }
 
-function directBlocks(view: SourceView): FenceBlock[] {
+function directBlocks(view: SourceView, onEnd?: (line: SourceLine) => void): FenceBlock[] {
 	const sourceLines = lines(view.text);
 	const result: FenceBlock[] = [];
 	const listIndents = new Map<number, number[]>();
@@ -831,6 +832,10 @@ function directBlocks(view: SourceView): FenceBlock[] {
 				continue;
 			}
 		}
+		if (!commentTouched && onEnd && depth === 0 && containerIndent === 0 && commentMarker(content)?.kind === "endtabs") {
+			onEnd(line);
+			break;
+		}
 		if (!commentTouched && commentMarker(content)?.kind === "tabs") {
 			let containerEnd = view.text.length;
 			for (const candidate of sourceLines.slice(index + 1)) {
@@ -841,22 +846,19 @@ function directBlocks(view: SourceView): FenceBlock[] {
 			}
 			const projected = bodyView(view, line.end, containerEnd, depth, containerIndent, 0);
 			if (projected) {
-				let nesting = 0;
-				const close = commentMarkers(projected.text).find((marker) => {
-					if (marker.kind === "tabs") nesting += 1;
-					if (marker.kind !== "endtabs") return false;
-					if (nesting > 0) { nesting -= 1; return false; }
-					return true;
-				});
+				let close: SourceLine | undefined;
+				// Reuse the container/literal-aware scanner so a nested layout's
+				// closing marker cannot terminate its parent's projection.
+				directBlocks(projected, (line) => { close = line; });
 				if (close) {
-					const rawClose = projected.rawTo[close.from] ?? -1;
+					const rawClose = projected.rawTo[close.start] ?? -1;
 					const closeLine = sourceLines.findIndex((candidate) => view.rawTo[candidate.start] === rawClose);
 					const closeEntry = sourceLines[closeLine];
 					if (closeEntry) {
 						result.push({ syntax: "markers", open: line.start,
-							inner: sliceView(projected, 0, close.from), innerRawFrom: view.rawTo[line.end] ?? -1,
+							inner: sliceView(projected, 0, close.start), innerRawFrom: view.rawTo[line.end] ?? -1,
 							innerRawTo: rawClose, closeEnd: closeEntry.end, prefix: insertionPrefix,
-							innerHasLine: line.end < closeEntry.start });
+							innerHasLine: line.end < closeEntry.start, closed: true });
 						index = closeLine;
 						paragraphOpen = false;
 						continue;
@@ -962,6 +964,7 @@ function directBlocks(view: SourceView): FenceBlock[] {
 				closeEnd: close?.end ?? innerEnd,
 				prefix: insertionPrefix + " ".repeat(match.indent),
 				innerHasLine: line.end < innerEnd,
+				closed: close !== undefined,
 			});
 		}
 		if (closeIndex >= 0) index = closeIndex;
@@ -993,7 +996,9 @@ function tabBodies(source: string, syntax: TabsSyntax = "fenced"): SourceRange[]
 }
 
 function tabMarkers(source: string, syntax: TabsSyntax = "fenced"): TabMarker[] {
-	const controls = commentMarkers(source);
+	const nestedRanges = directBlocks(createSourceView(source)).map((block) => ({ from: block.open, to: block.closeEnd }));
+	const controls = commentMarkers(source).filter((control) =>
+		!nestedRanges.some((range) => control.from >= range.from && control.from < range.to));
 	let depth = 0;
 	const commentTabs: TabMarker[] = [];
 	for (const control of controls) {
@@ -1004,7 +1009,7 @@ function tabMarkers(source: string, syntax: TabsSyntax = "fenced"): TabMarker[] 
 		});
 	}
 	if (syntax === "markers") return commentTabs;
-	const nestedMarkerRanges: SourceRange[] = [];
+	const nestedMarkerRanges: SourceRange[] = [...nestedRanges];
 	let start = -1;
 	depth = 0;
 	for (const control of controls) {
@@ -1297,7 +1302,7 @@ function editableBodies(block: FenceBlock): TabBodyRange[] {
 		const source = block.inner.text;
 		// Only the delimiter-separating newline is structural. Every other
 		// authored blank line remains part of the stable editing projection.
-		if (to > from && source[to - 1] === "\n") to -= 1;
+		if ((to < source.length || block.closed) && to > from && source[to - 1] === "\n") to -= 1;
 		return { from: block.inner.rawFrom[from] ?? -1, to: block.inner.rawFrom[to] ?? -1,
 			text: source.slice(from, to), logicalFrom: from, logicalTo: to };
 	});
@@ -1341,8 +1346,9 @@ export function rewriteTabBody(text: string, snapshot: BlockSnapshot, index: num
 	if (!range) throw new SourceConflictError("The tab could not be located.");
 	const normalized = body.replace(/\r\n/g, "\n");
 	const authoredRange = tabBodies(block.inner.text, block.syntax)[index]!;
-	const needsSeparator = authoredRange.from === authoredRange.to && normalized !== "";
-	if (needsSeparator && range.logicalFrom > 0 && block.inner.text[range.logicalFrom - 1] !== "\n") {
+	const emptyRange = authoredRange.from === authoredRange.to && normalized !== "";
+	const needsSeparator = emptyRange && (authoredRange.to < block.inner.text.length || block.closed);
+	if (emptyRange && range.logicalFrom > 0 && block.inner.text[range.logicalFrom - 1] !== "\n") {
 		// An unclosed fenced block may end directly after its final tab label.
 		// Its insertion point is inside the delimiter line, not on a body line.
 		const newline = sourceNewline(text, block);
@@ -1351,7 +1357,7 @@ export function rewriteTabBody(text: string, snapshot: BlockSnapshot, index: num
 	}
 	const rawLineStart = text.lastIndexOf("\n", range.from - 1) + 1;
 	const existingPrefix = text.slice(rawLineStart, range.from);
-	const prefix = needsSeparator ? existingPrefix || block.prefix : existingPrefix;
+	const prefix = existingPrefix || block.prefix;
 	const newline = sourceNewline(text, block);
 	const replacement = normalized.replace(/\n/g, `${newline}${prefix}`);
 	if (needsSeparator) {
@@ -1359,7 +1365,9 @@ export function rewriteTabBody(text: string, snapshot: BlockSnapshot, index: num
 		// line's prefix. Insert a complete body line before that untouched line.
 		return { from: rawLineStart, to: rawLineStart, replacement: prefix + replacement + newline };
 	}
-	return { from: range.from, to: range.to, replacement };
+	const firstLine = normalized.split("\n", 1)[0]!;
+	const missingPrefix = existingPrefix === "" && firstLine.trim() !== "" ? prefix : "";
+	return { from: range.from, to: range.to, replacement: missingPrefix + replacement };
 }
 
 /** Map a projection cursor back into the current authoritative note. */
