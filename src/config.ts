@@ -1,3 +1,4 @@
+import { commentMarkers, type TabsSyntax } from "./syntax";
 export type TabPosition = "top" | "left" | "right" | "bottom";
 export type TabLayout = "one" | "multi";
 export type TabConfiguration = TabPosition | TabLayout;
@@ -76,7 +77,18 @@ export interface ConfigEdit {
 export function configEdit(
 	source: string,
 	config: TabsdownConfig,
+	syntax: TabsSyntax = "fenced",
 ): ConfigEdit {
+	if (syntax === "markers") {
+		const controls = commentMarkers(source);
+		const firstTab = controls.find((marker) => marker.kind === "tab" || marker.kind === "tabs")?.from ?? source.length;
+		const configs = controls.filter((marker) => marker.kind === "config" && marker.from < firstTab);
+		const serialized = serializeConfig(config);
+		const newline = source.match(/\r\n|\n/)?.[0] ?? "\n";
+		const first = configs[0];
+		const last = configs[configs.length - 1];
+		return { from: first?.from ?? 0, to: last?.end ?? 0, replacement: serialized ? `%% ${serialized} %%${newline}` : "" };
+	}
 	const lines = [...source.matchAll(/.*(?:\r\n|\n|$)/g)].filter(
 		(match) => match[0] !== "",
 	);

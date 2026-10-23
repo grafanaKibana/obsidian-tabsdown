@@ -123,7 +123,7 @@ test("demo enables only plugins with tracked runtime bundles", () => {
 
 test("keeps the full-resolution README showcase linked and reasonably sized", () => {
 	const readme = readFileSync(resolve(repositoryRoot, "README.md"), "utf8");
-	expect(readme).toContain("![](docs/assets/tabsdown-showcase.gif)");
+	expect(readme).toMatch(/!\[[^\]]*\]\(docs\/assets\/tabsdown-showcase\.gif\)/);
 	expect(statSync(resolve(repositoryRoot, "docs/assets/tabsdown-showcase.gif")).size)
 		.toBeLessThanOrEqual(10_000_000);
 });

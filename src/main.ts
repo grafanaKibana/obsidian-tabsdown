@@ -1,6 +1,9 @@
 import {
 	type Editor,
 	type EditorPosition,
+	type Component,
+	type MarkdownPostProcessorContext,
+	MarkdownRenderer,
 	MarkdownRenderChild,
 	MarkdownView,
 	Plugin,
@@ -26,6 +29,9 @@ import {
 	type BlockLocator,
 } from "./source";
 import { mountTabs, type MountTabsOptions, type TabsController } from "./tabs";
+import { sourceBlocks, type TabsSyntax } from "./source";
+import { registerMarkerReading } from "./marker-reading";
+import { registerMarkerEditor, type InlineEditing } from "./marker-editor";
 
 export type { MountTabsOptions, TabSpec, TabsController } from "./tabs";
 
@@ -40,6 +46,7 @@ interface PanelScope {
 }
 
 interface LocatorRef {
+	dynamic?: () => BlockLocator | undefined;
 	lineStart?: number;
 	parent?: LocatorRef;
 	offset?: number;
@@ -70,6 +77,7 @@ function renderScope(element: HTMLElement): Element | Document {
 }
 
 function resolveLocatorRef(ref: LocatorRef, text: string): BlockLocator | undefined {
+	if (ref.dynamic) return ref.dynamic();
 	if (ref.parent) {
 		const parent = resolveLocatorRef(ref.parent, text);
 		if (!parent || ref.offset === undefined) return undefined;
@@ -138,7 +146,62 @@ export default class TabsdownPlugin extends Plugin {
 			this.app.metadataCache.on("changed", markContentStale),
 		);
 
-		this.registerMarkdownCodeBlockProcessor("tabsdown", (source, element, context) => {
+		const renderFragment = async (
+			markdown: string, element: HTMLElement, context: MarkdownPostProcessorContext,
+			owner: Component, inline?: InlineEditing, exactLines = true,
+		): Promise<void> => {
+			const blocks = sourceBlocks(markdown, { fragment: true })
+				.filter((block) => block.locator.nestedOffsets.length === 0);
+			if (blocks.length === 0) {
+				await MarkdownRenderer.render(this.app, markdown, element, context.sourcePath, owner);
+				return;
+			}
+			let disposed = false;
+			owner.register(() => { disposed = true; });
+			// Keep references and footnotes in one Markdown parse, including definitions
+			// on the other side of an embedded layout. Only its DOM slot is substituted.
+			const token = element.ownerDocument.defaultView!.crypto.randomUUID();
+			let cursor = 0;
+			let prepared = "";
+			for (const [index, block] of blocks.entries()) {
+				const opening = markdown.slice(block.start, block.bodyStart).split("\n")[0]!;
+				const delimiter = opening.search(/%%|`{3,}|~{3,}/);
+				const prefix = opening.slice(0, delimiter);
+				prepared += markdown.slice(cursor, block.start) + prefix +
+					`<div data-tabsdown-placeholder="${token}-${index}"></div>\n\n`;
+				cursor = block.end;
+			}
+			prepared += markdown.slice(cursor);
+			await MarkdownRenderer.render(this.app, prepared, element, context.sourcePath, owner);
+			if (disposed) return;
+			const section = exactLines ? context.getSectionInfo(element) : null;
+			const occurrences = new Map<string, number>();
+			for (const [index, block] of blocks.entries()) {
+				if (disposed) return;
+				const placeholder = element.querySelector<HTMLElement>(
+					`[data-tabsdown-placeholder="${token}-${index}"]`,
+				);
+				if (!placeholder) throw new Error("A Tabsdown layout placeholder could not be rendered.");
+				const target = placeholder;
+				target.removeAttribute("data-tabsdown-placeholder");
+				const key = `${block.syntax}\0${renderedSourceKey(block.source)}`;
+				const occurrence = occurrences.get(key) ?? 0;
+				occurrences.set(key, occurrence + 1);
+				const child = renderBlock(block.source, target, {
+					...context,
+					addChild: (child) => { owner.addChild(child); },
+					getSectionInfo: () => section ? {
+						text: section.text, lineStart: section.lineStart + block.lineStart,
+						lineEnd: section.lineStart + block.lineEnd,
+					} : null,
+				}, block.syntax, inline, occurrence);
+				if (child && !await child.ready) throw new Error("A Tabsdown panel could not be rendered.");
+			}
+		};
+		const renderBlock = (
+			source: string, element: HTMLElement, context: MarkdownPostProcessorContext,
+			syntax: TabsSyntax = "fenced", inline?: InlineEditing, nestedOccurrence?: number,
+		): TabBlockRenderChild | undefined => {
 			const renderedSection = context.getSectionInfo(element);
 			const file = this.app.vault.getAbstractFileByPath(context.sourcePath);
 			let panel = element.parentElement;
@@ -153,6 +216,11 @@ export default class TabsdownPlugin extends Plugin {
 				locatorRef = { parent: parentScope.locatorRef };
 				parentScope.registrations.push({ element, source, locatorRef });
 				bindNestedLocators(parentScope);
+				if (nestedOccurrence !== undefined) {
+					locatorRef.offset = parentScope.candidates.filter((candidate) =>
+						(candidate.syntax ?? "fenced") === syntax && renderedSourceKey(candidate.source) === renderedSourceKey(source),
+					)[nestedOccurrence]?.offset;
+				}
 			} else if (renderedSection) {
 				locatorRef = { lineStart: renderedSection.lineStart };
 			} else {
@@ -160,6 +228,7 @@ export default class TabsdownPlugin extends Plugin {
 			}
 			const addRenderChild = (child: MarkdownRenderChild): void => {
 				child.registerDomEvent(element, "click", (event) => {
+					if (inline) return;
 					const target = event.target;
 					const domView = element.ownerDocument.defaultView;
 					if (event.defaultPrevented || !domView || !(target instanceof domView.Element)) {
@@ -196,11 +265,11 @@ export default class TabsdownPlugin extends Plugin {
 				context.addChild(child);
 			};
 
-			const result = parseTabs(source);
+			const result = parseTabs(source, syntax);
 			if (!result.ok) {
 				renderTabsDiagnostic(element, result.diagnostic);
 				addRenderChild(new MarkdownRenderChild(element));
-				return;
+				return undefined;
 			}
 			const options: TabsdownConfig = { ...result.options };
 			for (const value of result.configuration ?? []) {
@@ -213,20 +282,25 @@ export default class TabsdownPlugin extends Plugin {
 
 			const active = this.app.workspace.getActiveViewOfType(MarkdownView);
 			const origin = active?.file === file ? active.editor : undefined;
+			const projection = inline && locatorRef
+				? inline.registerBlock(resolveLocatorRef(locatorRef, inline.snapshot))
+				: undefined;
+			if (projection && locatorRef) locatorRef.dynamic = () => projection.region.locator;
+			const currentSource = (): string => projection?.region.source ?? source;
 			const editing = locatorRef && file instanceof TFile
 				? this.createBlockEditing(
 						file,
 						locatorRef,
-						source,
+						currentSource,
 						options,
 						origin,
 						panelScopes,
 						element,
+						syntax,
 					)
 				: undefined;
 
-			addRenderChild(
-				new TabBlockRenderChild(
+			const child = new TabBlockRenderChild(
 					this.app,
 					element,
 					context.sourcePath,
@@ -235,9 +309,22 @@ export default class TabsdownPlugin extends Plugin {
 					() => this.freshnessGeneration,
 					options,
 					editing,
-				),
+					{
+						...projection?.hooks,
+						renderMarkdown: (markdown, target, component) => renderFragment(
+							markdown, target, context, component, inline, false),
+					},
 			);
+			projection?.attach(child);
+			addRenderChild(child);
+			return child;
+		};
+		this.registerMarkdownCodeBlockProcessor("tabsdown", (source, element, context) => {
+			renderBlock(source, element, context);
 		});
+		registerMarkerReading(this, renderFragment);
+		registerMarkerEditor(this, (region, element, context, inline) =>
+			renderBlock(region.source, element, context, region.syntax, inline));
 
 		const refreshStyleSettings = (): boolean => {
 			const stylesLoaded = Array.from(
@@ -284,12 +371,14 @@ export default class TabsdownPlugin extends Plugin {
 	private createBlockEditing(
 		file: TFile,
 		locatorRef: LocatorRef,
-		source: string,
+		source: () => string,
 		options: TabsdownConfig,
 		origin: Editor | undefined,
 		panelScopes: WeakMap<HTMLElement, PanelScope>,
 		element: HTMLElement,
+		syntax: TabsSyntax,
 	): BlockEditing {
+		const scopes = new Set<PanelScope>();
 		let focusRequest: PendingTabFocus | undefined;
 		let requestedFocus: { focusIndex: number; selectedIndex: number } | undefined;
 		const discardFocusRequest = (request: PendingTabFocus): void => {
@@ -330,7 +419,15 @@ export default class TabsdownPlugin extends Plugin {
 			this.pendingTabFocus.add(focusRequest);
 		};
 		return {
-			labels: tabLabels(source),
+			get labels() { return tabLabels(source(), syntax); },
+			refreshSource: () => {
+				for (const scope of scopes) {
+					if (!element.contains(scope.element)) { scopes.delete(scope); continue; }
+					scope.source = source();
+					scope.candidates = nestedBlockCandidates(source(), scope.tabIndex, syntax);
+					bindNestedLocators(scope);
+				}
+			},
 			pendingFocus: () => {
 				if (!element.isConnected) return undefined;
 				for (const request of this.pendingTabFocus) {
@@ -338,7 +435,7 @@ export default class TabsdownPlugin extends Plugin {
 					const locator = resolveLocatorRef(locatorRef, request.expectedText);
 					if (!locator || !sameLocator(locator, request.locator)) continue;
 					try {
-						captureBlock(request.expectedText, locator, source);
+						captureBlock(request.expectedText, locator, source());
 					} catch {
 						continue;
 					}
@@ -354,15 +451,17 @@ export default class TabsdownPlugin extends Plugin {
 				requestedFocus = { focusIndex, selectedIndex };
 			},
 			registerPanel: (element, tabIndex) => {
-				panelScopes.set(element, {
+				const scope: PanelScope = {
 					element,
 					file,
 					locatorRef,
-					source,
+					source: source(),
 					tabIndex,
-					candidates: nestedBlockCandidates(source, tabIndex),
+					candidates: nestedBlockCandidates(source(), tabIndex, syntax),
 					registrations: [],
-				});
+				};
+				panelScopes.set(element, scope);
+				scopes.add(scope);
 			},
 			open: async (trigger, available) => {
 				const assertAvailable = (): void => {
@@ -381,7 +480,7 @@ export default class TabsdownPlugin extends Plugin {
 				}
 				const locator = resolveLocatorRef(locatorRef, text);
 				if (!locator) throw new Error("This nested Tabsdown block could not be identified.");
-				const snapshot = captureBlock(text, locator, source);
+				const snapshot = captureBlock(text, locator, source());
 				return async (nextOptions) => {
 					assertAvailable();
 					this.assertCurrentFile(file);

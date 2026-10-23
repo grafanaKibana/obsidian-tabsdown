@@ -43,6 +43,13 @@ export interface BlockEditing {
 	} | undefined;
 	registerPanel(element: HTMLElement, tabIndex: number): void;
 	requestFocus?(focusIndex: number, selectedIndex: number): void;
+	refreshSource?(): void;
+}
+
+export interface TabRenderHooks {
+	renderMarkdown?(markdown: string, element: HTMLElement, component: Component, index: number): Promise<void>;
+	registerPanel?(element: HTMLElement, index: number): void;
+	beforeActivate?(): void;
 }
 
 let nextBlockId = 0;
@@ -79,6 +86,8 @@ export function renderTabsDiagnostic(
 }
 
 export class TabBlockRenderChild extends MarkdownRenderChild {
+	readonly ready: Promise<boolean>;
+	private resolveReady!: (success: boolean) => void;
 	private readonly blockId = `tabsdown-${++nextBlockId}`;
 	private readonly buttons: HTMLButtonElement[] = [];
 	private readonly panels: PanelState[] = [];
@@ -97,13 +106,32 @@ export class TabBlockRenderChild extends MarkdownRenderChild {
 		private readonly app: App,
 		containerEl: HTMLElement,
 		private readonly sourcePath: string,
-		private readonly tabs: readonly TabDefinition[],
+		private tabs: readonly TabDefinition[],
 		private readonly configuration: readonly TabConfiguration[],
 		private readonly getGeneration: () => number,
 		private readonly options: TabsdownConfig = {},
 		private readonly editing?: BlockEditing,
+		private readonly hooks: TabRenderHooks = {},
 	) {
 		super(containerEl);
+		this.ready = new Promise((resolve) => { this.resolveReady = resolve; });
+	}
+
+	updateBodies(tabs: readonly TabDefinition[], preserveIndex?: number): void {
+		const changed = tabs.map((tab, index) => tab.body !== this.tabs[index]?.body);
+		this.tabs = tabs;
+		this.editing?.refreshSource?.();
+		for (const [index, state] of this.panels.entries()) {
+			if (changed[index] && index !== preserveIndex) this.disposePanel(state);
+		}
+		if (preserveIndex !== this.selectedIndex) this.ensureRendered(this.selectedIndex);
+	}
+
+	refreshBody(index: number): void {
+		const state = this.panels[index];
+		if (!state || this.disposed) return;
+		this.disposePanel(state);
+		if (index === this.selectedIndex) this.ensureRendered(index);
 	}
 
 	onload(): void {
@@ -358,6 +386,7 @@ export class TabBlockRenderChild extends MarkdownRenderChild {
 
 	onunload(): void {
 		this.disposed = true;
+		this.resolveReady(false);
 		this.deleteDialog?.close();
 		this.deleteDialog = undefined;
 		this.closeLabelEditor();
@@ -403,6 +432,7 @@ export class TabBlockRenderChild extends MarkdownRenderChild {
 	}
 
 	private activate(index: number, focus: boolean): void {
+		this.hooks.beforeActivate?.();
 		const wasSelected = index === this.selectedIndex;
 		// Read before the outgoing panel is hidden: this is the height the box
 		// animates away from, and the floor a still-loading panel cannot fall below.
@@ -470,19 +500,24 @@ export class TabBlockRenderChild extends MarkdownRenderChild {
 		state.attemptEl = attemptEl;
 		state.generation = generation;
 		state.status = "rendering";
+		this.hooks.registerPanel?.(state.panelEl, index);
 
-		void MarkdownRenderer.render(
+		const rendering = this.hooks.renderMarkdown
+			? this.hooks.renderMarkdown(tab.body, attemptEl, component, index)
+			: MarkdownRenderer.render(
 			this.app,
 			tab.body,
 			attemptEl,
 			this.sourcePath,
 			component,
-		)
+		);
+		void rendering
 			.then(() => {
 				if (this.disposed || state.epoch !== epoch) {
 					return;
 				}
 				state.status = "rendered";
+				this.resolveReady(true);
 				this.height?.refresh();
 			})
 			.catch((error: unknown) => {
@@ -499,6 +534,7 @@ export class TabBlockRenderChild extends MarkdownRenderChild {
 				message.textContent = `This tab could not be rendered: ${errorMessage(error)}`;
 				attemptEl.append(message);
 				state.status = "error";
+				this.resolveReady(false);
 				this.height?.refresh();
 			});
 	}

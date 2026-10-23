@@ -1,4 +1,26 @@
 import { vi } from "vitest";
+// eslint-disable-next-line import/no-extraneous-dependencies -- Exercise the public CM6 runtime supplied by Obsidian.
+import { StateEffect, StateField, type Extension } from "@codemirror/state";
+
+export const editorLivePreviewField = StateField.define<boolean>({ create: () => true, update: (value) => value });
+type EditorInfo = { file: TFile | null; editor?: { undo(): void; redo(): void } };
+export const editorInfoEffect = StateEffect.define<EditorInfo>();
+export const editorInfoField = StateField.define<EditorInfo>({
+	create: () => ({ file: null }), update: (value, transaction) => {
+		for (const effect of transaction.effects) if (effect.is(editorInfoEffect)) return effect.value;
+		return value;
+	},
+});
+Object.assign(window, { createDiv: (options?: { cls?: string }) => {
+	const element = document.createElement("div");
+	if (options?.cls) element.className = options.cls;
+	return element;
+} });
+
+export class Scope {
+	constructor(_parent?: unknown) {}
+	register(_modifiers: unknown, _key: unknown, _callback: unknown): void {}
+}
 
 Object.defineProperty(Node.prototype, "createEl", {
 	configurable: true,
@@ -57,6 +79,7 @@ export class Component {
 	private loaded = false;
 
 	load(): void {
+		if (this.loaded) return;
 		this.loaded = true;
 		this.onload();
 		this.children.forEach((child) => child.load());
@@ -210,6 +233,9 @@ export class Plugin extends Component {
 	): void {
 		processorRegistrationMock(language, handler);
 	}
+
+	registerMarkdownPostProcessor(_handler: unknown): void {}
+	registerEditorExtension(_extension: Extension): void {}
 }
 
 export class Modal {
