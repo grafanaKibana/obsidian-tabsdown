@@ -7,7 +7,7 @@ Tabsdown is intentionally small: Markdown remains the source of truth, Obsidian'
 1. Open or select an issue.
 2. Keep the change inside that issue's acceptance criteria.
 3. Do not add private Obsidian APIs, runtime dependencies, plugin-specific adapters, or implicit source changes when switching tabs. Explicit authoring actions must use the snapshot-validated editor/vault write path.
-4. Build production DOM with Obsidian's `createEl` helpers. The ESLint exception is test-only.
+4. Build Obsidian-only production DOM with Obsidian's `createEl` helpers. Shared Quartz renderer modules and jsdom tests have scoped ESLint exceptions.
 5. Run:
 
    ```bash
@@ -37,6 +37,14 @@ Build `main.js`, reload Obsidian, then enable **Tabsdown** under **Settings → 
 The demo vault must always contain the latest plugin built from the same commit, so anyone can open `demo/` in Obsidian and exercise the current behavior. After any change that affects the plugin or its release assets, run `npm run demo` and commit all changed files under `demo/.obsidian/plugins/tabsdown/`; never leave the demo vault on an older build. CI fails the `quality` check when the committed demo plugin does not match the source.
 
 Tabsdown is the only plugin enabled in the tracked demo state. Style Settings, BRAT, Templater, Dataview, and Datacore are tracked as manifests and styles only, because `main.js` is ignored for everything but Tabsdown. Install and enable them through **Settings → Community plugins** before using the parts of `Tabsdown test matrix.md` that need them.
+
+## Linting
+
+`npm run lint` uses Obsidian's official [`eslint-plugin-obsidianmd` recommended rules](https://github.com/obsidianmd/eslint-plugin/blob/master/docs/configuration.md). The preset includes ESLint core, type-checked TypeScript, Obsidian API and plugin guidelines, security, and package checks; do not add duplicate recommended presets.
+
+Lint runs with `--max-warnings 0`, so warnings also fail `npm run check` and CI. Fix findings before opening a pull request.
+
+Keep overrides in `eslint.config.mts` narrow and explain why they are needed. Tests and build scripts have exceptions for Node.js and DOM setup; the shared `src/label.ts` and `src/tabs.ts` modules use standard DOM because Quartz also runs them outside Obsidian. Generated bundles and installed demo plugins are excluded, while authored source, tests, and scripts remain linted.
 
 ## Pull requests
 

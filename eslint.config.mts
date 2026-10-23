@@ -28,6 +28,8 @@ export default defineConfig(
 			},
 		},
 	},
+	// Official Obsidian plugin guidelines, including core and type-checked TS rules.
+	// https://github.com/obsidianmd/eslint-plugin
 	...obsidianmd.configs.recommended,
 	{
 		files: [

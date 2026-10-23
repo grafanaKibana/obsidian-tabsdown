@@ -8,7 +8,7 @@
 		"dev": "node esbuild.config.mjs",
 		"build": "tsc --noEmit --skipLibCheck && node esbuild.config.mjs production",
 		"demo": "npm run build && node scripts/demo.mjs",
-		"lint": "eslint .",
+		"lint": "eslint . --max-warnings 0",
 		"test": "vitest run",
 		"typecheck": "tsc --noEmit --skipLibCheck",
 		"verify-release": "node scripts/verify-release.mjs",
