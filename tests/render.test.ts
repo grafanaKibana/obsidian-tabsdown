@@ -1128,7 +1128,7 @@ test("defines the requested control ranges and selected weights", () => {
 	const weightId = settingId(weight);
 	const baseTab = /^\.tabsdown__tab \{([^}]*)\}/m.exec(styles)?.[1] ?? "";
 	expect(baseTab).toMatch(/font-weight:\s*var\(--font-normal,\s*400\)/);
-	expect(matchingRuleBodies(styles, `.tabsdown__tab[aria-selected="true"]`)).toMatch(/font-weight:\s*600/);
+	expect(matchingRuleBodies(styles, `.tabsdown__tab[aria-selected="true"]`)).toMatch(/font-weight:\s*var\(--tabsdown-selected-weight,\s*600\)/);
 	expect(matchingRuleBodies(styles, `body.${weightId}-thinner`)).toMatch(/font-weight:\s*400/);
 	expect(matchingRuleBodies(styles, `body.${weightId}-bolder`)).toMatch(/font-weight:\s*700/);
 
@@ -1392,7 +1392,7 @@ test("reserves the effective selected weight without changing selected tab width
 	const content = matchingRuleBodies(styles, ".tabsdown__tab-content");
 	const reserve = exactRuleBodies(styles, ".tabsdown__tab-reserve")[0] ?? "";
 	expect(content).toContain("display: inline-grid");
-	expect(reserve).toContain("font-weight: 600");
+	expect(reserve).toContain("font-weight: var(--tabsdown-selected-weight, 600)");
 	expect(reserve).toContain("visibility: hidden");
 	expect(reserve).toContain("grid-area: 1 / 1 / 2 / -1");
 	expect(reserve).not.toContain("block-size: 0");
@@ -1400,9 +1400,9 @@ test("reserves the effective selected weight without changing selected tab width
 		["tabsdown-selected-font-weight-thinner", "400"],
 		["tabsdown-selected-font-weight-bolder", "700"],
 		["tabsdown-selected-font-weight-bold", "700"],
-		["tabsdown-selected-font-weight-default", "600"],
-		["tabsdown-selected-font-weight-theme-default", "600"],
-		["tabsdown-selected-font-weight-medium", "600"],
+		["tabsdown-selected-font-weight-default", "var(--tabsdown-selected-weight, 600)"],
+		["tabsdown-selected-font-weight-theme-default", "var(--tabsdown-selected-weight, 600)"],
+		["tabsdown-selected-font-weight-medium", "var(--tabsdown-selected-weight, 600)"],
 	] as const) {
 		const selectors = matchingSelectors(styles, `body.${setting}`);
 		expect(selectors, setting).toContain(".tabsdown__tab-reserve");
@@ -1710,7 +1710,7 @@ test("makes only unconfigured authored narrow blocks compact", () => {
 	expect(mobile).toContain("--tabsdown-tab-padding-block: 0.375rem");
 	expect(mobile).toContain("--tabsdown-rail-tab-padding-block: 0.0625rem");
 	expect(mobile).toContain(
-		"--tabsdown-tab-padding-inline: calc(var(--tabsdown-horizontal-padding, 2.25rem) / 3)",
+		"--tabsdown-tab-padding-inline: calc(var(--tabsdown-horizontal-padding, 2.25rem) / 2)",
 	);
 	expect(mobile).toContain("--tabsdown-rail-track-padding: 0.25rem");
 
@@ -1751,10 +1751,29 @@ test("makes mounted tabs compact on narrow viewports without containing their pa
 		viewport,
 		"body .tabsdown.tabsdown--mounted:not(.tabsdown--density-default):not(.tabsdown--density-compact) > .tabsdown__tablist",
 	);
-	expect(mounted).toContain("--tabsdown-tab-padding-inline: calc(var(--tabsdown-horizontal-padding, 2.25rem) / 3)");
+	expect(mounted).toContain("--tabsdown-tab-padding-inline: calc(var(--tabsdown-horizontal-padding, 2.25rem) / 2)");
 	expect(mounted).toContain("--tabsdown-rail-track-padding: 0.25rem");
 	expect(mounted).toContain("--tabsdown-resolved-density: compact");
 	expect(styles).toMatch(/\.tabsdown\.tabsdown--mounted \{[^}]*container-type:\s*normal/);
+});
+
+test("uses scalable compact mobile control typography and a native-height touch rail", () => {
+	const styles = readStyles();
+	const mobile = matchingRuleBodies(styles, "body.is-mobile .tabsdown > .tabsdown__tablist");
+	expect(mobile).toContain("--tabsdown-tab-font-size: var(--font-ui-smaller)");
+	expect(mobile).toContain("--tabsdown-selected-weight: var(--font-medium, 500)");
+	const viewport = styles.slice(styles.indexOf("@media (max-width: 28rem)"), styles.indexOf("body.is-mobile .tabsdown:not"));
+	expect(matchingRuleBodies(viewport, ".tabsdown > .tabsdown__tablist"))
+		.toContain("--tabsdown-tab-font-size: var(--font-ui-smaller)");
+	const tab = exactRuleBodies(styles, ".tabsdown__tab")[0] ?? "";
+	expect(tab).toContain("font-family: var(--font-interface)");
+	expect(tab).toContain("font-size: var(--tabsdown-tab-font-size, var(--font-ui-small))");
+	for (const selector of [".tabsdown__tab-reserve", '.tabsdown__tab[aria-selected="true"]']) {
+		expect(matchingRuleBodies(styles, selector)).toContain("font-weight: var(--tabsdown-selected-weight, 600)");
+	}
+	const coarse = styles.slice(styles.indexOf("@media (any-pointer: coarse)"));
+	expect(matchingRuleBodies(coarse, "body .tabsdown.tabsdown.tabsdown.tabsdown.tabsdown.tabsdown > .tabsdown__tablist.tabsdown__tablist--rail"))
+		.toContain("padding-block: 0");
 });
 
 test("keeps authored overrides root-scoped without runtime width state", () => {

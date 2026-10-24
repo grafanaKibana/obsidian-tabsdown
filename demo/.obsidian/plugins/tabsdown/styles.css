@@ -726,7 +726,7 @@ body.tabsdown-nested-style-card .tabsdown--nested-even.tabsdown {
 	background-color: var(--tabsdown-tab-background);
 	color: var(--tabsdown-tab-color);
 	font-family: var(--font-interface);
-	font-size: var(--font-ui-small);
+	font-size: var(--tabsdown-tab-font-size, var(--font-ui-small));
 	font-weight: var(--font-normal, 400);
 	line-height: var(--line-height-tight);
 	text-align: center;
@@ -774,7 +774,7 @@ body.tabsdown-nested-style-card .tabsdown--nested-even.tabsdown {
 	grid-area: 1 / 1 / 2 / -1;
 	min-inline-size: 0;
 	overflow-wrap: anywhere;
-	font-weight: 600;
+	font-weight: var(--tabsdown-selected-weight, 600);
 	visibility: hidden;
 }
 
@@ -852,7 +852,7 @@ body.tabsdown-theme-button-outline .tabsdown__tab:active {
 	border-color: var(--tabsdown-tab-selected-border);
 	background-color: var(--tabsdown-tab-selected-background);
 	color: var(--tabsdown-tab-selected-color);
-	font-weight: 600;
+	font-weight: var(--tabsdown-selected-weight, 600);
 }
 
 @media (hover: hover) {
@@ -1272,7 +1272,7 @@ body.tabsdown-selected-font-weight-theme-default .tabsdown__tab-reserve,
 body.tabsdown-selected-font-weight-medium .tabsdown__tab[aria-selected="true"],
 body.tabsdown-selected-font-weight-medium .tabsdown__tab[aria-expanded="true"],
 body.tabsdown-selected-font-weight-medium .tabsdown__tab-reserve {
-	font-weight: 600;
+	font-weight: var(--tabsdown-selected-weight, 600);
 }
 
 /* Top position overrides are complete resets so changing a global
@@ -2310,13 +2310,18 @@ body .tabsdown.tabsdown--right > .tabsdown__tablist > .tabsdown__tab.tabsdown__t
 /* Mounted panels must keep their containing block, so use the viewport as a
    narrow-screen fallback rather than adding containment to their root. */
 @media (max-width: 28rem) {
+	.tabsdown > .tabsdown__tablist {
+		--tabsdown-tab-font-size: var(--font-ui-smaller);
+		--tabsdown-selected-weight: var(--font-medium, 500);
+	}
+
 	body .tabsdown.tabsdown--mounted:not(.tabsdown--density-default):not(.tabsdown--density-compact) > .tabsdown__tablist {
 		--tabsdown-tab-min-size: 32px;
 		--tabsdown-rail-tab-min-block-size: 28px;
 		--tabsdown-rail-tab-padding-block: 0.0625rem;
 		--tabsdown-rail-track-padding: 0.25rem;
 		--tabsdown-tab-padding-block: 0.375rem;
-		--tabsdown-tab-padding-inline: calc(var(--tabsdown-horizontal-padding, 2.25rem) / 3);
+		--tabsdown-tab-padding-inline: calc(var(--tabsdown-horizontal-padding, 2.25rem) / 2);
 		--tabsdown-resolved-density: compact;
 	}
 }
@@ -2327,7 +2332,14 @@ body.is-mobile .tabsdown:not(.tabsdown--density-default):not(.tabsdown--density-
 	--tabsdown-rail-tab-padding-block: 0.0625rem;
 	--tabsdown-rail-track-padding: 0.25rem;
 	--tabsdown-tab-padding-block: 0.375rem;
-	--tabsdown-tab-padding-inline: calc(var(--tabsdown-horizontal-padding, 2.25rem) / 3);
+	--tabsdown-tab-padding-inline: calc(var(--tabsdown-horizontal-padding, 2.25rem) / 2);
+}
+
+/* Compact control labels follow the interface font and preferred text scale,
+   independently of the surrounding note's typography or authored density. */
+body.is-mobile .tabsdown > .tabsdown__tablist {
+	--tabsdown-tab-font-size: var(--font-ui-smaller);
+	--tabsdown-selected-weight: var(--font-medium, 500);
 }
 
 /* Explicit density remains authoritative on both sides of the container query. */
@@ -2355,6 +2367,12 @@ body.is-mobile .tabsdown:not(.tabsdown--density-default):not(.tabsdown--density-
 		--tabsdown-tab-min-block-size: 44px;
 		/* Keep the 44px hit area while trimming the surrounding Rail chrome. */
 		--tabsdown-rail-track-padding: 0.125rem;
+	}
+
+	/* The Rail's 44px buttons already provide the touch target; extra vertical
+	   track padding would make the whole control taller than native inputs. */
+	body .tabsdown.tabsdown.tabsdown.tabsdown.tabsdown.tabsdown > .tabsdown__tablist.tabsdown__tablist--rail {
+		padding-block: 0;
 	}
 }
 
