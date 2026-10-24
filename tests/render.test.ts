@@ -1704,7 +1704,7 @@ test("makes only unconfigured authored narrow blocks compact", () => {
 	expect(automatic).toContain("--tabsdown-rail-track-padding: 0.25rem");
 	const mobile = matchingRuleBodies(
 		styles,
-		"body.is-mobile .tabsdown:not(.tabsdown--mounted):not(.tabsdown--density-default):not(.tabsdown--density-compact) > .tabsdown__tablist",
+		"body.is-mobile .tabsdown:not(.tabsdown--density-default):not(.tabsdown--density-compact) > .tabsdown__tablist",
 	);
 	expect(mobile).toContain("--tabsdown-tab-min-size: 32px");
 	expect(mobile).toContain("--tabsdown-tab-padding-block: 0.375rem");
@@ -1744,6 +1744,19 @@ test("makes only unconfigured authored narrow blocks compact", () => {
 	);
 });
 
+test("makes mounted tabs compact on narrow viewports without containing their panels", () => {
+	const styles = readStyles();
+	const viewport = styles.slice(styles.indexOf("@media (max-width: 28rem)"));
+	const mounted = matchingRuleBodies(
+		viewport,
+		"body .tabsdown.tabsdown--mounted:not(.tabsdown--density-default):not(.tabsdown--density-compact) > .tabsdown__tablist",
+	);
+	expect(mounted).toContain("--tabsdown-tab-padding-inline: calc(var(--tabsdown-horizontal-padding, 2.25rem) / 3)");
+	expect(mounted).toContain("--tabsdown-rail-track-padding: 0.25rem");
+	expect(mounted).toContain("--tabsdown-resolved-density: compact");
+	expect(styles).toMatch(/\.tabsdown\.tabsdown--mounted \{[^}]*container-type:\s*normal/);
+});
+
 test("keeps authored overrides root-scoped without runtime width state", () => {
 	const styles = readStyles();
 	expect(styles).not.toMatch(/tabsdown--(narrow|wide)/);
@@ -1762,6 +1775,7 @@ test("coarse pointers keep every authored personality and density at 44px", () =
 	const coarseRule = matchingRules(coarse, "body .tabsdown.tabsdown.tabsdown.tabsdown.tabsdown.tabsdown > .tabsdown__tablist");
 	expect(coarseRule).toContain("--tabsdown-tab-min-size: 44px");
 	expect(coarseRule).toContain("--tabsdown-tab-min-block-size: 44px");
+	expect(coarseRule).toContain("--tabsdown-rail-track-padding: 0.125rem");
 	expect(styles.lastIndexOf("body .tabsdown.tabsdown.tabsdown.tabsdown.tabsdown.tabsdown > .tabsdown__tablist")).toBeGreaterThan(
 		styles.lastIndexOf(".tabsdown.tabsdown--personality-rail.tabsdown.tabsdown.tabsdown.tabsdown > .tabsdown__tablist"),
 	);
@@ -1997,9 +2011,9 @@ test("prefers the position override, then nesting, over the global choice", () =
 test("names Compact where a block gets it automatically", () => {
 	expect(inheritLabels("tabsdown-density-default", "")[2]).toBe("Inherit (Default)");
 	expect(inheritLabels("is-mobile tabsdown-density-default", "")[2]).toBe("Inherit (Compact)");
-	// mountTabs keeps its own containing block and never takes automatic Compact.
+	// Mobile spacing also applies to mountTabs without adding containment.
 	expect(inheritLabels("is-mobile tabsdown-density-default", "tabsdown--mounted")[2])
-		.toBe("Inherit (Default)");
+		.toBe("Inherit (Compact)");
 });
 
 test("describes the inherited value, not the block's own choice", () => {

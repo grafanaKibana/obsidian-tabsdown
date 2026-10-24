@@ -15,7 +15,7 @@ Tabsdown works without [Style Settings](https://github.com/mgmeyers/obsidian-sty
 
 Top, Bottom, Left, and Right can each override personality, palette, and alignment. Top and Bottom inherit Rail by default; Left and Right default to Underline. **Inherit defaults** restores the global choice. These overrides apply to fenced Markdown blocks; tabs created with `mountTabs` use the global settings.
 
-An authored block can override position, overflow, density, personality, palette, and alignment directly from the matching right-click submenu. The current choice is checked and changes save immediately, and each **Inherit** entry names the value it currently resolves to. The cascade is block override → automatic mobile or narrow Compact density → position override → global setting → built-in fallback. Nested blocks resolve independently, and `mountTabs` remains global-only.
+An authored block can override position, overflow, density, personality, palette, and alignment directly from the matching right-click submenu. The current choice is checked and changes save immediately, and each **Inherit** entry names the value it currently resolves to. The cascade is block override → automatic mobile or narrow Compact density → position override → global setting → built-in fallback. Nested blocks resolve independently, and `mountTabs` uses global appearance settings with automatic mobile sizing.
 
 ## Behavior notes
 
@@ -23,5 +23,6 @@ An authored block can override position, overflow, density, personality, palette
 - Corner radius defaults to Auto and follows the active theme. Custom applies the slider value to the outside corners of each Button row and column, and to the Rail track. Each Rail tab uses the track radius minus its inset padding, clamped at zero, so the corners keep even spacing in both density modes. Adjacent Button corners keep the theme's default radius. Underline and Separator tabs remain square.
 - Left and Right tabs always fill their side list on wide layouts and become an equal-width row above the content in narrow containers; Alignment positions the list without changing that structural sizing. Equal width with Wrap keeps complete rows aligned and expands the final row.
 - An unconfigured authored block is always Compact on mobile and also becomes Compact when its own container is 28rem wide or narrower, including split panes on desktop. Compact reduces both tab padding and the Rail track padding. Explicit Default and Compact choices do not change with device or width.
-- Touch/coarse-pointer tabs retain at least 44 × 44 px targets across every personality.
+- Tabs created with `mountTabs` also become Compact on mobile and in viewports 28rem wide or narrower. Their live panels keep their original containing block, including fixed-position overlays.
+- Touch/coarse-pointer tabs retain at least 44 × 44 px targets across every personality, with a slimmer Rail track inset.
 - Theme colors, focus styles, and reduced-motion behavior still come from Obsidian.

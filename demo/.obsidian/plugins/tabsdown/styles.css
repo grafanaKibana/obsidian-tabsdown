@@ -2307,7 +2307,21 @@ body .tabsdown.tabsdown--right > .tabsdown__tablist > .tabsdown__tab.tabsdown__t
 	}
 }
 
-body.is-mobile .tabsdown:not(.tabsdown--mounted):not(.tabsdown--density-default):not(.tabsdown--density-compact) > .tabsdown__tablist {
+/* Mounted panels must keep their containing block, so use the viewport as a
+   narrow-screen fallback rather than adding containment to their root. */
+@media (max-width: 28rem) {
+	body .tabsdown.tabsdown--mounted:not(.tabsdown--density-default):not(.tabsdown--density-compact) > .tabsdown__tablist {
+		--tabsdown-tab-min-size: 32px;
+		--tabsdown-rail-tab-min-block-size: 28px;
+		--tabsdown-rail-tab-padding-block: 0.0625rem;
+		--tabsdown-rail-track-padding: 0.25rem;
+		--tabsdown-tab-padding-block: 0.375rem;
+		--tabsdown-tab-padding-inline: calc(var(--tabsdown-horizontal-padding, 2.25rem) / 3);
+		--tabsdown-resolved-density: compact;
+	}
+}
+
+body.is-mobile .tabsdown:not(.tabsdown--density-default):not(.tabsdown--density-compact) > .tabsdown__tablist {
 	--tabsdown-tab-min-size: 32px;
 	--tabsdown-rail-tab-min-block-size: 28px;
 	--tabsdown-rail-tab-padding-block: 0.0625rem;
@@ -2339,6 +2353,8 @@ body.is-mobile .tabsdown:not(.tabsdown--mounted):not(.tabsdown--density-default)
 	body .tabsdown.tabsdown.tabsdown.tabsdown.tabsdown.tabsdown > .tabsdown__tablist {
 		--tabsdown-tab-min-size: 44px;
 		--tabsdown-tab-min-block-size: 44px;
+		/* Keep the 44px hit area while trimming the surrounding Rail chrome. */
+		--tabsdown-rail-track-padding: 0.125rem;
 	}
 }
 
@@ -2494,7 +2510,7 @@ body .tabsdown--nested-even.tabsdown.tabsdown {
 	}
 }
 
-body.is-mobile .tabsdown.tabsdown.tabsdown.tabsdown:not(.tabsdown--mounted) > .tabsdown__tablist {
+body.is-mobile .tabsdown.tabsdown.tabsdown.tabsdown > .tabsdown__tablist {
 	--tabsdown-resolved-density: compact;
 }
 
