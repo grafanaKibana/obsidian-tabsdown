@@ -2369,9 +2369,10 @@ body.is-mobile .tabsdown > .tabsdown__tablist {
 		--tabsdown-rail-track-padding: 0.125rem;
 	}
 
-	/* The Rail's 44px buttons already provide the touch target; extra vertical
-	   track padding would make the whole control taller than native inputs. */
+	/* Keep the requested compact Rail height without extra vertical track
+	   padding. Text can still grow beyond this minimum. */
 	body .tabsdown.tabsdown.tabsdown.tabsdown.tabsdown.tabsdown > .tabsdown__tablist.tabsdown__tablist--rail {
+		--tabsdown-tab-min-block-size: 40px;
 		padding-block: 0;
 	}
 }

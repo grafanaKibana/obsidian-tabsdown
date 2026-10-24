@@ -26,7 +26,7 @@ An authored block can override position, overflow, density, personality, palette
 - Tabs created with `mountTabs` also become Compact on mobile and in viewports 28rem wide or narrower. Their live panels keep their original containing block, including fixed-position overlays.
 - Mobile labels use the theme’s compact UI font (`--font-ui-smaller`, about 13px at default mobile settings) and Medium selection weight. They follow Obsidian’s preferred text scale; authored bold labels and explicit Thinner/Bolder preferences are preserved. Wide desktop labels keep `--font-ui-small`.
 - Automatic mobile spacing uses half the horizontal-padding setting (18px with the default 36px setting). Explicit Default and Compact densities keep their own padding.
-- Touch/coarse-pointer tabs retain at least 44 × 44 px targets across every personality. Rail removes extra vertical track padding for a 44px total minimum height and grows when larger text needs room.
+- Touch/coarse-pointer Rails have a 40px total minimum height and at least 44px-wide tabs. Other personalities retain at least 44 × 44 px targets. Rail has no extra vertical track padding and grows when larger text needs room.
 - Theme colors, focus styles, and reduced-motion behavior still come from Obsidian.
 
 ## Mobile sizing references
