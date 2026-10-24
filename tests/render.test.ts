@@ -1128,7 +1128,7 @@ test("defines the requested control ranges and selected weights", () => {
 	const weightId = settingId(weight);
 	const baseTab = /^\.tabsdown__tab \{([^}]*)\}/m.exec(styles)?.[1] ?? "";
 	expect(baseTab).toMatch(/font-weight:\s*var\(--font-normal,\s*400\)/);
-	expect(matchingRuleBodies(styles, `.tabsdown__tab[aria-selected="true"]`)).toMatch(/font-weight:\s*600/);
+	expect(matchingRuleBodies(styles, `.tabsdown__tab[aria-selected="true"]`)).toMatch(/font-weight:\s*var\(--tabsdown-selected-weight,\s*600\)/);
 	expect(matchingRuleBodies(styles, `body.${weightId}-thinner`)).toMatch(/font-weight:\s*400/);
 	expect(matchingRuleBodies(styles, `body.${weightId}-bolder`)).toMatch(/font-weight:\s*700/);
 
@@ -1392,7 +1392,7 @@ test("reserves the effective selected weight without changing selected tab width
 	const content = matchingRuleBodies(styles, ".tabsdown__tab-content");
 	const reserve = exactRuleBodies(styles, ".tabsdown__tab-reserve")[0] ?? "";
 	expect(content).toContain("display: inline-grid");
-	expect(reserve).toContain("font-weight: 600");
+	expect(reserve).toContain("font-weight: var(--tabsdown-selected-weight, 600)");
 	expect(reserve).toContain("visibility: hidden");
 	expect(reserve).toContain("grid-area: 1 / 1 / 2 / -1");
 	expect(reserve).not.toContain("block-size: 0");
@@ -1400,9 +1400,9 @@ test("reserves the effective selected weight without changing selected tab width
 		["tabsdown-selected-font-weight-thinner", "400"],
 		["tabsdown-selected-font-weight-bolder", "700"],
 		["tabsdown-selected-font-weight-bold", "700"],
-		["tabsdown-selected-font-weight-default", "600"],
-		["tabsdown-selected-font-weight-theme-default", "600"],
-		["tabsdown-selected-font-weight-medium", "600"],
+		["tabsdown-selected-font-weight-default", "var(--tabsdown-selected-weight, 600)"],
+		["tabsdown-selected-font-weight-theme-default", "var(--tabsdown-selected-weight, 600)"],
+		["tabsdown-selected-font-weight-medium", "var(--tabsdown-selected-weight, 600)"],
 	] as const) {
 		const selectors = matchingSelectors(styles, `body.${setting}`);
 		expect(selectors, setting).toContain(".tabsdown__tab-reserve");
@@ -1704,13 +1704,13 @@ test("makes only unconfigured authored narrow blocks compact", () => {
 	expect(automatic).toContain("--tabsdown-rail-track-padding: 0.25rem");
 	const mobile = matchingRuleBodies(
 		styles,
-		"body.is-mobile .tabsdown:not(.tabsdown--mounted):not(.tabsdown--density-default):not(.tabsdown--density-compact) > .tabsdown__tablist",
+		"body.is-mobile .tabsdown:not(.tabsdown--density-default):not(.tabsdown--density-compact) > .tabsdown__tablist",
 	);
 	expect(mobile).toContain("--tabsdown-tab-min-size: 32px");
 	expect(mobile).toContain("--tabsdown-tab-padding-block: 0.375rem");
 	expect(mobile).toContain("--tabsdown-rail-tab-padding-block: 0.0625rem");
 	expect(mobile).toContain(
-		"--tabsdown-tab-padding-inline: calc(var(--tabsdown-horizontal-padding, 2.25rem) / 3)",
+		"--tabsdown-tab-padding-inline: calc(var(--tabsdown-horizontal-padding, 2.25rem) / 2)",
 	);
 	expect(mobile).toContain("--tabsdown-rail-track-padding: 0.25rem");
 
@@ -1744,6 +1744,38 @@ test("makes only unconfigured authored narrow blocks compact", () => {
 	);
 });
 
+test("makes mounted tabs compact on narrow viewports without containing their panels", () => {
+	const styles = readStyles();
+	const viewport = styles.slice(styles.indexOf("@media (max-width: 28rem)"));
+	const mounted = matchingRuleBodies(
+		viewport,
+		"body .tabsdown.tabsdown--mounted:not(.tabsdown--density-default):not(.tabsdown--density-compact) > .tabsdown__tablist",
+	);
+	expect(mounted).toContain("--tabsdown-tab-padding-inline: calc(var(--tabsdown-horizontal-padding, 2.25rem) / 2)");
+	expect(mounted).toContain("--tabsdown-rail-track-padding: 0.25rem");
+	expect(mounted).toContain("--tabsdown-resolved-density: compact");
+	expect(styles).toMatch(/\.tabsdown\.tabsdown--mounted \{[^}]*container-type:\s*normal/);
+});
+
+test("uses scalable compact mobile control typography and a 36px touch rail", () => {
+	const styles = readStyles();
+	const mobile = matchingRuleBodies(styles, "body.is-mobile .tabsdown > .tabsdown__tablist");
+	expect(mobile).toContain("--tabsdown-tab-font-size: var(--font-ui-smaller)");
+	expect(mobile).toContain("--tabsdown-selected-weight: var(--font-medium, 500)");
+	const viewport = styles.slice(styles.indexOf("@media (max-width: 28rem)"), styles.indexOf("body.is-mobile .tabsdown:not"));
+	expect(matchingRuleBodies(viewport, ".tabsdown > .tabsdown__tablist"))
+		.toContain("--tabsdown-tab-font-size: var(--font-ui-smaller)");
+	const tab = exactRuleBodies(styles, ".tabsdown__tab")[0] ?? "";
+	expect(tab).toContain("font-family: var(--font-interface)");
+	expect(tab).toContain("font-size: var(--tabsdown-tab-font-size, var(--font-ui-small))");
+	for (const selector of [".tabsdown__tab-reserve", '.tabsdown__tab[aria-selected="true"]']) {
+		expect(matchingRuleBodies(styles, selector)).toContain("font-weight: var(--tabsdown-selected-weight, 600)");
+	}
+	const coarse = styles.slice(styles.indexOf("@media (any-pointer: coarse)"));
+	expect(matchingRuleBodies(coarse, "body .tabsdown.tabsdown.tabsdown.tabsdown.tabsdown.tabsdown > .tabsdown__tablist.tabsdown__tablist--rail"))
+		.toContain("padding-block: 0");
+});
+
 test("keeps authored overrides root-scoped without runtime width state", () => {
 	const styles = readStyles();
 	expect(styles).not.toMatch(/tabsdown--(narrow|wide)/);
@@ -1756,12 +1788,26 @@ test("keeps authored overrides root-scoped without runtime width state", () => {
 	);
 });
 
-test("coarse pointers keep every authored personality and density at 44px", () => {
+test("keeps touch Rail keyboard focus inside the scrolling clip", () => {
+	const styles = readStyles();
+	const coarse = styles.slice(styles.indexOf("@media (any-pointer: coarse)"));
+	const focus = matchingRuleBodies(coarse, ".tabsdown > .tabsdown__tablist--rail > .tabsdown__tab:focus-visible");
+	expect(focus).toContain("outline-offset: calc(-2 * var(--border-width))");
+	expect(focus).not.toContain("outline: none");
+	// The general keyboard indicator, including panel focus, stays external.
+	expect(matchingRuleBodies(styles, ".tabsdown__panel:focus-visible"))
+		.toContain("outline-offset: var(--border-width)");
+});
+
+test("coarse pointers keep 44px widths and 36px Rail or 44px other heights", () => {
 	const styles = readStyles();
 	const coarse = styles.slice(styles.lastIndexOf("@media (any-pointer: coarse)"));
 	const coarseRule = matchingRules(coarse, "body .tabsdown.tabsdown.tabsdown.tabsdown.tabsdown.tabsdown > .tabsdown__tablist");
+	const railRule = matchingRules(coarse, "body .tabsdown.tabsdown.tabsdown.tabsdown.tabsdown.tabsdown > .tabsdown__tablist.tabsdown__tablist--rail");
+	expect(railRule).toContain("--tabsdown-tab-min-block-size: 36px");
 	expect(coarseRule).toContain("--tabsdown-tab-min-size: 44px");
 	expect(coarseRule).toContain("--tabsdown-tab-min-block-size: 44px");
+	expect(coarseRule).toContain("--tabsdown-rail-track-padding: 0.125rem");
 	expect(styles.lastIndexOf("body .tabsdown.tabsdown.tabsdown.tabsdown.tabsdown.tabsdown > .tabsdown__tablist")).toBeGreaterThan(
 		styles.lastIndexOf(".tabsdown.tabsdown--personality-rail.tabsdown.tabsdown.tabsdown.tabsdown > .tabsdown__tablist"),
 	);
@@ -1771,6 +1817,7 @@ test("coarse pointers keep every authored personality and density at 44px", () =
 		matchingRules(styles, ".tabsdown.tabsdown--personality-"),
 		matchingRules(styles, ".tabsdown.tabsdown--density-"),
 		coarseRule,
+		railRule,
 	].join("\n");
 	for (const personality of ["button", "underline", "separator", "rail"]) {
 		for (const density of ["", "default", "compact"]) {
@@ -1779,7 +1826,7 @@ test("coarse pointers keep every authored personality and density at 44px", () =
 				density ? ` tabsdown--density-${density}` : ""
 			}`;
 			const list = root.appendChild(document.createElement("div"));
-			list.className = "tabsdown__tablist";
+			list.className = `tabsdown__tablist${personality === "rail" ? " tabsdown__tablist--rail" : ""}`;
 			const computed = getComputedStyle(list);
 			expect(
 				computed.getPropertyValue("--tabsdown-tab-min-size").trim(),
@@ -1788,7 +1835,7 @@ test("coarse pointers keep every authored personality and density at 44px", () =
 			expect(
 				computed.getPropertyValue("--tabsdown-tab-min-block-size").trim(),
 				`${personality}/${density || "automatic"}`,
-			).toBe("44px");
+			).toBe(personality === "rail" ? "36px" : "44px");
 			root.remove();
 		}
 	}
@@ -1997,9 +2044,9 @@ test("prefers the position override, then nesting, over the global choice", () =
 test("names Compact where a block gets it automatically", () => {
 	expect(inheritLabels("tabsdown-density-default", "")[2]).toBe("Inherit (Default)");
 	expect(inheritLabels("is-mobile tabsdown-density-default", "")[2]).toBe("Inherit (Compact)");
-	// mountTabs keeps its own containing block and never takes automatic Compact.
+	// Mobile spacing also applies to mountTabs without adding containment.
 	expect(inheritLabels("is-mobile tabsdown-density-default", "tabsdown--mounted")[2])
-		.toBe("Inherit (Default)");
+		.toBe("Inherit (Compact)");
 });
 
 test("describes the inherited value, not the block's own choice", () => {
