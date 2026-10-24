@@ -2372,7 +2372,7 @@ body.is-mobile .tabsdown > .tabsdown__tablist {
 	/* Keep the requested compact Rail height without extra vertical track
 	   padding. Text can still grow beyond this minimum. */
 	body .tabsdown.tabsdown.tabsdown.tabsdown.tabsdown.tabsdown > .tabsdown__tablist.tabsdown__tablist--rail {
-		--tabsdown-tab-min-block-size: 40px;
+		--tabsdown-tab-min-block-size: 36px;
 		padding-block: 0;
 	}
 }

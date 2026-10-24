@@ -1757,7 +1757,7 @@ test("makes mounted tabs compact on narrow viewports without containing their pa
 	expect(styles).toMatch(/\.tabsdown\.tabsdown--mounted \{[^}]*container-type:\s*normal/);
 });
 
-test("uses scalable compact mobile control typography and a 40px touch rail", () => {
+test("uses scalable compact mobile control typography and a 36px touch rail", () => {
 	const styles = readStyles();
 	const mobile = matchingRuleBodies(styles, "body.is-mobile .tabsdown > .tabsdown__tablist");
 	expect(mobile).toContain("--tabsdown-tab-font-size: var(--font-ui-smaller)");
@@ -1788,12 +1788,12 @@ test("keeps authored overrides root-scoped without runtime width state", () => {
 	);
 });
 
-test("coarse pointers keep 44px widths and 40px Rail or 44px other heights", () => {
+test("coarse pointers keep 44px widths and 36px Rail or 44px other heights", () => {
 	const styles = readStyles();
 	const coarse = styles.slice(styles.lastIndexOf("@media (any-pointer: coarse)"));
 	const coarseRule = matchingRules(coarse, "body .tabsdown.tabsdown.tabsdown.tabsdown.tabsdown.tabsdown > .tabsdown__tablist");
 	const railRule = matchingRules(coarse, "body .tabsdown.tabsdown.tabsdown.tabsdown.tabsdown.tabsdown > .tabsdown__tablist.tabsdown__tablist--rail");
-	expect(railRule).toContain("--tabsdown-tab-min-block-size: 40px");
+	expect(railRule).toContain("--tabsdown-tab-min-block-size: 36px");
 	expect(coarseRule).toContain("--tabsdown-tab-min-size: 44px");
 	expect(coarseRule).toContain("--tabsdown-tab-min-block-size: 44px");
 	expect(coarseRule).toContain("--tabsdown-rail-track-padding: 0.125rem");
@@ -1824,7 +1824,7 @@ test("coarse pointers keep 44px widths and 40px Rail or 44px other heights", () 
 			expect(
 				computed.getPropertyValue("--tabsdown-tab-min-block-size").trim(),
 				`${personality}/${density || "automatic"}`,
-			).toBe(personality === "rail" ? "40px" : "44px");
+			).toBe(personality === "rail" ? "36px" : "44px");
 			root.remove();
 		}
 	}
