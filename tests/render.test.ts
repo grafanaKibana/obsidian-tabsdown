@@ -1788,6 +1788,17 @@ test("keeps authored overrides root-scoped without runtime width state", () => {
 	);
 });
 
+test("keeps touch Rail keyboard focus inside the scrolling clip", () => {
+	const styles = readStyles();
+	const coarse = styles.slice(styles.indexOf("@media (any-pointer: coarse)"));
+	const focus = matchingRuleBodies(coarse, ".tabsdown > .tabsdown__tablist--rail > .tabsdown__tab:focus-visible");
+	expect(focus).toContain("outline-offset: calc(-2 * var(--border-width))");
+	expect(focus).not.toContain("outline: none");
+	// The general keyboard indicator, including panel focus, stays external.
+	expect(matchingRuleBodies(styles, ".tabsdown__panel:focus-visible"))
+		.toContain("outline-offset: var(--border-width)");
+});
+
 test("coarse pointers keep 44px widths and 36px Rail or 44px other heights", () => {
 	const styles = readStyles();
 	const coarse = styles.slice(styles.lastIndexOf("@media (any-pointer: coarse)"));

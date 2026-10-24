@@ -2375,6 +2375,11 @@ body.is-mobile .tabsdown > .tabsdown__tablist {
 		--tabsdown-tab-min-block-size: 36px;
 		padding-block: 0;
 	}
+
+	/* Scrolling clips outside outlines when the track has no vertical inset. */
+	.tabsdown > .tabsdown__tablist--rail > .tabsdown__tab:focus-visible {
+		outline-offset: calc(-2 * var(--border-width));
+	}
 }
 
 /* Resolved inherited settings, read only by the block settings menu. Nothing
