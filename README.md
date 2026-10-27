@@ -6,11 +6,8 @@ Theme-native Markdown tabs for Obsidian. Works in Reading View and Live Preview 
 
 <p align="center">
 <a href="https://obsidian.md/plugins?id=tabsdown"><picture><source media="(prefers-color-scheme: dark)" srcset="https://shieldcn.dev/badge/Install_in_Obsidian.svg?variant=default&amp;size=sm&amp;font=geist&amp;mode=dark&amp;logo=obsidian&amp;color=a079ff&amp;logoColor=18181b&amp;valueColor=18181b&amp;labelTextColor=18181b&amp;gradient=a079ff%2Cac8aff%2C110"><img alt="Install in Obsidian" src="https://shieldcn.dev/badge/Install_in_Obsidian.svg?variant=default&amp;size=sm&amp;font=geist&amp;mode=light&amp;logo=obsidian&amp;color=7c3aed&amp;logoColor=ffffff&amp;valueColor=ffffff&amp;labelTextColor=ffffff&amp;gradient=7c3aed%2C8650eb%2C110"></picture></a>
-<picture><source media="(prefers-color-scheme: dark)" srcset="https://shieldcn.dev/group/github/release/grafanaKibana/obsidian-tabsdown/stable+github/ci/grafanaKibana/obsidian-tabsdown.svg?variant=outline&amp;size=sm&amp;font=geist&amp;mode=dark&amp;workflow=ci.yml&amp;branch=main"><img alt="Latest release and CI status" src="https://shieldcn.dev/group/github/release/grafanaKibana/obsidian-tabsdown/stable+github/ci/grafanaKibana/obsidian-tabsdown.svg?variant=outline&amp;size=sm&amp;font=geist&amp;mode=light&amp;workflow=ci.yml&amp;branch=main"></picture>
-</p>
-
-<p align="center">
-<a href="https://github.com/grafanaKibana/obsidian-tabsdown/releases/latest">Release notes</a> · <a href="https://github.com/grafanaKibana/obsidian-tabsdown/actions/workflows/ci.yml">CI details</a>
+<a href="https://github.com/grafanaKibana/obsidian-tabsdown/releases/latest"><picture><source media="(prefers-color-scheme: dark)" srcset="https://shieldcn.dev/github/release/grafanaKibana/obsidian-tabsdown/stable.svg?variant=outline&amp;size=sm&amp;font=geist&amp;mode=dark&amp;label=Version"><img alt="Latest version" src="https://shieldcn.dev/github/release/grafanaKibana/obsidian-tabsdown/stable.svg?variant=outline&amp;size=sm&amp;font=geist&amp;mode=light&amp;label=Version"></picture></a>
+<a href="https://github.com/grafanaKibana/obsidian-tabsdown/actions/workflows/ci.yml"><picture><source media="(prefers-color-scheme: dark)" srcset="https://shieldcn.dev/github/ci/grafanaKibana/obsidian-tabsdown.svg?variant=outline&amp;size=sm&amp;font=geist&amp;mode=dark&amp;label=CI&amp;workflow=ci.yml&amp;branch=main&amp;statusDot=true"><img alt="CI status" src="https://shieldcn.dev/github/ci/grafanaKibana/obsidian-tabsdown.svg?variant=outline&amp;size=sm&amp;font=geist&amp;mode=light&amp;label=CI&amp;workflow=ci.yml&amp;branch=main&amp;statusDot=true"></picture></a>
 </p>
 
 - **Write in place:** edit the active tab’s Markdown in Live Preview, with the note’s Undo/Redo and keyboard navigation.
