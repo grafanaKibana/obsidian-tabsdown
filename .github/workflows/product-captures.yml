@@ -1,0 +1,85 @@
+name: Product captures
+
+on:
+  release:
+    types: [published]
+  workflow_dispatch:
+    inputs:
+      dry_run:
+        description: Validate the plan without installing, building, capturing, or publishing.
+        type: boolean
+        default: true
+      capture_mode:
+        description: Fresh product capture or explicit reuse of configured source images.
+        type: choice
+        options: [fresh, existing]
+        default: fresh
+      only:
+        description: Comma-separated output IDs; empty renders all configured outputs.
+        type: string
+        default: ""
+      template:
+        description: Optional editorial, feature, or showcase override.
+        type: string
+        default: ""
+      theme:
+        description: Optional light or dark override.
+        type: string
+        default: ""
+      width:
+        description: Optional output width in pixels.
+        type: string
+        default: ""
+      height:
+        description: Optional output height in pixels.
+        type: string
+        default: ""
+      base_url:
+        description: Optional running preview origin; skips the product build.
+        type: string
+        default: ""
+      release_tag:
+        description: Optional existing release to capture and attach artwork to.
+        type: string
+        default: ""
+      update_pr:
+        description: Open a review-only PR updating finished PNGs. Never merges.
+        type: boolean
+        default: false
+
+permissions:
+  contents: write
+  pull-requests: write
+
+concurrency:
+  group: product-captures-${{ github.event.release.tag_name || inputs.release_tag || github.ref }}
+  cancel-in-progress: false
+
+jobs:
+  captures:
+    runs-on: ubuntu-latest
+    timeout-minutes: 40
+    steps:
+      - name: Check out the capture source
+        uses: actions/checkout@v4
+        with:
+          ref: ${{ github.event.release.tag_name || inputs.release_tag || github.sha }}
+          persist-credentials: false
+      - name: Use Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: 22
+      - name: Generate product artwork
+        uses: ./.github/actions/product-captures
+        with:
+          dry-run: ${{ github.event_name == 'workflow_dispatch' && inputs.dry_run && 'true' || 'false' }}
+          capture-mode: ${{ inputs.capture_mode || 'fresh' }}
+          only: ${{ inputs.only }}
+          template: ${{ inputs.template }}
+          theme: ${{ inputs.theme }}
+          width: ${{ inputs.width }}
+          height: ${{ inputs.height }}
+          base-url: ${{ inputs.base_url }}
+          skip-prepare: ${{ inputs.base_url != '' && 'true' || 'false' }}
+          release-tag: ${{ github.event.release.tag_name || inputs.release_tag }}
+          update-pr: ${{ (github.event_name == 'release' || inputs.update_pr) && 'true' || 'false' }}

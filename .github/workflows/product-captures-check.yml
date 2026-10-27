@@ -1,0 +1,33 @@
+name: Verify product capture tool
+
+on:
+  pull_request:
+    paths:
+      - ".github/actions/product-captures/**"
+      - ".github/workflows/product-captures*.yml"
+      - "product-captures.json"
+      - "docs/capture-fixtures/**"
+  push:
+    branches: [main]
+    paths:
+      - ".github/actions/product-captures/**"
+      - ".github/workflows/product-captures*.yml"
+      - "product-captures.json"
+      - "docs/capture-fixtures/**"
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  check:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+      - name: Verify standalone capture contracts
+        run: npm --prefix .github/actions/product-captures run check
+      - name: Validate this repository's capture plan without side effects
+        run: node .github/actions/product-captures/cli.mjs --config product-captures.json --dry-run

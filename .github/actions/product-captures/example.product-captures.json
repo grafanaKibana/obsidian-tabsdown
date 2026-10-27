@@ -1,0 +1,155 @@
+{
+  "version": 1,
+  "project": {
+    "id": "my-project",
+    "title": "My project",
+    "subtitle": "",
+    "backgroundStyle": "solid",
+    "artDirection": "porcelain",
+    "layout": "site-top",
+    "siteBackdrop": true,
+    "siteTint": "#e1e8e5",
+    "edgeBleed": 0.06,
+    "accent": "#718d77",
+    "background": "#f3f3ef"
+  },
+  "outputDir": "docs/assets/product-captures",
+  "captures": [
+    {
+      "id": "overview-light",
+      "provider": "web",
+      "url": "https://example.com/",
+      "viewport": {
+        "width": 1440,
+        "height": 900
+      },
+      "colorScheme": "light",
+      "ready": {
+        "selector": "body"
+      }
+    },
+    {
+      "id": "overview-dark",
+      "provider": "web",
+      "url": "https://example.com/",
+      "viewport": {
+        "width": 1440,
+        "height": 900
+      },
+      "colorScheme": "dark",
+      "ready": {
+        "selector": "body"
+      }
+    }
+  ],
+  "outputs": [
+    {
+      "id": "hero",
+      "template": "showcase",
+      "theme": "light",
+      "captures": [
+        "overview-light"
+      ],
+      "capturesByTheme": {
+        "light": [
+          "overview-light"
+        ],
+        "dark": [
+          "overview-dark"
+        ]
+      },
+      "width": 1600,
+      "height": 1000
+    },
+    {
+      "id": "hero-dark",
+      "template": "showcase",
+      "theme": "dark",
+      "captures": [
+        "overview-dark"
+      ],
+      "capturesByTheme": {
+        "light": [
+          "overview-light"
+        ],
+        "dark": [
+          "overview-dark"
+        ]
+      },
+      "width": 1600,
+      "height": 1000
+    },
+    {
+      "id": "feature",
+      "template": "feature",
+      "theme": "light",
+      "captures": [
+        "overview-light"
+      ],
+      "capturesByTheme": {
+        "light": [
+          "overview-light"
+        ],
+        "dark": [
+          "overview-dark"
+        ]
+      },
+      "width": 1600,
+      "height": 1000
+    },
+    {
+      "id": "feature-dark",
+      "template": "feature",
+      "theme": "dark",
+      "captures": [
+        "overview-dark"
+      ],
+      "capturesByTheme": {
+        "light": [
+          "overview-light"
+        ],
+        "dark": [
+          "overview-dark"
+        ]
+      },
+      "width": 1600,
+      "height": 1000
+    },
+    {
+      "id": "showcase",
+      "template": "showcase",
+      "theme": "light",
+      "captures": [
+        "overview-light"
+      ],
+      "capturesByTheme": {
+        "light": [
+          "overview-light"
+        ],
+        "dark": [
+          "overview-dark"
+        ]
+      },
+      "width": 1600,
+      "height": 1000
+    },
+    {
+      "id": "showcase-dark",
+      "template": "showcase",
+      "theme": "dark",
+      "captures": [
+        "overview-dark"
+      ],
+      "capturesByTheme": {
+        "light": [
+          "overview-light"
+        ],
+        "dark": [
+          "overview-dark"
+        ]
+      },
+      "width": 1600,
+      "height": 1000
+    }
+  ]
+}

@@ -4,6 +4,8 @@ import { defineConfig, globalIgnores } from "eslint/config";
 
 export default defineConfig(
 	globalIgnores([
+		".github/actions/product-captures/**",
+		".product-captures-cache/**",
 		".omx",
 		"demo/**/plugins/**",
 		"main.js",

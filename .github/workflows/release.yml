@@ -21,11 +21,12 @@ jobs:
     # dispatch from anywhere else would tag unreviewed work.
     if: github.ref == 'refs/heads/main'
     runs-on: ubuntu-latest
-    timeout-minutes: 15
+    timeout-minutes: 40
     environment: release
     permissions:
       attestations: write
       contents: write
+      pull-requests: write
       id-token: write
     steps:
       - name: Check out the release commit
@@ -53,6 +54,7 @@ jobs:
             styles.css
 
       - name: Tag and publish the latest release
+        id: publication
         env:
           GH_TOKEN: ${{ github.token }}
           GH_REPO: ${{ github.repository }}
@@ -61,6 +63,7 @@ jobs:
         shell: bash
         run: |
           set -euo pipefail
+          printf 'created=false\n' >> "$GITHUB_OUTPUT"
 
           # npm run check has already proved this is exact SemVer and matches every
           # other metadata file.
@@ -147,3 +150,13 @@ jobs:
 
           gh release upload "$version" main.js manifest.json styles.css --clobber
           gh release edit "$version" --draft=false --latest
+          printf 'created=true\ntag=%s\n' "$version" >> "$GITHUB_OUTPUT"
+
+      # Keep capture planning side-effect-free when the release itself is a dry run.
+      - name: Generate release product artwork
+        if: inputs.dry-run || steps.publication.outputs.created == 'true'
+        uses: ./.github/actions/product-captures
+        with:
+          dry-run: ${{ inputs.dry-run && 'true' || 'false' }}
+          release-tag: ${{ steps.publication.outputs.tag }}
+          update-pr: "true"

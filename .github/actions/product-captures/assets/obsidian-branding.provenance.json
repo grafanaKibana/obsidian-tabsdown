@@ -1,0 +1,37 @@
+{
+  "sourcePage": "https://obsidian.md/brand",
+  "fetchedAt": "2026-10-27T16:43:26.082632+00:00",
+  "usage": "Official Obsidian platform identity. Assets are bundled unchanged; no recoloring, distortion, reconfiguration, or authorship claim. Obsidian name, logo, and app icon are trademarks of their respective owner.",
+  "assets": [
+    {
+      "file": "obsidian-lockup-dark.svg",
+      "source": "https://obsidian.md/images/obsidian-logo-text-white-purple.svg",
+      "sha256": "7b3b68cf476cc4b54c6f14d4e98396540d2d95323d2c9f3dcba0edd36f6c5f41",
+      "bytes": 2776,
+      "viewBox": "0 0 143 25",
+      "width": null,
+      "height": null,
+      "unchanged": true
+    },
+    {
+      "file": "obsidian-lockup-light.svg",
+      "source": "https://obsidian.md/images/obsidian-logo-text-purple.svg",
+      "sha256": "17adb1f9d4c619dd59cd5d29a5c0d52e4ec54e59defb0661455886a81c81bef2",
+      "bytes": 2776,
+      "viewBox": "0 0 143 25",
+      "width": null,
+      "height": null,
+      "unchanged": true
+    },
+    {
+      "file": "obsidian-icon.svg",
+      "source": "https://obsidian.md/images/obsidian-logo-gradient.svg",
+      "sha256": "119b01b96c99f736098742c329f440313b6763bd2aea22cafe08179699431280",
+      "bytes": 4872,
+      "viewBox": "0 0 512 512",
+      "width": "100%",
+      "height": "100%",
+      "unchanged": true
+    }
+  ]
+}
