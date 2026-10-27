@@ -76,4 +76,3 @@ Install with [BRAT](https://github.com/TfTHacker/obsidian42-brat) using `grafana
 Runs locally on desktop and mobile, with no network requests, telemetry, or account.
 
 [Report an issue](https://github.com/grafanaKibana/obsidian-tabsdown/issues) · [Contributing](CONTRIBUTING.md) · [MIT license](LICENSE)
-
