@@ -2,6 +2,12 @@
 
 Theme-native Markdown tabs for Obsidian. Works in Reading View and Live Preview on desktop and mobile.
 
+<p>
+<a href="https://obsidian.md/plugins?id=tabsdown"><picture><source media="(prefers-color-scheme: dark)" srcset="https://shieldcn.dev/badge/Install_in_Obsidian.svg?variant=default&amp;size=sm&amp;font=geist&amp;mode=dark&amp;logo=obsidian&amp;color=a079ff&amp;logoColor=18181b&amp;valueColor=18181b&amp;labelTextColor=18181b"><img alt="Install in Obsidian" src="https://shieldcn.dev/badge/Install_in_Obsidian.svg?variant=default&amp;size=sm&amp;font=geist&amp;mode=light&amp;logo=obsidian&amp;color=7c3aed&amp;logoColor=ffffff&amp;valueColor=ffffff&amp;labelTextColor=ffffff"></picture></a>
+<a href="https://github.com/grafanaKibana/obsidian-tabsdown/releases/latest"><picture><source media="(prefers-color-scheme: dark)" srcset="https://shieldcn.dev/github/release/grafanaKibana/obsidian-tabsdown/stable.svg?variant=outline&amp;size=xs&amp;font=geist&amp;mode=dark&amp;logo=ri%3AGoTag&amp;color=a079ff&amp;logoColor=a079ff&amp;valueColor=fafafa&amp;labelTextColor=fafafa&amp;label=Release"><img alt="Latest release" src="https://shieldcn.dev/github/release/grafanaKibana/obsidian-tabsdown/stable.svg?variant=outline&amp;size=xs&amp;font=geist&amp;mode=light&amp;logo=ri%3AGoTag&amp;color=7c3aed&amp;logoColor=7c3aed&amp;valueColor=18181b&amp;labelTextColor=18181b&amp;label=Release"></picture></a>
+<a href="https://github.com/grafanaKibana/obsidian-tabsdown/actions/workflows/ci.yml"><picture><source media="(prefers-color-scheme: dark)" srcset="https://shieldcn.dev/github/ci/grafanaKibana/obsidian-tabsdown.svg?variant=outline&amp;size=xs&amp;font=geist&amp;mode=dark&amp;logo=githubactions&amp;color=a079ff&amp;logoColor=a079ff&amp;valueColor=fafafa&amp;labelTextColor=fafafa&amp;label=CI&amp;workflow=ci.yml&amp;branch=main&amp;statusDot=true"><img alt="CI" src="https://shieldcn.dev/github/ci/grafanaKibana/obsidian-tabsdown.svg?variant=outline&amp;size=xs&amp;font=geist&amp;mode=light&amp;logo=githubactions&amp;color=7c3aed&amp;logoColor=7c3aed&amp;valueColor=18181b&amp;labelTextColor=18181b&amp;label=CI&amp;workflow=ci.yml&amp;branch=main&amp;statusDot=true"></picture></a>
+</p>
+
 ![Tabsdown 1.6.0: notes, checklists and code in tabs, nested layouts, styling tabs, and in-place Markdown editing.](docs/assets/tabsdown-v1.6-release.png)
 
 - **Write in place:** edit the active tab’s Markdown in Live Preview, with the note’s Undo/Redo and keyboard navigation.
@@ -70,3 +76,4 @@ Install with [BRAT](https://github.com/TfTHacker/obsidian42-brat) using `grafana
 Runs locally on desktop and mobile, with no network requests, telemetry, or account.
 
 [Report an issue](https://github.com/grafanaKibana/obsidian-tabsdown/issues) · [Contributing](CONTRIBUTING.md) · [MIT license](LICENSE)
+
