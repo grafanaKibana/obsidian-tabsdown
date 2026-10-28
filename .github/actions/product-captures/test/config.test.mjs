@@ -15,6 +15,7 @@ import {sourceMetadata} from '../cli.mjs';
 
 const exec=promisify(execFile);
 const cli=fileURLToPath(new URL('../cli.mjs',import.meta.url));
+const mockLoader=fileURLToPath(new URL('./fixtures/mock-loader.mjs',import.meta.url));
 
 /** Create a standalone config fixture and remove only its test-owned directory. */
 async function fixture(t,mutate=()=>{}) {
@@ -130,18 +131,14 @@ test('theme mappings reject invalid shapes, missing themes, unknown capture IDs 
 
 test('CLI dispatches each resolved theme to the renderer and records output provenance without an app',async t=>{
   const root=await fixture(t,c=>{c.captures=[];c.outputs=[{id:'hero',template:'showcase',showProduct:false,captures:[],theme:'light'},{id:'hero-dark',template:'showcase',showProduct:false,captures:[],theme:'dark'}];delete c.prepare;delete c.server;});
-  const renderer=new URL('../lib/render.mjs',import.meta.url).href;
-  const loader=path.join(root,'theme-renderer-loader.mjs');
-  const browserSource='export const chromium={launch:async()=>({close:async()=>{}})};';
-  const renderSource='import fs from "node:fs/promises";export async function renderOutput({theme,output,destination}){if(theme!==output.theme)throw new Error("Unresolved renderer theme");await fs.writeFile(destination,theme);}';
-  await fs.writeFile(loader,`export async function resolve(specifier,context,next){if(specifier==='playwright')return{url:'mock:playwright',shortCircuit:true};return next(specifier,context);}export async function load(url,context,next){if(url==='mock:playwright')return{format:'module',source:${JSON.stringify(browserSource)},shortCircuit:true};if(url===${JSON.stringify(renderer)})return{format:'module',source:${JSON.stringify(renderSource)},shortCircuit:true};return next(url,context);}`);
-  await exec(process.execPath,['--experimental-loader',loader,cli],{cwd:root,timeout:10000});
+  const env={...process.env,PRODUCT_CAPTURE_TEST_RENDERER:'1'};
+  await exec(process.execPath,['--experimental-loader',mockLoader,cli],{cwd:root,env,timeout:10000});
   const manifest=JSON.parse(await fs.readFile(path.join(root,'media/manifest.json'),'utf8'));
   assert.deepEqual(manifest.outputs.map(({id,theme})=>({id,theme})),[{id:'hero',theme:'light'},{id:'hero-dark',theme:'dark'}]);
   assert.equal(await fs.readFile(path.join(root,'media/hero.png'),'utf8'),'light');assert.equal(await fs.readFile(path.join(root,'media/hero-dark.png'),'utf8'),'dark');
   assert.deepEqual(manifest.captures,[]);
   const gallery=await fs.readFile(path.join(root,'media/gallery.html'),'utf8');assert.ok(gallery.includes('hero · showcase · light')&&gallery.includes('hero-dark · showcase · dark'));
-  await exec(process.execPath,['--experimental-loader',loader,cli,'--theme','light','--capture-mode','existing','--output-dir','overridden'],{cwd:root,timeout:10000});
+  await exec(process.execPath,['--experimental-loader',mockLoader,cli,'--theme','light','--capture-mode','existing','--output-dir','overridden'],{cwd:root,env,timeout:10000});
   const override=JSON.parse(await fs.readFile(path.join(root,'overridden/manifest.json'),'utf8'));
   assert.equal(override.captureMode,'existing');assert.ok(override.outputs.every(output=>output.theme==='light'));
   assert.equal(await fs.readFile(path.join(root,'overridden/hero-dark.png'),'utf8'),'light');
@@ -222,7 +219,8 @@ test('source provenance tolerates an uncommitted repository and reads the produc
 test('SIGTERM during preparation drains the owned child process before CLI exit', {timeout:10000},async t=>{
   const root=await fixture(t,config=>{config.prepare={command:`"${process.execPath}" prepare.mjs`};});
   await fs.writeFile(path.join(root,'prepare.mjs'),`import fs from 'node:fs';fs.writeFileSync('prepare-started',String(process.pid));process.on('SIGTERM',()=>{fs.writeFileSync('prepare-stopped','clean');process.exit(0);});setInterval(()=>{},1000);`);
-  const child=spawn(process.execPath,[cli],{cwd:root,stdio:['ignore','pipe','pipe']});
+  const env={...process.env};delete env.PRODUCT_CAPTURE_TEST_RENDERER;
+  const child=spawn(process.execPath,['--experimental-loader',mockLoader,cli],{cwd:root,env,stdio:['ignore','pipe','pipe']});
   let stderr='';child.stderr.on('data',data=>{stderr+=data;});
   const result=new Promise((resolve,reject)=>{child.once('error',reject);child.once('exit',(code,signal)=>resolve({code,signal}));});
   t.after(()=>{if(child.exitCode===null)child.kill('SIGTERM');});
