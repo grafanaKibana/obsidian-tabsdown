@@ -1,49 +1,67 @@
 name: Product captures
 
+# Releases created with GITHUB_TOKEN do not trigger release workflows.
+# In that case, also invoke the remote composite action inside the existing release workflow.
 on:
   release:
     types: [published]
   workflow_dispatch:
     inputs:
+      config:
+        description: Configuration path relative to the repository.
+        type: string
+        default: product-captures.json
       dry_run:
-        description: Validate the plan without installing, building, capturing, or publishing.
+        description: Validate without installing, building, capturing, or publishing.
         type: boolean
         default: true
       capture_mode:
-        description: Fresh product capture or explicit reuse of configured source images.
+        description: Fresh product capture or explicit configured image inputs.
         type: choice
         options: [fresh, existing]
         default: fresh
       only:
-        description: Comma-separated output IDs; empty renders all configured outputs.
+        description: Comma-separated output IDs; empty renders all.
         type: string
-        default: ""
+        default: ''
       template:
         description: Optional editorial, feature, or showcase override.
         type: string
-        default: ""
+        default: ''
       theme:
         description: Optional light or dark override.
         type: string
-        default: ""
+        default: ''
       width:
-        description: Optional output width in pixels.
+        description: Optional output width.
         type: string
-        default: ""
+        default: ''
       height:
-        description: Optional output height in pixels.
+        description: Optional output height.
         type: string
-        default: ""
+        default: ''
+      scale:
+        description: Optional pixel density from 1 to 3.
+        type: string
+        default: ''
+      output_dir:
+        description: Optional output directory relative to the config.
+        type: string
+        default: ''
+      skip_prepare:
+        description: Reuse an explicitly prepared product.
+        type: boolean
+        default: false
       base_url:
-        description: Optional running preview origin; skips the product build.
+        description: Optional running preview origin; skips the configured product build.
         type: string
-        default: ""
+        default: ''
       release_tag:
         description: Optional existing release to capture and attach artwork to.
         type: string
-        default: ""
+        default: ''
       update_pr:
-        description: Open a review-only PR updating finished PNGs. Never merges.
+        description: Open a review-only image update PR; never merges.
         type: boolean
         default: false
 
@@ -51,35 +69,21 @@ permissions:
   contents: write
   pull-requests: write
 
-concurrency:
-  group: product-captures-${{ github.event.release.tag_name || inputs.release_tag || github.ref }}
-  cancel-in-progress: false
-
 jobs:
   captures:
-    runs-on: ubuntu-latest
-    timeout-minutes: 40
-    steps:
-      - name: Check out the capture source
-        uses: actions/checkout@v4
-        with:
-          ref: ${{ github.event.release.tag_name || inputs.release_tag || github.sha }}
-          persist-credentials: false
-      - name: Use Node.js
-        uses: actions/setup-node@v4
-        with:
-          node-version: 22
-      - name: Generate product artwork
-        uses: ./.github/actions/product-captures
-        with:
-          dry-run: ${{ github.event_name == 'workflow_dispatch' && inputs.dry_run && 'true' || 'false' }}
-          capture-mode: ${{ inputs.capture_mode || 'fresh' }}
-          only: ${{ inputs.only }}
-          template: ${{ inputs.template }}
-          theme: ${{ inputs.theme }}
-          width: ${{ inputs.width }}
-          height: ${{ inputs.height }}
-          base-url: ${{ inputs.base_url }}
-          skip-prepare: ${{ inputs.base_url != '' && 'true' || 'false' }}
-          release-tag: ${{ github.event.release.tag_name || inputs.release_tag }}
-          update-pr: ${{ (github.event_name == 'release' || inputs.update_pr) && 'true' || 'false' }}
+    uses: grafanaKibana/product-captures/.github/workflows/capture.yml@v1
+    with:
+      config: ${{ inputs.config || 'product-captures.json' }}
+      dry-run: ${{ github.event_name == 'workflow_dispatch' && inputs.dry_run || false }}
+      capture-mode: ${{ inputs.capture_mode || 'fresh' }}
+      only: ${{ inputs.only || '' }}
+      template: ${{ inputs.template || '' }}
+      theme: ${{ inputs.theme || '' }}
+      width: ${{ inputs.width || '' }}
+      height: ${{ inputs.height || '' }}
+      scale: ${{ inputs.scale || '' }}
+      base-url: ${{ inputs.base_url || '' }}
+      output-dir: ${{ inputs.output_dir || '' }}
+      skip-prepare: ${{ inputs.skip_prepare || inputs.base_url != '' }}
+      release-tag: ${{ github.event.release.tag_name || inputs.release_tag || '' }}
+      update-pr: ${{ github.event_name == 'release' || inputs.update_pr || false }}

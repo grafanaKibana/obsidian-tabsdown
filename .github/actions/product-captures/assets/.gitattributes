@@ -1,3 +1,0 @@
-# Preserve official brand assets and third-party license bytes in every checkout.
-obsidian-*.svg -text whitespace=cr-at-eol
-Geist-LICENSE -text whitespace=-blank-at-eol
