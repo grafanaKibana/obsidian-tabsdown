@@ -1,4 +1,4 @@
-name: Verify product capture tool
+name: Validate product captures
 
 on:
   pull_request:
@@ -19,6 +19,4 @@ permissions:
 
 jobs:
   check:
-    uses: grafanaKibana/product-captures/.github/workflows/validate.yml@v1
-    with:
-      config: product-captures.json
+    uses: grafanaKibana/product-captures/.github/workflows/validate.yml@v2

@@ -155,7 +155,7 @@ jobs:
       # Keep capture planning side-effect-free when the release itself is a dry run.
       - name: Generate release product artwork
         if: inputs.dry-run || steps.publication.outputs.created == 'true'
-        uses: grafanaKibana/product-captures/actions/capture@v1
+        uses: grafanaKibana/product-captures/actions/capture@v2
         with:
           dry-run: ${{ inputs.dry-run && 'true' || 'false' }}
           release-tag: ${{ steps.publication.outputs.tag }}
