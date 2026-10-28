@@ -22,7 +22,7 @@ The checked-in workflows keep repository events and manual choices locally and c
 
 Use an explicit theme override only when intended: `--only hero --theme dark` retains the selected output ID and writes dark artwork to `hero.png`. To select its approved dark partner, use `--only hero-dark`.
 
-The repository currently disables the [GitHub Actions setting for creating and approving pull requests](https://docs.github.com/en/repositories/managing-your-repositorys-settings-and-features/enabling-features-for-your-repository/managing-github-actions-settings-for-a-repository#preventing-github-actions-from-creating-or-approving-pull-requests) (`can_approve_pull_request_reviews: false`). Capture, artifact upload, and release attachments can run independently; `update-pr: true` cannot open an image update PR under the current policy. Use `update-pr: false` when no image PR is requested. This migration leaves repository settings unchanged.
+Opening an image-update PR with `update-pr: true` requires the [GitHub Actions setting for creating and approving pull requests](https://docs.github.com/en/repositories/managing-your-repositorys-settings-and-features/enabling-features-for-your-repository/managing-github-actions-settings-for-a-repository#preventing-github-actions-from-creating-or-approving-pull-requests) and the workflow’s declared `pull-requests: write` permission. Capture, artifact upload, and release attachments run before that optional PR step. Use `update-pr: false` when no image PR is requested; generated image PRs remain subject to human review.
 
 ## Artwork configuration
 
