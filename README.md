@@ -1,12 +1,12 @@
-# Tabsdown
-
-Theme-native Markdown tabs for Obsidian. Works in Reading View and Live Preview on desktop and mobile.
-
 <picture>
   <source media="(prefers-color-scheme: dark)" srcset="docs/assets/product-captures/hero-dark.png">
   <source media="(prefers-color-scheme: light)" srcset="docs/assets/product-captures/hero.png">
   <img src="docs/assets/product-captures/hero.png" alt="Tabsdown: related Markdown content organized in nested tabs.">
 </picture>
+
+<p align="center">
+Theme-native Markdown tabs for Obsidian. Works in Reading View and Live Preview on desktop and mobile.
+</p>
 
 <p align="center">
 <a href="https://obsidian.md/plugins?id=tabsdown"><picture><source media="(prefers-color-scheme: dark)" srcset="https://shieldcn.dev/badge/Install_in_Obsidian.svg?variant=default&amp;size=sm&amp;font=geist&amp;mode=dark&amp;logo=obsidian&amp;color=a079ff&amp;logoColor=18181b&amp;valueColor=18181b&amp;labelTextColor=18181b&amp;gradient=a079ff%2Cac8aff%2C110"><img alt="Install in Obsidian" src="https://shieldcn.dev/badge/Install_in_Obsidian.svg?variant=default&amp;size=sm&amp;font=geist&amp;mode=light&amp;logo=obsidian&amp;color=7c3aed&amp;logoColor=ffffff&amp;valueColor=ffffff&amp;labelTextColor=ffffff&amp;gradient=7c3aed%2C8650eb%2C110"></picture></a>
@@ -80,5 +80,3 @@ Install with [BRAT](https://github.com/TfTHacker/obsidian42-brat) using `grafana
 Runs locally on desktop and mobile, with no network requests, telemetry, or account.
 
 [Report an issue](https://github.com/grafanaKibana/obsidian-tabsdown/issues) · [Contributing](CONTRIBUTING.md) · [MIT license](LICENSE)
-
-[Regenerate product images](https://github.com/grafanaKibana/product-captures#configuration)
