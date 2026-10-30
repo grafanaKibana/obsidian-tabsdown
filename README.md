@@ -14,10 +14,7 @@ Theme-native Markdown tabs for Obsidian. Works in Reading View and Live Preview 
 <a href="https://github.com/grafanaKibana/obsidian-tabsdown/actions/workflows/ci.yml"><picture><source media="(prefers-color-scheme: dark)" srcset="https://shieldcn.dev/github/ci/grafanaKibana/obsidian-tabsdown.svg?variant=outline&amp;size=sm&amp;font=geist&amp;mode=dark&amp;label=CI&amp;workflow=ci.yml&amp;branch=main&amp;statusDot=true&amp;gradient=18181b%2C18181b%2C90&amp;labelTextColor=fafafa"><img alt="CI status" src="https://shieldcn.dev/github/ci/grafanaKibana/obsidian-tabsdown.svg?variant=outline&amp;size=sm&amp;font=geist&amp;mode=light&amp;label=CI&amp;workflow=ci.yml&amp;branch=main&amp;statusDot=true&amp;gradient=fafafa%2Cfafafa%2C90&amp;labelTextColor=18181b" style="display:inline-block;margin:0;vertical-align:middle"></picture></a>
 </p>
 
-- **Write in place:** edit the active tab’s Markdown in Live Preview, with the note’s Undo/Redo and keyboard navigation.
-- **Choose your syntax:** comment markers or fenced code blocks, with the same features.
-- **Shape your tabs:** nest layouts, format labels, add Lucide icons, and place the tab list on any side.
-- **Edit your layout:** add, rename, or delete tabs and change block settings from context menus.
+Keep related sections of a note together: an overview and its details, examples in different languages, or reference material beside an explanation. Each tab holds Markdown, and selecting a label shows its body.
 
 <details>
 <summary>Watch Tabsdown in Obsidian</summary>
@@ -28,50 +25,62 @@ Theme-native Markdown tabs for Obsidian. Works in Reading View and Live Preview 
 
 ## Get started
 
-Paste this into a note, keeping each marker on its own line:
+[Install and enable Tabsdown](#install), then paste this into a note:
 
 ```markdown
 %% tabs %%
 %% tab: Overview %%
-Ordinary **Markdown**, links, and lists.
+Read the summary here.
 
-%% tab: Details %%
-More content.
+%% tab: Checklist %%
+- [ ] Review the details
+- [ ] Update this note
 %% endtabs %%
 ```
 
-Use at least two unique, non-empty labels. Tab bodies can contain ordinary Markdown, embeds, queries, callouts, math, Mermaid diagrams, and nested layouts. Compatible plugin blocks use Obsidian’s Markdown renderer.
+Keep each marker on its own line and give every tab a unique, non-empty label. A layout needs at least two tabs. Open Reading View to read it, or use Live Preview to read and edit it.
 
-In Live Preview, click the active body or focus its tab and press Down to edit. Arrows enter and leave the layout; Cmd/Ctrl+A selects the active body’s text, Undo/Redo uses the note’s history, and Escape restores the rendered body. Switching tabs keeps your edits. Source Mode exposes all markers and fences.
+## Editing
+
+Click the active body, or focus its tab and press Down, to edit its Markdown. Arrows move into and out of the layout. Cmd/Ctrl+A selects the active body’s text, and Undo/Redo uses the note’s history. Escape restores the rendered body. Switching tabs keeps your edits; switching alone does not change the note.
 
 The active body uses a plain Markdown editor, without Obsidian’s rich Live Preview or third-party suggestions. Incomplete layout syntax may reveal the note’s source. If the same note is open in multiple editing panes, close the extra editor before editing a tab.
 
-- **Authoring:** right-click a block to **Add tab**, double-click a label to rename it, or choose **Delete tab** from its context menu. Deletion requires confirmation and is disabled when two tabs remain. Enter saves a unique, non-empty label; Escape cancels. Switching tabs alone never changes the note.
-- **Settings:** use the block’s context menu, or add `%% config: position=left, personality=rail %%` before the first tab. Options include position, overflow, density, personality, palette, and alignment; [Style Settings](docs/style-settings.md) provides global defaults.
-- **Icons and labels:** use `%% tab: icon:code Python %%` for a bundled [Lucide](https://lucide.dev/icons/) icon. Labels support bold, italic, strikethrough, and inline code; other Markdown stays literal.
-- **Nesting:** both formats can nest inside each other. Each layout keeps its own labels, settings, and active tab.
+Right-click a block to **Add tab**. Double-click a label to rename it; Enter saves and Escape cancels. **Delete tab** is in the tab’s context menu, requires confirmation, and is disabled when only two tabs remain.
 
-## Prefer code blocks?
+## Configuration
 
-Use a fenced `tabsdown` block with column-zero `tab:` markers:
+Use the block’s context menu for position, overflow, density, personality, palette, and alignment. To keep those settings in the source, put `%% config: position=left, personality=rail %%` before the first tab. [Style Settings](docs/style-settings.md) supplies global defaults.
+
+Labels support bold, italic, strikethrough, inline code, and bundled Lucide icons, such as `%% tab: icon:code Python %%`. Other label Markdown stays literal.
+
+## Source formats
+
+Bodies can contain embeds, queries, callouts, math, Mermaid, and compatible plugin blocks rendered by Obsidian. Nested layouts keep their own labels, settings, and active tabs. Marker and fenced layouts can nest inside each other.
+
+For a fenced layout, use:
 
 ````markdown
 ```tabsdown
 tab: Overview
-Ordinary **Markdown**, links, and lists.
-
-tab: Details
-More content.
+Read the summary here.
+tab: Checklist
+- [ ] Review the details
 ```
 ````
 
-Use matching backtick or tilde fences, with an outer fence longer than any matching fences inside it. Fenced blocks support the same editing, authoring, icons, and nesting. Put settings on a column-zero `config:` line before the first tab.
+Keep `tab:` and optional `config:` lines at column zero. Use matching backtick or tilde fences and make the outer fence longer than any matching fences inside it. Source Mode exposes the complete layout syntax.
 
 ## Guides
 
-[Marker and editing examples](demo/Marker%20tabs.md) · [Tab authoring examples](demo/Tab%20authoring.md) · [Demo test matrix](demo/Tabsdown%20test%20matrix.md)
-
-[Style Settings](docs/style-settings.md) · [CSS snippets](docs/css-snippets.md) · [Quartz publishing](docs/quartz.md) · [Templater](docs/templater.md) · [Plugin API: `mountTabs`](docs/embedding-tabs.md)
+- [Marker and editing examples](demo/Marker%20tabs.md) — Write and edit marker layouts, including nested tabs.
+- [Tab authoring](demo/Tab%20authoring.md) — Add, rename, and delete tabs from the rendered layout.
+- [Demo test matrix](demo/Tabsdown%20test%20matrix.md) — Explore content, nesting, and interaction examples.
+- [Style Settings](docs/style-settings.md) — Set global appearance defaults and understand block overrides.
+- [CSS snippets](docs/css-snippets.md) — Customize spacing, colors, and tab shapes with a vault snippet.
+- [Quartz publishing](docs/quartz.md) — Render tabs on a Quartz site with the separate publishing plugin.
+- [Templater recipes](docs/templater.md) — Generate tab layouts from static or prompted templates.
+- [Embedding tabs from another plugin](docs/embedding-tabs.md) — Use `mountTabs` to display existing plugin panels.
 
 ## Install
 
@@ -79,4 +88,4 @@ Install with [BRAT](https://github.com/TfTHacker/obsidian42-brat) using `grafana
 
 Runs locally on desktop and mobile, with no network requests, telemetry, or account.
 
-[Report an issue](https://github.com/grafanaKibana/obsidian-tabsdown/issues) · [Contributing](CONTRIBUTING.md) · [MIT license](LICENSE)
+[Report an issue](https://github.com/grafanaKibana/obsidian-tabsdown/issues) | [Contributing](CONTRIBUTING.md) | [License](LICENSE)
