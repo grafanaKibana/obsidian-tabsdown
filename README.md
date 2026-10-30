@@ -25,8 +25,8 @@ Theme-native Markdown tabs for Obsidian. Works in Reading View and Live Preview 
 <picture>
   <source media="(prefers-reduced-motion: reduce) and (prefers-color-scheme: dark)" srcset="https://raw.githubusercontent.com/grafanaKibana/obsidian-tabsdown/HEAD/docs/assets/product-captures/hero-dark.png">
   <source media="(prefers-reduced-motion: reduce)" srcset="https://raw.githubusercontent.com/grafanaKibana/obsidian-tabsdown/HEAD/docs/assets/product-captures/hero.png">
-  <source media="(prefers-color-scheme: dark)" srcset="https://raw.githubusercontent.com/grafanaKibana/obsidian-tabsdown/HEAD/docs/assets/product-captures/showcase-dark.gif">
-  <img src="https://raw.githubusercontent.com/grafanaKibana/obsidian-tabsdown/HEAD/docs/assets/product-captures/showcase.gif" alt="Watch Tabsdown: a guided demonstration in Obsidian." loading="lazy" width="1280">
+  <source media="(prefers-color-scheme: dark)" srcset="https://raw.githubusercontent.com/grafanaKibana/obsidian-tabsdown/HEAD/docs/assets/tabsdown-showcase-dark.gif">
+  <img src="https://raw.githubusercontent.com/grafanaKibana/obsidian-tabsdown/HEAD/docs/assets/tabsdown-showcase-light.gif" alt="Watch Tabsdown: turn ordinary Markdown into tabs, then switch sections and nested day tabs." loading="lazy" width="1280">
 </picture>
 
 </details>

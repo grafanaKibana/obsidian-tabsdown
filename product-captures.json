@@ -13,44 +13,5 @@
     },
     "css": "body { --font-text-size: 18px; --h1-size: 36px; --h2-size: 24px; --h3-size: 19px; --line-height-normal: 1.5; } .markdown-preview-view .markdown-preview-sizer { max-width: 1160px; margin-inline: auto; padding-top: 24px; } .markdown-preview-view .image-embed { display: block; } .markdown-preview-view .image-embed img { display: block; width: 100%; object-fit: cover; object-position: 50% 76%; border-radius: 12px; } .markdown-preview-view table { width: 100%; } .markdown-preview-view .image-embed img { height: 196px; } body { --tabsdown-horizontal-padding: 24px; --tabsdown-content-spacing: 20px; --tabsdown-side-width: 144px; --tabsdown-gap: 6px; } body { --tabsdown-selected-radius: 12px; --tabsdown-icon-size: 18px; --tabsdown-icon-spacing: 8px; }"
   },
-  "build": "npm ci --cache .product-captures-cache/npm && npm run build",
-  "animation": {
-    "steps": [
-      {
-        "text": "Switch between the days of your trip",
-        "selector": ".workspace-leaf.mod-active .markdown-preview-view .tabsdown--left > .tabsdown__tablist > button:has-text(\"Sat 19\")",
-        "ready": ".workspace-leaf.mod-active .markdown-preview-view h3:text-is(\"Belém, at our own pace\")",
-        "zoom": 1.12,
-        "durationMs": 2800
-      },
-      {
-        "text": "Keep photos, tables and callouts together",
-        "selector": ".workspace-leaf.mod-active .markdown-preview-view .tabsdown--left > .tabsdown__tablist > button:has-text(\"Fri 18\")",
-        "ready": ".workspace-leaf.mod-active .markdown-preview-view h2:text-is(\"Alfama & the river\")",
-        "zoom": 1.08,
-        "durationMs": 2800
-      },
-      {
-        "text": "Give saved places their own tab",
-        "selector": ".workspace-leaf.mod-active .markdown-preview-view .tabsdown--top > .tabsdown__tablist > button:has-text(\"Saved places\")",
-        "ready": ".workspace-leaf.mod-active .markdown-preview-view h2:text-is(\"A shortlist, not a checklist\")",
-        "zoom": 1.08,
-        "durationMs": 2600
-      },
-      {
-        "text": "Switch to your packing checklist",
-        "selector": ".workspace-leaf.mod-active .markdown-preview-view .tabsdown--top > .tabsdown__tablist > button:has-text(\"Before we go\")",
-        "ready": ".workspace-leaf.mod-active .markdown-preview-view h2:text-is(\"Keep the bag light\")",
-        "zoom": 1,
-        "durationMs": 2600
-      },
-      {
-        "text": "Return to the full note",
-        "selector": ".workspace-leaf.mod-active .markdown-preview-view .tabsdown--top > .tabsdown__tablist > button:has-text(\"The days\")",
-        "ready": ".workspace-leaf.mod-active .markdown-preview-view h2:text-is(\"Alfama & the river\")",
-        "zoom": 1,
-        "durationMs": 2600
-      }
-    ]
-  }
+  "build": "npm ci --cache .product-captures-cache/npm && npm run build"
 }

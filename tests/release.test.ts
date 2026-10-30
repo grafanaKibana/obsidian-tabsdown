@@ -129,11 +129,11 @@ test("keeps themed README walkthroughs linked and reasonably sized", () => {
 	expect(player).toContain("prefers-color-scheme: dark");
 	expect(player).toContain("prefers-reduced-motion: reduce");
 	for (const suffix of ["", "-dark"]) {
-		const filename = `showcase${suffix}.gif`;
+		const filename = `tabsdown-showcase-${suffix ? "dark" : "light"}.gif`;
 		expect(player).toContain(
-			`https://raw.githubusercontent.com/grafanaKibana/obsidian-tabsdown/HEAD/docs/assets/product-captures/${filename}`,
+			`https://raw.githubusercontent.com/grafanaKibana/obsidian-tabsdown/HEAD/docs/assets/${filename}`,
 		);
-		const gif = readFileSync(resolve(repositoryRoot, "docs/assets/product-captures", filename));
+		const gif = readFileSync(resolve(repositoryRoot, "docs/assets", filename));
 		expect(gif.subarray(0, 6).toString("ascii")).toBe("GIF89a");
 		expect(gif.readUInt16LE(6)).toBe(1280);
 		expect(gif.readUInt16LE(8)).toBe(900);
