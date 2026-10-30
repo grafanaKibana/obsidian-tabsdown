@@ -7,7 +7,6 @@ import {
 	mkdirSync,
 	readFileSync,
 	rmSync,
-	statSync,
 	writeFileSync,
 } from "node:fs";
 import { tmpdir } from "node:os";
@@ -121,11 +120,26 @@ test("demo enables only plugins with tracked runtime bundles", () => {
 	expect(enabled.sort()).toEqual(tracked.sort());
 });
 
-test("keeps the full-resolution README showcase linked and reasonably sized", () => {
+test("keeps themed README walkthroughs linked and reasonably sized", () => {
 	const readme = readFileSync(resolve(repositoryRoot, "README.md"), "utf8");
-	expect(readme).toMatch(/!\[[^\]]*\]\(docs\/assets\/tabsdown-showcase\.gif\)/);
-	expect(statSync(resolve(repositoryRoot, "docs/assets/tabsdown-showcase.gif")).size)
-		.toBeLessThanOrEqual(10_000_000);
+	const player = readme.match(
+		/<summary>Watch Tabsdown in Obsidian<\/summary>([\s\S]*?)<\/details>/,
+	)?.[1];
+	expect(player).toBeDefined();
+	expect(player).toContain("prefers-color-scheme: dark");
+	expect(player).toContain("prefers-reduced-motion: reduce");
+	for (const suffix of ["", "-dark"]) {
+		const filename = `showcase${suffix}.gif`;
+		expect(player).toContain(
+			`https://raw.githubusercontent.com/grafanaKibana/obsidian-tabsdown/HEAD/docs/assets/product-captures/${filename}`,
+		);
+		const gif = readFileSync(resolve(repositoryRoot, "docs/assets/product-captures", filename));
+		expect(gif.subarray(0, 6).toString("ascii")).toBe("GIF89a");
+		expect(gif.readUInt16LE(6)).toBe(1280);
+		expect(gif.readUInt16LE(8)).toBe(900);
+		expect(gif.length).toBeLessThanOrEqual(10_000_000);
+		expect(player).toContain(`hero${suffix}.png`);
+	}
 });
 
 test("releases the current main head without a commit input", () => {
