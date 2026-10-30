@@ -5,7 +5,13 @@
   },
   "capture": {
     "type": "obsidian",
-    "ready": ".tabsdown"
+    "ready": ".tabsdown:visible",
+    "note": "Lisbon long weekend.md",
+    "viewport": {
+      "width": 1280,
+      "height": 900
+    },
+    "css": "body { --font-text-size: 18px; --h1-size: 36px; --h2-size: 24px; --h3-size: 19px; --line-height-normal: 1.5; } .markdown-preview-view .markdown-preview-sizer { max-width: 1160px; margin-inline: auto; padding-top: 24px; } .markdown-preview-view .image-embed { display: block; } .markdown-preview-view .image-embed img { display: block; width: 100%; object-fit: cover; object-position: 50% 76%; border-radius: 12px; } .markdown-preview-view table { width: 100%; } .markdown-preview-view .image-embed img { height: 196px; } body { --tabsdown-horizontal-padding: 24px; --tabsdown-content-spacing: 20px; --tabsdown-side-width: 144px; --tabsdown-gap: 6px; } body { --tabsdown-selected-radius: 12px; --tabsdown-icon-size: 18px; --tabsdown-icon-spacing: 8px; }"
   },
   "build": "npm ci --cache .product-captures-cache/npm && npm run build"
 }
