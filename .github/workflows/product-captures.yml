@@ -1,8 +1,6 @@
 name: Product captures
 
 on:
-  release:
-    types: [published]
   workflow_dispatch:
     inputs:
       dry_run:
@@ -30,8 +28,7 @@ jobs:
   captures:
     uses: grafanaKibana/product-captures/.github/workflows/capture.yml@v2
     with:
-      dry-run: ${{ github.event_name == 'workflow_dispatch' && inputs.dry_run || false }}
-      reuse-screenshots: ${{ inputs.reuse_screenshots || false }}
-      url: ${{ inputs.url || '' }}
-      release-tag: ${{ github.event.release.tag_name || '' }}
-      update-pr: ${{ github.event_name == 'release' || inputs.update_pr || false }}
+      dry-run: ${{ inputs.dry_run }}
+      reuse-screenshots: ${{ inputs.reuse_screenshots }}
+      url: ${{ inputs.url }}
+      update-pr: ${{ inputs.update_pr }}
