@@ -1,0 +1,11 @@
+{
+  "name": "Tabsdown",
+  "appearance": {
+    "tint": "#6c4b91"
+  },
+  "capture": {
+    "type": "obsidian",
+    "ready": ".tabsdown"
+  },
+  "build": "npm ci --cache .product-captures-cache/npm && npm run build"
+}
