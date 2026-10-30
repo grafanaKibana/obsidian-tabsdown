@@ -22,7 +22,12 @@ Theme-native Markdown tabs for Obsidian. Works in Reading View and Live Preview 
 <details>
 <summary>Watch Tabsdown in Obsidian</summary>
 
-![Tabsdown: theme-native tabs with nested Markdown content.](docs/assets/tabsdown-showcase.gif)
+<picture>
+  <source media="(prefers-reduced-motion: reduce) and (prefers-color-scheme: dark)" srcset="https://raw.githubusercontent.com/grafanaKibana/obsidian-tabsdown/HEAD/docs/assets/product-captures/hero-dark.png">
+  <source media="(prefers-reduced-motion: reduce)" srcset="https://raw.githubusercontent.com/grafanaKibana/obsidian-tabsdown/HEAD/docs/assets/product-captures/hero.png">
+  <source media="(prefers-color-scheme: dark)" srcset="https://raw.githubusercontent.com/grafanaKibana/obsidian-tabsdown/HEAD/docs/assets/product-captures/showcase-dark.gif">
+  <img src="https://raw.githubusercontent.com/grafanaKibana/obsidian-tabsdown/HEAD/docs/assets/product-captures/showcase.gif" alt="Watch Tabsdown: a guided demonstration in Obsidian." loading="lazy" width="1280">
+</picture>
 
 </details>
 
