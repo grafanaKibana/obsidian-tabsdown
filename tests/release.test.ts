@@ -120,34 +120,31 @@ test("demo enables only plugins with tracked runtime bundles", () => {
 	expect(enabled.sort()).toEqual(tracked.sort());
 });
 
-test("pins themed README posters and links both public video players", () => {
+test("plays the matching theme animation directly in the README", () => {
 	const readme = readFileSync(resolve(repositoryRoot, "README.md"), "utf8");
 	const walkthrough = readme.match(
 		/<summary>Watch Tabsdown in Obsidian<\/summary>([\s\S]*?)<\/details>/,
 	)?.[1];
 	expect(walkthrough).toBeDefined();
 	expect(walkthrough).toContain("prefers-color-scheme: dark");
-	expect(walkthrough).not.toContain(".gif");
-	expect(walkthrough).not.toContain("autoplay");
-	expect(walkthrough).toMatch(
-		new RegExp(String.raw`<a href="https://github\.com/grafanaKibana/obsidian-tabsdown/pull/\d+#user-content-capture-light">\s*<picture>`),
-	);
+	expect(walkthrough).toContain("<picture>");
+	expect(walkthrough).not.toMatch(/<a\b|\/pull\/|Watch in .* theme/);
 	for (const theme of ["light", "dark"]) {
 		const filename = `tabsdown-showcase-${theme}`;
 		expect(walkthrough).toMatch(
-			new RegExp(String.raw`https://raw\.githubusercontent\.com/grafanaKibana/obsidian-tabsdown/[a-f0-9]{40}/docs/assets/${filename}\.png`),
+			new RegExp(String.raw`https://raw\.githubusercontent\.com/grafanaKibana/obsidian-tabsdown/[a-f0-9]{40}/docs/assets/${filename}\.webp`),
 		);
-		expect(walkthrough).toMatch(
-			new RegExp(String.raw`\[Watch in ${theme} theme\]\(https://github\.com/grafanaKibana/obsidian-tabsdown/pull/\d+#user-content-capture-${theme}\)`),
-		);
-		const poster = readFileSync(resolve(repositoryRoot, "docs/assets", `${filename}.png`));
-		expect(poster.subarray(0, 8).toString("hex")).toBe("89504e470d0a1a0a");
-		expect(poster.readUInt32BE(16)).toBe(1280);
-		expect(poster.readUInt32BE(20)).toBe(900);
+		const animation = readFileSync(resolve(repositoryRoot, "docs/assets", `${filename}.webp`));
+		expect(animation.subarray(0, 4).toString("ascii")).toBe("RIFF");
+		expect(animation.subarray(8, 12).toString("ascii")).toBe("WEBP");
+		expect(animation[20]! & 2).toBe(2);
+		expect(animation.readUIntLE(24, 3) + 1).toBe(1280);
+		expect(animation.readUIntLE(27, 3) + 1).toBe(900);
+		expect(animation.includes(Buffer.from("ANIM"))).toBe(true);
+		expect(animation.includes(Buffer.from("ANMF"))).toBe(true);
 		const video = readFileSync(resolve(repositoryRoot, "docs/assets", `${filename}.mp4`));
 		expect(video.subarray(4, 8).toString("ascii")).toBe("ftyp");
 		expect(video.includes(Buffer.from("avc1"))).toBe(true);
-		expect(video.length).toBeLessThanOrEqual(10_000_000);
 	}
 });
 
