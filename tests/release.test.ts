@@ -120,7 +120,7 @@ test("demo enables only plugins with tracked runtime bundles", () => {
 	expect(enabled.sort()).toEqual(tracked.sort());
 });
 
-test("keeps themed README posters static and links both MP4 walkthroughs", () => {
+test("pins themed README posters and links both public video players", () => {
 	const readme = readFileSync(resolve(repositoryRoot, "README.md"), "utf8");
 	const walkthrough = readme.match(
 		/<summary>Watch Tabsdown in Obsidian<\/summary>([\s\S]*?)<\/details>/,
@@ -131,8 +131,8 @@ test("keeps themed README posters static and links both MP4 walkthroughs", () =>
 	expect(walkthrough).not.toContain("autoplay");
 	for (const theme of ["light", "dark"]) {
 		const filename = `tabsdown-showcase-${theme}`;
-		expect(walkthrough).toContain(
-			`https://raw.githubusercontent.com/grafanaKibana/obsidian-tabsdown/HEAD/docs/assets/${filename}.png`,
+		expect(walkthrough).toMatch(
+			new RegExp(String.raw`https://raw\.githubusercontent\.com/grafanaKibana/obsidian-tabsdown/[a-f0-9]{40}/docs/assets/${filename}\.png`),
 		);
 		expect(walkthrough).toMatch(
 			new RegExp(String.raw`\[Watch in ${theme} theme\]\(https://github\.com/grafanaKibana/obsidian-tabsdown/pull/\d+#user-content-capture-${theme}\)`),
