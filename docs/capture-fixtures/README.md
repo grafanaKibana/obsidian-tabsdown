@@ -1,0 +1,3 @@
+The capture vault contains an illustrative trip plan rendered by the real plugin. Fenced layouts keep each complete region in a single native preview section during capture. The note demonstrates an equal-width icon rail with nested vertical underline tabs. `product-captures.json` controls the viewport and capture-only Obsidian styling; it does not change the plugin defaults or your demo vault.
+
+`vault/Attachments/lisbon.jpg`: photograph by [Niklas Jeromin on Pexels](https://www.pexels.com/photo/scenic-lisbon-rooftops-overlooking-the-tagus-river-36112750/), used under the [Pexels License](https://www.pexels.com/license/). The local copy keeps image generation independent of an external image server.
