@@ -37,14 +37,10 @@ Keep each marker on its own line and give every tab a unique, non-empty label. A
 <details>
 <summary>Watch Tabsdown in Obsidian</summary>
 
-<a href="https://github.com/grafanaKibana/obsidian-tabsdown/pull/93#user-content-capture-light">
 <picture>
-  <source media="(prefers-color-scheme: dark)" srcset="https://raw.githubusercontent.com/grafanaKibana/obsidian-tabsdown/c73d8800fbcf8bea6e6d84c27556188f9bf6149f/docs/assets/tabsdown-showcase-dark.png">
-  <img src="https://raw.githubusercontent.com/grafanaKibana/obsidian-tabsdown/c73d8800fbcf8bea6e6d84c27556188f9bf6149f/docs/assets/tabsdown-showcase-light.png" alt="Tabsdown video preview: create tabs with comment markers and write directly in Live Preview." loading="lazy" width="1280">
+  <source media="(prefers-color-scheme: dark)" srcset="https://raw.githubusercontent.com/grafanaKibana/obsidian-tabsdown/4c6a4b19cf681070c3bd392e34cb7e0d3e2cd5c4/docs/assets/tabsdown-showcase-dark.webp">
+  <img src="https://raw.githubusercontent.com/grafanaKibana/obsidian-tabsdown/4c6a4b19cf681070c3bd392e34cb7e0d3e2cd5c4/docs/assets/tabsdown-showcase-light.webp" alt="Tabsdown walkthrough: create tabs with comment markers and write directly in Live Preview." loading="lazy" width="1280">
 </picture>
-</a>
-
-[Watch in light theme](https://github.com/grafanaKibana/obsidian-tabsdown/pull/93#user-content-capture-light) | [Watch in dark theme](https://github.com/grafanaKibana/obsidian-tabsdown/pull/93#user-content-capture-dark)
 
 </details>
 
