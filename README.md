@@ -12,23 +12,10 @@ Theme-native Markdown tabs for Obsidian. Works in Reading View and Live Preview 
 <a href="https://obsidian.md/plugins?id=tabsdown"><picture><source media="(prefers-color-scheme: dark)" srcset="https://shieldcn.dev/badge/Install_in_Obsidian.svg?variant=default&amp;size=sm&amp;font=geist&amp;mode=dark&amp;logo=obsidian&amp;color=a079ff&amp;logoColor=18181b&amp;valueColor=18181b&amp;labelTextColor=18181b&amp;gradient=a079ff%2Cac8aff%2C110"><img alt="Install in Obsidian" src="https://shieldcn.dev/badge/Install_in_Obsidian.svg?variant=default&amp;size=sm&amp;font=geist&amp;mode=light&amp;logo=obsidian&amp;color=7c3aed&amp;logoColor=ffffff&amp;valueColor=ffffff&amp;labelTextColor=ffffff&amp;gradient=7c3aed%2C8650eb%2C110" style="display:inline-block;margin:0;vertical-align:middle"></picture></a>
 <a href="https://github.com/grafanaKibana/obsidian-tabsdown/releases/latest"><picture><source media="(prefers-color-scheme: dark)" srcset="https://shieldcn.dev/github/release/grafanaKibana/obsidian-tabsdown/stable.svg?variant=outline&amp;size=sm&amp;font=geist&amp;mode=dark&amp;label=Version&amp;gradient=18181b%2C18181b%2C90&amp;labelTextColor=fafafa"><img alt="Latest version" src="https://shieldcn.dev/github/release/grafanaKibana/obsidian-tabsdown/stable.svg?variant=outline&amp;size=sm&amp;font=geist&amp;mode=light&amp;label=Version&amp;gradient=fafafa%2Cfafafa%2C90&amp;labelTextColor=18181b" style="display:inline-block;margin:0;vertical-align:middle"></picture></a>
 <a href="https://github.com/grafanaKibana/obsidian-tabsdown/actions/workflows/ci.yml"><picture><source media="(prefers-color-scheme: dark)" srcset="https://shieldcn.dev/github/ci/grafanaKibana/obsidian-tabsdown.svg?variant=outline&amp;size=sm&amp;font=geist&amp;mode=dark&amp;label=CI&amp;workflow=ci.yml&amp;branch=main&amp;statusDot=true&amp;gradient=18181b%2C18181b%2C90&amp;labelTextColor=fafafa"><img alt="CI status" src="https://shieldcn.dev/github/ci/grafanaKibana/obsidian-tabsdown.svg?variant=outline&amp;size=sm&amp;font=geist&amp;mode=light&amp;label=CI&amp;workflow=ci.yml&amp;branch=main&amp;statusDot=true&amp;gradient=fafafa%2Cfafafa%2C90&amp;labelTextColor=18181b" style="display:inline-block;margin:0;vertical-align:middle"></picture></a>
+<a href="https://github.com/grafanaKibana/obsidian-tabsdown/issues"><picture><source media="(prefers-color-scheme: dark)" srcset="https://shieldcn.dev/badge/Report_an_issue.svg?variant=outline&amp;size=sm&amp;font=geist&amp;mode=dark&amp;logo=ri%3ALuBug&amp;gradient=18181b%2C18181b%2C90&amp;logoColor=fafafa&amp;labelTextColor=fafafa"><img alt="Report an issue" src="https://shieldcn.dev/badge/Report_an_issue.svg?variant=outline&amp;size=sm&amp;font=geist&amp;mode=light&amp;logo=ri%3ALuBug&amp;gradient=fafafa%2Cfafafa%2C90&amp;logoColor=18181b&amp;labelTextColor=18181b" style="display:inline-block;margin:0;vertical-align:middle"></picture></a>
+<a href="CONTRIBUTING.md"><picture><source media="(prefers-color-scheme: dark)" srcset="https://shieldcn.dev/badge/Contributing.svg?variant=outline&amp;size=sm&amp;font=geist&amp;mode=dark&amp;logo=ri%3ALuGitPullRequest&amp;gradient=18181b%2C18181b%2C90&amp;logoColor=fafafa&amp;labelTextColor=fafafa"><img alt="Contributing" src="https://shieldcn.dev/badge/Contributing.svg?variant=outline&amp;size=sm&amp;font=geist&amp;mode=light&amp;logo=ri%3ALuGitPullRequest&amp;gradient=fafafa%2Cfafafa%2C90&amp;logoColor=18181b&amp;labelTextColor=18181b" style="display:inline-block;margin:0;vertical-align:middle"></picture></a>
+<a href="LICENSE"><picture><source media="(prefers-color-scheme: dark)" srcset="https://shieldcn.dev/badge/License.svg?variant=outline&amp;size=sm&amp;font=geist&amp;mode=dark&amp;logo=ri%3ALuScale&amp;gradient=18181b%2C18181b%2C90&amp;logoColor=fafafa&amp;labelTextColor=fafafa"><img alt="License" src="https://shieldcn.dev/badge/License.svg?variant=outline&amp;size=sm&amp;font=geist&amp;mode=light&amp;logo=ri%3ALuScale&amp;gradient=fafafa%2Cfafafa%2C90&amp;logoColor=18181b&amp;labelTextColor=18181b" style="display:inline-block;margin:0;vertical-align:middle"></picture></a>
 </p>
-
-Keep related sections of a note together: an overview and its details, examples in different languages, or reference material beside an explanation. Each tab holds Markdown, and selecting a label shows its body.
-
-<details>
-<summary>Watch Tabsdown in Obsidian</summary>
-
-<a href="https://github.com/grafanaKibana/obsidian-tabsdown/pull/93#user-content-capture-light">
-<picture>
-  <source media="(prefers-color-scheme: dark)" srcset="https://raw.githubusercontent.com/grafanaKibana/obsidian-tabsdown/c73d8800fbcf8bea6e6d84c27556188f9bf6149f/docs/assets/tabsdown-showcase-dark.png">
-  <img src="https://raw.githubusercontent.com/grafanaKibana/obsidian-tabsdown/c73d8800fbcf8bea6e6d84c27556188f9bf6149f/docs/assets/tabsdown-showcase-light.png" alt="Tabsdown video preview: create tabs with comment markers and write directly in Live Preview." loading="lazy" width="1280">
-</picture>
-</a>
-
-[Watch in light theme](https://github.com/grafanaKibana/obsidian-tabsdown/pull/93#user-content-capture-light) | [Watch in dark theme](https://github.com/grafanaKibana/obsidian-tabsdown/pull/93#user-content-capture-dark)
-
-</details>
 
 ## Get started
 
@@ -46,6 +33,20 @@ Read the summary here.
 ```
 
 Keep each marker on its own line and give every tab a unique, non-empty label. A layout needs at least two tabs. Open Reading View to read it, or use Live Preview to read and edit it.
+
+<details>
+<summary>Watch Tabsdown in Obsidian</summary>
+
+<a href="https://github.com/grafanaKibana/obsidian-tabsdown/pull/93#user-content-capture-light">
+<picture>
+  <source media="(prefers-color-scheme: dark)" srcset="https://raw.githubusercontent.com/grafanaKibana/obsidian-tabsdown/c73d8800fbcf8bea6e6d84c27556188f9bf6149f/docs/assets/tabsdown-showcase-dark.png">
+  <img src="https://raw.githubusercontent.com/grafanaKibana/obsidian-tabsdown/c73d8800fbcf8bea6e6d84c27556188f9bf6149f/docs/assets/tabsdown-showcase-light.png" alt="Tabsdown video preview: create tabs with comment markers and write directly in Live Preview." loading="lazy" width="1280">
+</picture>
+</a>
+
+[Watch in light theme](https://github.com/grafanaKibana/obsidian-tabsdown/pull/93#user-content-capture-light) | [Watch in dark theme](https://github.com/grafanaKibana/obsidian-tabsdown/pull/93#user-content-capture-dark)
+
+</details>
 
 ## Editing
 
@@ -94,5 +95,3 @@ Keep `tab:` and optional `config:` lines at column zero. Use matching backtick o
 Install with [BRAT](https://github.com/TfTHacker/obsidian42-brat) using `grafanaKibana/obsidian-tabsdown`, or copy `main.js`, `manifest.json`, and `styles.css` from the same [release](https://github.com/grafanaKibana/obsidian-tabsdown/releases) into `<Vault>/.obsidian/plugins/tabsdown/`. Reload Obsidian and enable **Tabsdown**.
 
 Runs locally on desktop and mobile, with no network requests, telemetry, or account.
-
-[Report an issue](https://github.com/grafanaKibana/obsidian-tabsdown/issues) | [Contributing](CONTRIBUTING.md) | [License](LICENSE)
