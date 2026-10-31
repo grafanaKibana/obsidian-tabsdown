@@ -129,6 +129,9 @@ test("pins themed README posters and links both public video players", () => {
 	expect(walkthrough).toContain("prefers-color-scheme: dark");
 	expect(walkthrough).not.toContain(".gif");
 	expect(walkthrough).not.toContain("autoplay");
+	expect(walkthrough).toMatch(
+		new RegExp(String.raw`<a href="https://github\.com/grafanaKibana/obsidian-tabsdown/pull/\d+#user-content-capture-light">\s*<picture>`),
+	);
 	for (const theme of ["light", "dark"]) {
 		const filename = `tabsdown-showcase-${theme}`;
 		expect(walkthrough).toMatch(
