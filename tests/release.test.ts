@@ -7,7 +7,6 @@ import {
 	mkdirSync,
 	readFileSync,
 	rmSync,
-	statSync,
 	writeFileSync,
 } from "node:fs";
 import { tmpdir } from "node:os";
@@ -121,11 +120,35 @@ test("demo enables only plugins with tracked runtime bundles", () => {
 	expect(enabled.sort()).toEqual(tracked.sort());
 });
 
-test("keeps the full-resolution README showcase linked and reasonably sized", () => {
+test("pins themed README posters and links both public video players", () => {
 	const readme = readFileSync(resolve(repositoryRoot, "README.md"), "utf8");
-	expect(readme).toMatch(/!\[[^\]]*\]\(docs\/assets\/tabsdown-showcase\.gif\)/);
-	expect(statSync(resolve(repositoryRoot, "docs/assets/tabsdown-showcase.gif")).size)
-		.toBeLessThanOrEqual(10_000_000);
+	const walkthrough = readme.match(
+		/<summary>Watch Tabsdown in Obsidian<\/summary>([\s\S]*?)<\/details>/,
+	)?.[1];
+	expect(walkthrough).toBeDefined();
+	expect(walkthrough).toContain("prefers-color-scheme: dark");
+	expect(walkthrough).not.toContain(".gif");
+	expect(walkthrough).not.toContain("autoplay");
+	expect(walkthrough).toMatch(
+		new RegExp(String.raw`<a href="https://github\.com/grafanaKibana/obsidian-tabsdown/pull/\d+#user-content-capture-light">\s*<picture>`),
+	);
+	for (const theme of ["light", "dark"]) {
+		const filename = `tabsdown-showcase-${theme}`;
+		expect(walkthrough).toMatch(
+			new RegExp(String.raw`https://raw\.githubusercontent\.com/grafanaKibana/obsidian-tabsdown/[a-f0-9]{40}/docs/assets/${filename}\.png`),
+		);
+		expect(walkthrough).toMatch(
+			new RegExp(String.raw`\[Watch in ${theme} theme\]\(https://github\.com/grafanaKibana/obsidian-tabsdown/pull/\d+#user-content-capture-${theme}\)`),
+		);
+		const poster = readFileSync(resolve(repositoryRoot, "docs/assets", `${filename}.png`));
+		expect(poster.subarray(0, 8).toString("hex")).toBe("89504e470d0a1a0a");
+		expect(poster.readUInt32BE(16)).toBe(1280);
+		expect(poster.readUInt32BE(20)).toBe(900);
+		const video = readFileSync(resolve(repositoryRoot, "docs/assets", `${filename}.mp4`));
+		expect(video.subarray(4, 8).toString("ascii")).toBe("ftyp");
+		expect(video.includes(Buffer.from("avc1"))).toBe(true);
+		expect(video.length).toBeLessThanOrEqual(10_000_000);
+	}
 });
 
 test("releases the current main head without a commit input", () => {
