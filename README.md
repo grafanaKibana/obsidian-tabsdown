@@ -26,7 +26,7 @@ Keep related sections of a note together: an overview and its details, examples 
 </picture>
 </a>
 
-[Watch in light theme](https://github.com/grafanaKibana/obsidian-tabsdown/pull/93#user-content-capture-light) · [Watch in dark theme](https://github.com/grafanaKibana/obsidian-tabsdown/pull/93#user-content-capture-dark)
+[Watch in light theme](https://github.com/grafanaKibana/obsidian-tabsdown/pull/93#user-content-capture-light) | [Watch in dark theme](https://github.com/grafanaKibana/obsidian-tabsdown/pull/93#user-content-capture-dark)
 
 </details>
 
