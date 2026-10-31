@@ -23,11 +23,11 @@ Theme-native Markdown tabs for Obsidian. Works in Reading View and Live Preview 
 <summary>Watch Tabsdown in Obsidian</summary>
 
 <picture>
-  <source media="(prefers-reduced-motion: reduce) and (prefers-color-scheme: dark)" srcset="https://raw.githubusercontent.com/grafanaKibana/obsidian-tabsdown/HEAD/docs/assets/product-captures/hero-dark.png">
-  <source media="(prefers-reduced-motion: reduce)" srcset="https://raw.githubusercontent.com/grafanaKibana/obsidian-tabsdown/HEAD/docs/assets/product-captures/hero.png">
-  <source media="(prefers-color-scheme: dark)" srcset="https://raw.githubusercontent.com/grafanaKibana/obsidian-tabsdown/HEAD/docs/assets/tabsdown-showcase-dark.gif">
-  <img src="https://raw.githubusercontent.com/grafanaKibana/obsidian-tabsdown/HEAD/docs/assets/tabsdown-showcase-light.gif" alt="Watch Tabsdown: create tabs with comment markers, write directly in Live Preview, and switch between nested day tabs." loading="lazy" width="1280">
+  <source media="(prefers-color-scheme: dark)" srcset="https://raw.githubusercontent.com/grafanaKibana/obsidian-tabsdown/HEAD/docs/assets/tabsdown-showcase-dark.png">
+  <img src="https://raw.githubusercontent.com/grafanaKibana/obsidian-tabsdown/HEAD/docs/assets/tabsdown-showcase-light.png" alt="Tabsdown video preview: create tabs with comment markers and write directly in Live Preview." loading="lazy" width="1280">
 </picture>
+
+[Watch in light theme](https://github.com/grafanaKibana/obsidian-tabsdown/blob/HEAD/docs/assets/tabsdown-showcase-light.mp4) · [Watch in dark theme](https://github.com/grafanaKibana/obsidian-tabsdown/blob/HEAD/docs/assets/tabsdown-showcase-dark.mp4)
 
 </details>
 

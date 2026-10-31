@@ -120,25 +120,31 @@ test("demo enables only plugins with tracked runtime bundles", () => {
 	expect(enabled.sort()).toEqual(tracked.sort());
 });
 
-test("keeps themed README walkthroughs linked and reasonably sized", () => {
+test("keeps themed README posters static and links both MP4 walkthroughs", () => {
 	const readme = readFileSync(resolve(repositoryRoot, "README.md"), "utf8");
-	const player = readme.match(
+	const walkthrough = readme.match(
 		/<summary>Watch Tabsdown in Obsidian<\/summary>([\s\S]*?)<\/details>/,
 	)?.[1];
-	expect(player).toBeDefined();
-	expect(player).toContain("prefers-color-scheme: dark");
-	expect(player).toContain("prefers-reduced-motion: reduce");
-	for (const suffix of ["", "-dark"]) {
-		const filename = `tabsdown-showcase-${suffix ? "dark" : "light"}.gif`;
-		expect(player).toContain(
-			`https://raw.githubusercontent.com/grafanaKibana/obsidian-tabsdown/HEAD/docs/assets/${filename}`,
+	expect(walkthrough).toBeDefined();
+	expect(walkthrough).toContain("prefers-color-scheme: dark");
+	expect(walkthrough).not.toContain(".gif");
+	expect(walkthrough).not.toContain("autoplay");
+	for (const theme of ["light", "dark"]) {
+		const filename = `tabsdown-showcase-${theme}`;
+		expect(walkthrough).toContain(
+			`https://raw.githubusercontent.com/grafanaKibana/obsidian-tabsdown/HEAD/docs/assets/${filename}.png`,
 		);
-		const gif = readFileSync(resolve(repositoryRoot, "docs/assets", filename));
-		expect(gif.subarray(0, 6).toString("ascii")).toBe("GIF89a");
-		expect(gif.readUInt16LE(6)).toBe(1280);
-		expect(gif.readUInt16LE(8)).toBe(900);
-		expect(gif.length).toBeLessThanOrEqual(10_000_000);
-		expect(player).toContain(`hero${suffix}.png`);
+		expect(walkthrough).toContain(
+			`https://github.com/grafanaKibana/obsidian-tabsdown/blob/HEAD/docs/assets/${filename}.mp4`,
+		);
+		const poster = readFileSync(resolve(repositoryRoot, "docs/assets", `${filename}.png`));
+		expect(poster.subarray(0, 8).toString("hex")).toBe("89504e470d0a1a0a");
+		expect(poster.readUInt32BE(16)).toBe(1280);
+		expect(poster.readUInt32BE(20)).toBe(900);
+		const video = readFileSync(resolve(repositoryRoot, "docs/assets", `${filename}.mp4`));
+		expect(video.subarray(4, 8).toString("ascii")).toBe("ftyp");
+		expect(video.includes(Buffer.from("avc1"))).toBe(true);
+		expect(video.length).toBeLessThanOrEqual(10_000_000);
 	}
 });
 
