@@ -134,8 +134,8 @@ test("keeps themed README posters static and links both MP4 walkthroughs", () =>
 		expect(walkthrough).toContain(
 			`https://raw.githubusercontent.com/grafanaKibana/obsidian-tabsdown/HEAD/docs/assets/${filename}.png`,
 		);
-		expect(walkthrough).toContain(
-			`https://github.com/grafanaKibana/obsidian-tabsdown/blob/HEAD/docs/assets/${filename}.mp4`,
+		expect(walkthrough).toMatch(
+			new RegExp(String.raw`\[Watch in ${theme} theme\]\(https://github\.com/grafanaKibana/obsidian-tabsdown/pull/\d+#user-content-capture-${theme}\)`),
 		);
 		const poster = readFileSync(resolve(repositoryRoot, "docs/assets", `${filename}.png`));
 		expect(poster.subarray(0, 8).toString("hex")).toBe("89504e470d0a1a0a");

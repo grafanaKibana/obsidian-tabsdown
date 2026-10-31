@@ -27,7 +27,7 @@ Theme-native Markdown tabs for Obsidian. Works in Reading View and Live Preview 
   <img src="https://raw.githubusercontent.com/grafanaKibana/obsidian-tabsdown/HEAD/docs/assets/tabsdown-showcase-light.png" alt="Tabsdown video preview: create tabs with comment markers and write directly in Live Preview." loading="lazy" width="1280">
 </picture>
 
-[Watch in light theme](https://github.com/grafanaKibana/obsidian-tabsdown/blob/HEAD/docs/assets/tabsdown-showcase-light.mp4) · [Watch in dark theme](https://github.com/grafanaKibana/obsidian-tabsdown/blob/HEAD/docs/assets/tabsdown-showcase-dark.mp4)
+[Watch in light theme](https://github.com/grafanaKibana/obsidian-tabsdown/pull/94#user-content-capture-light) · [Watch in dark theme](https://github.com/grafanaKibana/obsidian-tabsdown/pull/94#user-content-capture-dark)
 
 </details>
 
