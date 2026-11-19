@@ -2637,3 +2637,79 @@ body .tabsdown.tabsdown.tabsdown.tabsdown.tabsdown.tabsdown > .tabsdown__tablist
 .tabsdown-marker-hidden.tabsdown-marker-hidden.tabsdown-marker-hidden {
 	display: none;
 }
+
+/* Overflow cue. A scrolling tab list otherwise gives no sign that more tabs sit
+   past its edge. Each fade follows the list's own scroll position, so it shows
+   only while that edge still hides a tab. A list that fits has no scroll
+   timeline: both lengths keep their 0px initial value and the mask is opaque. */
+@property --tabsdown-edge-fade-start {
+	syntax: "<length>";
+	inherits: false;
+	initial-value: 0px;
+}
+
+@property --tabsdown-edge-fade-end {
+	syntax: "<length>";
+	inherits: false;
+	initial-value: 0px;
+}
+
+@keyframes tabsdown-edge-fade {
+	from {
+		--tabsdown-edge-fade-start: 0px;
+		--tabsdown-edge-fade-end: var(--tabsdown-edge-fade-size, 2.5rem);
+	}
+
+	8% {
+		--tabsdown-edge-fade-start: var(--tabsdown-edge-fade-size, 2.5rem);
+	}
+
+	92% {
+		--tabsdown-edge-fade-end: var(--tabsdown-edge-fade-size, 2.5rem);
+	}
+
+	to {
+		--tabsdown-edge-fade-start: var(--tabsdown-edge-fade-size, 2.5rem);
+		--tabsdown-edge-fade-end: 0px;
+	}
+}
+
+@supports (animation-timeline: scroll()) {
+	.tabsdown__tablist {
+		--tabsdown-edge-fade-direction: to right;
+		/* Focus scrolling stops a tab clear of the fades. */
+		scroll-padding: var(--tabsdown-edge-fade-size, 2.5rem);
+		mask-image: linear-gradient(
+			var(--tabsdown-edge-fade-direction),
+			transparent,
+			#000 var(--tabsdown-edge-fade-start),
+			#000 calc(100% - var(--tabsdown-edge-fade-end)),
+			transparent
+		);
+		animation: tabsdown-edge-fade linear both;
+		animation-timeline: scroll(self inline);
+	}
+
+	.tabsdown__tablist:dir(rtl) {
+		--tabsdown-edge-fade-direction: to left;
+	}
+
+	.tabsdown--left > .tabsdown__tablist,
+	.tabsdown--right > .tabsdown__tablist {
+		--tabsdown-edge-fade-direction: to bottom;
+		animation-timeline: scroll(self block);
+	}
+
+	@container (max-width: 28rem) {
+		.tabsdown--left > .tabsdown__tablist,
+		.tabsdown--right > .tabsdown__tablist {
+			--tabsdown-edge-fade-direction: to right;
+			animation-timeline: scroll(self inline);
+		}
+
+		.tabsdown--left > .tabsdown__tablist:dir(rtl),
+		.tabsdown--right > .tabsdown__tablist:dir(rtl) {
+			--tabsdown-edge-fade-direction: to left;
+		}
+	}
+}
